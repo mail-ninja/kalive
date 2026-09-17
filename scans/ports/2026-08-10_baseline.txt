@@ -1,0 +1,36 @@
+# Port baseline 2026-08-10T23:05 CEST
+# Source: ss -tulpn
+# Policy expectation: TCP LISTEN only on 127.0.0.1 (no 0.0.0.0 / *)
+
+## TCP LISTEN
+127.0.0.1:3080   cursor
+127.0.0.1:5174   cursor
+127.0.0.1:5433   cursor
+127.0.0.1:5434   cursor
+127.0.0.1:6380   cursor
+127.0.0.1:6381   cursor
+127.0.0.1:7475   cursor
+127.0.0.1:7476   cursor
+127.0.0.1:7688   cursor
+127.0.0.1:7689   cursor
+127.0.0.1:7878   svl (semanticvoid-launcher)
+127.0.0.1:8002   cursor
+127.0.0.1:8003   cursor
+127.0.0.1:8080   cursor
+127.0.0.1:8088   cursor
+127.0.0.1:8098   cursor
+127.0.0.1:9201   cursor
+127.0.0.1:9222   cursor
+127.0.0.1:27018  cursor
+127.0.0.1:34499  (unknown process — loopback)
+
+## UDP
+*:45730          x-www-browser (ephemeral, may change)
+*:48563          x-www-browser (ephemeral, may change)
+[fe80::...]%wlan0:546   DHCPv6 client
+
+## NOT listening (confirmed inactive)
+ssh/sshd
+cups (:631)
+avahi/mdns
+postgresql system (:5432) — cursor uses 5433/5434 on loopback only

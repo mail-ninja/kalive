@@ -1,0 +1,28 @@
+# Data / evidens (lokalt, ikke git)
+logs/
+*.log
+
+# Secrets — aldri commit
+.env
+.env.*
+config/env
+*.token
+**/api.token
+config.toml
+!config/kalived.toml.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# OS
+.DS_Store
+*~
+
+# AIDE checksum is OK in baselines/; DB is under /var/lib/aide (utenfor repo)
+
+# Bundled Android binaries (large)
+tools/adb
+tools/fastboot

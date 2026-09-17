@@ -1,0 +1,2 @@
+=== deleted/memfd exe ===
+pid=5678 exe=/tmp/.x (deleted) cmd=/tmp/.x

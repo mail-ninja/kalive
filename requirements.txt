@@ -1,0 +1,3 @@
+# Runtime is Python 3.11+ stdlib (tomllib, http.server).
+# Advisor (SpaceXAI / OpenAI-compatible) — optional:
+openai>=1.0.0

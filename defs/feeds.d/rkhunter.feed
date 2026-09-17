@@ -1,0 +1,7 @@
+# type=rkhunter-mirrors
+# enabled=1
+# command=rkhunter --update
+id=rkhunter
+type=rkhunter
+enabled=1
+desc=Official rkhunter file/hash updates

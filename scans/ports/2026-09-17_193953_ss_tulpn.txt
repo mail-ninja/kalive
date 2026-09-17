@@ -1,0 +1,10 @@
+Netid State  Recv-Q Send-Q                    Local Address:Port  Peer Address:PortProcess
+udp   UNCONN 0      0                           224.0.0.251:5353       0.0.0.0:*    users:(("chromium",pid=5195,fd=259))
+udp   UNCONN 0      0                           224.0.0.251:5353       0.0.0.0:*    users:(("chromium",pid=5195,fd=258))
+udp   UNCONN 0      0                           224.0.0.251:5353       0.0.0.0:*    users:(("chromium",pid=5268,fd=44))
+udp   UNCONN 0      0                           224.0.0.251:5353       0.0.0.0:*    users:(("chromium",pid=5268,fd=32))
+udp   UNCONN 0      0                               0.0.0.0:56324      0.0.0.0:*   
+udp   UNCONN 0      0                                  [::]:56324         [::]:*   
+udp   UNCONN 0      0      [fe80::cafa:7ffe:a0d0:e75f]%eth0:546           [::]:*    users:(("NetworkManager",pid=1079,fd=24))
+tcp   LISTEN 0      5                             127.0.0.1:8787       0.0.0.0:*    users:(("python3",pid=1034490,fd=3))
+tcp   LISTEN 0      4096                          127.0.0.1:45959      0.0.0.0:*    users:(("containerd",pid=1172,fd=8))

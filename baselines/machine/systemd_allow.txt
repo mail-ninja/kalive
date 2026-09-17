@@ -1,0 +1,30 @@
+# Unit basenames allowed outside /lib and /usr/lib (user session + known local)
+pipewire.service
+pipewire-pulse.service
+wireplumber.service
+filter-chain.service
+xdg-desktop-portal.service
+xdg-desktop-portal-gtk.service
+xdg-document-portal.service
+xdg-permission-store.service
+xdg-desktop-portal-rewrite-launchers.service
+xdg-user-dirs.service
+gvfs-daemon.service
+gvfs-udisks2-volume-monitor.service
+gvfs-mtp-volume-monitor.service
+gvfs-gphoto2-volume-monitor.service
+gvfs-afc-volume-monitor.service
+gvfs-goa-volume-monitor.service
+gvfs-metadata.service
+gnome-keyring-daemon.service
+gpg-agent.service
+dconf.service
+at-spi-dbus-bus.service
+dbus.service
+xfce4-notifyd.service
+semanticvoid-pty.service
+gcr-ssh-agent.service
+mpris-proxy.service
+obex.service
+user-session-migration.service
+# spice-vdagent on bare metal is hygiene WARN in check, not allow-as-silent

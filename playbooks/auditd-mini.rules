@@ -1,0 +1,23 @@
+# kalived mini audit rules — identity + persistence. Not USB/root-execve.
+# Installed to /etc/audit/rules.d/99-kalived.rules
+
+-w /etc/passwd -p wa -k kalived_id
+-w /etc/shadow -p wa -k kalived_id
+-w /etc/sudoers -p wa -k kalived_id
+-w /etc/sudoers.d -p wa -k kalived_id
+-w /etc/ssh -p wa -k kalived_ssh
+-w /etc/ld.so.preload -p wa -k kalived_preload
+-w /etc/systemd -p wa -k kalived_persist
+-w /etc/cron.d -p wa -k kalived_persist
+-w /etc/crontab -p wa -k kalived_persist
+-w /var/spool/cron -p wa -k kalived_persist
+-w /etc/udev/rules.d -p wa -k kalived_udev
+-w /sbin/insmod -p x -k kalived_mod
+-w /sbin/modprobe -p x -k kalived_mod
+-w /sbin/rmmod -p x -k kalived_mod
+-a always,exit -F arch=b64 -S ptrace -k kalived_ptrace
+
+# USB / root-execve: commented (desktop noise). Uncomment after 48h if quiet.
+# -a always,exit -F arch=b64 -S execve -F euid=0 -k kalived_rootexec
+# -a always,exit -F arch=b32 -S execve -F euid=0 -k kalived_rootexec
+# -w /dev/bus/usb -p rw -k kalived_usb

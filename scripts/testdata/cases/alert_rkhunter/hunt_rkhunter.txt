@@ -1,0 +1,3 @@
+Warning: Possible rootkit installed
+Checking for SuckIT rootkit                                 [ Found ]
+INFECTED: SuckIT rootkit possible

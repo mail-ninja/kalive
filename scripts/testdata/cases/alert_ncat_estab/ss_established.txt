@@ -1,0 +1,2 @@
+Recv-Q Send-Q Local Address:Port Peer Address:Port Process
+0      0      10.0.0.5:44444     203.0.113.9:443   users:(("ncat",pid=9999,fd=3))

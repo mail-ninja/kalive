@@ -1,0 +1,13 @@
+[Unit]
+Description=kalived host compromise scan (oneshot)
+Documentation=file:///home/void/kalived/README.md
+
+[Service]
+Type=oneshot
+# Code is root:root copy — never ExecStart=/home/void/kalived (user-writable = root).
+ExecStart=/usr/local/lib/kalived/scripts/kalived-scan.sh --quiet
+Environment=NO_COLOR=1
+Environment=KALIVED_DATA=/home/void/kalived
+Environment=KALIVED_OWNER=void
+SuccessExitStatus=1 2
+# 1=WARN 2=ALERT are successful unit runs; notify-send still fires on ALERT.

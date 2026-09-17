@@ -1,0 +1,14 @@
+# comm allowed for non-localhost ESTAB (not a mask for shells)
+grok
+chromium
+chrome
+chrome_crashpad_handler
+firefox
+x-www-browser
+cursor
+NetworkManager
+systemd-timesyncd
+systemd-resolved
+wpa_supplicant
+nm-applier
+# protonvpn-app is python3 — allow via cmdline match in check, not comm

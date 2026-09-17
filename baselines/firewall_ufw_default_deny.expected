@@ -1,0 +1,13 @@
+# Expected UFW posture (verified 2026-08-10_2321)
+ufw_status: active
+default_incoming: deny
+default_outgoing: allow
+default_routed: deny
+logging: low
+user_input_rules: empty
+input_policy_live: drop
+forward_policy_live: drop
+output_policy_live: accept
+ipv6: enabled_with_same_defaults
+docker_chains: present
+explicit_allow_ports: none

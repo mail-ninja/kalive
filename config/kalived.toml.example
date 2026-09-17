@@ -1,0 +1,37 @@
+# kalived runtime config — copy to ~/.config/kalived/config.toml
+#   sudo bash playbooks/install-config.sh
+# GUI/API skal lese og skrive SAMME fil. Ukjente nøkler ignoreres (fremoverkompatibelt).
+# Ugyldig enum → scan ERROR (exit 3).
+
+# AIDE re-init: clean_only | allow_known_warn | always_prompt
+aide_init_policy = "allow_known_warn"
+
+# Live scan: prompt (sudo TTY) | helper (/usr/local/lib/kalived) | never (kun fixture)
+# Live uten root er fortsatt ERROR — dette styrer *hvordan* vi eskalerer, ikke om root kreves.
+scan_sudo_mode = "prompt"
+
+# Stopp docker.socket når 0 containere (F-005 mitigering)
+docker_stop_idle = true
+
+# Dokumentasjon / GUI; faktisk timer er systemd kalived-scan.timer
+timer_enabled = true
+
+# SpaceXAI-rådgiver. Nøkkelen ligger IKKE her — se ~/.config/kalived/env
+# (XAI_API_KEY). Aldri auto-sudo.
+ai_enabled = false
+ai_model = "grok-4.6"
+
+# Planlagt API — MÅ være loopback. 0.0.0.0 avvises.
+listen_bind = "127.0.0.1"
+listen_port = 8787
+
+# AppArmor enforce-kampanje (F-019) — av i denne rebuild
+apparmor_enforce_selected = false
+
+# Scan-oppførsel (CLI-flagg overstyrer)
+verbose = false
+notify_on_alert = true
+skip_hunt = false
+skip_rootkit = false
+# Kjør rkhunter --update før live scan (tregt, trenger nett). Ellers: POST /v1/defs/update
+defs_auto_update = false

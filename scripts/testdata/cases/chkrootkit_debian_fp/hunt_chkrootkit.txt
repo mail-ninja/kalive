@@ -1,0 +1,7 @@
+WARNING: The following suspicious files and directories were found:
+/usr/lib/llvm-19/build/utils/lit/tests/.coveragerc [From Debian package: llvm-19-tools]
+/usr/lib/firmware/ath11k/QCN9074/hw1.0/.notice [From Debian package: firmware-atheros]
+
+WARNING: Output from ifpromisc:
+eth0: PACKET SNIFFER(/usr/sbin/NetworkManager[1079])
+wlan0: PACKET SNIFFER(/usr/sbin/wpa_supplicant[1236])

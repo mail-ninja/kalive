@@ -1,0 +1,5 @@
+=== docker ps -a ===
+CONTAINER ID   IMAGE     COMMAND   CREATED   STATUS    PORTS     NAMES
+=== inspect (ports/privileged/mounts/restart) ===
+/evil privileged=false restart=always ports={"8080/tcp":[{"HostIp":"0.0.0.0","HostPort":"8080"}]} sock=
+daemon=active

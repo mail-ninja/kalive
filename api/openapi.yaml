@@ -1,0 +1,107 @@
+openapi: 3.0.3
+info:
+  title: kalived local API
+  version: "1"
+  description: Loopback only. Bearer token. Mutating routes require root process.
+servers:
+  - url: http://127.0.0.1:8787
+paths:
+  /v1/health:
+    get:
+      summary: Liveness (no auth)
+      responses:
+        "200": { description: ok }
+  /v1/config:
+    get:
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: current config.toml }
+    put:
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        "200": { description: written }
+  /v1/verdict/latest:
+    get:
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: latest verdict.json }
+  /v1/snapshots:
+    get:
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: list }
+  /v1/snapshots/{stamp}:
+    get:
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: stamp
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: snapshot }
+  /v1/findings:
+    get:
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: latest findings }
+  /v1/defs/feeds:
+    get:
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: feed files }
+  /v1/defs/update:
+    post:
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: rkhunter --update }
+        "403": { description: not root }
+  /v1/scan:
+    post:
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                skip_hunt: { type: boolean }
+      responses:
+        "200": { description: scan result }
+        "403": { description: not root }
+  /v1/playbooks:
+    get:
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: allowlist }
+  /v1/playbooks/{name}:
+    post:
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [confirm]
+              properties:
+                confirm: { type: boolean }
+                args:
+                  type: array
+                  items: { type: string }
+      responses:
+        "200": { description: ran }
+        "400": { description: confirm missing }
+  /v1/ai/advise:
+    post:
+      security: [{ bearerAuth: [] }]
+      responses:
+        "501": { description: not implemented }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer

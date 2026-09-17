@@ -1,0 +1,4 @@
+=== ld.so.preload ===
+PRESENT
+/tmp/.hidden/libevil.so
+=== LD_PRELOAD ===

@@ -1,0 +1,7 @@
+# Frozen after sudo-scan CLEAN 2026-09-17_151255
+# G3 user-rules empty again (F-020 closed). Do not freeze from 145806 (had ALLOW 8000).
+stamp=2026-09-17_160215
+path=logs/status/2026-09-17_160215
+kalived_scan=1
+sudo=1
+notes=TCP listen loopback-only; SSH inactive; UFW deny in empty user rules; nft user-input empty; event0 logind+Xorg

@@ -1,0 +1,15 @@
+/usr/bin/sudo
+/usr/bin/pkexec
+/usr/bin/gpasswd
+/usr/bin/chsh
+/usr/bin/su
+/usr/bin/mount
+/usr/bin/chfn
+/usr/bin/ntfs-3g
+/usr/bin/vmware-user-suid-wrapper
+/usr/bin/newgrp
+/usr/bin/fusermount3
+/usr/bin/umount
+/usr/bin/passwd
+/usr/sbin/pppd
+/usr/sbin/mount.nfs

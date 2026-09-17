@@ -1,0 +1,4 @@
+# Substrings of allowed LD_PRELOAD (not a blanket python allow)
+libmozsandbox
+/snap/proton-vpn/
+bindtextdomain.so

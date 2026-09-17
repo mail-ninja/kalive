@@ -1,0 +1,31 @@
+# Substrings of rkhunter "Warning:" lines that are expected on Kali desktop.
+# Not a license to ignore unknown binaries.
+The following processes are using deleted files
+Hidden file found: /dev/.udev
+Hidden file found: /etc/.pwd.lock
+Hidden directory found: /etc/.java
+Application 'tcpdump'
+Application 'dumpcap'
+Application 'wireshark'
+Application 'nmap'
+Application 'tshark'
+PACKET_CAP_APP
+Checking for hidden processes                              [ Skipped ]
+Process '/usr/lib/chromium
+Process '/opt/brave.com
+ProtonVPN
+proton-vpn
+snap.proton-vpn
+# SSH is masked; rkhunter may still parse sshd_config
+The SSH configuration option 'PermitRootLogin'
+Checking for passwd file changes
+Checking for group file changes
+suspicious (large) shared memory
+The SSH configuration option 'Protocol' has not been set
+Suspicious file types found in /dev
+/dev/shm/sem.haveged_sem
+Hidden file found: /etc/.updated
+Process: /usr/bin/thunar
+Process: /usr/bin/xfdesktop
+Process: /usr/bin/gnome-screenshot
+Process: /usr/bin/python3

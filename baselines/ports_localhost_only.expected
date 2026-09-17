@@ -1,0 +1,34 @@
+# Expected listening posture for this workstation
+# Used to ground future port scans.
+
+tcp_listen_allowed_bind: 127.0.0.1
+tcp_listen_forbidden_bind:
+  - 0.0.0.0
+  - "*"
+  - "::"
+  - external interface IPs
+
+tcp_services_known:
+  - cursor (many high ports on 127.0.0.1)
+  - svl host-pty 127.0.0.1:7878
+
+must_not_listen_unless_documented:
+  - 22/tcp    # ssh
+  - 23/tcp
+  - 80/tcp
+  - 443/tcp
+  - 445/tcp
+  - 3389/tcp
+  - 5900/tcp
+  - 631/tcp   # cups
+  - 5353/udp  # mdns
+  - 5432/tcp  # postgres on all interfaces
+
+udp_wildcard_ok_processes:
+  - x-www-browser   # WebRTC ephemeral
+  - chrome
+  - chromium
+  - firefox
+
+ssh_server: disabled
+ufw: enabled

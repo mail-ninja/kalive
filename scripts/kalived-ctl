@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# Root-owned dispatcher. ONLY these subcommands. No extra args, no SETENV.
+# Installed to /usr/local/sbin/kalived-ctl (root:root 755).
+set -euo pipefail
+PREFIX=/usr/local/lib/kalived
+OWNER="${SUDO_USER:-void}"
+HOME_DIR="$(getent passwd "$OWNER" | cut -d: -f6)"
+DATA="${HOME_DIR}/kalived"
+export KALIVED_ROOT="$PREFIX"
+export KALIVED_DATA="$DATA"
+export KALIVED_OWNER="$OWNER"
+export KALIVED_OWNER_HOME="$HOME_DIR"
+export KALIVED_CONFIG="${HOME_DIR}/.config/kalived/config.toml"
+export NO_COLOR=1
+# Do not pass caller environment into scripts.
+
+if [[ "$(id -u)" -ne 0 ]]; then
+  echo "bruk: sudo kalived-ctl {scan|api|defs|token-fix}" >&2
+  echo "(Kali sudo PATH mangler /usr/local/sbin — binær ligger i /usr/sbin/kalived-ctl)" >&2
+  exit 1
+fi
+
+cmd="${1:-}"
+if [[ -n "${2:-}" ]]; then
+  echo "kalived-ctl: no extra arguments" >&2
+  exit 2
+fi
+
+case "$cmd" in
+  scan)
+    exec "$PREFIX/scripts/kalived-scan.sh" --quiet
+    ;;
+  api)
+    exec python3 "$PREFIX/api/server.py"
+    ;;
+  defs)
+    exec "$PREFIX/scripts/update-threat-defs.sh"
+    ;;
+  token-fix)
+    f="${HOME_DIR}/.config/kalived/api.token"
+    if [[ -f "$f" ]]; then
+      chown "${OWNER}:${OWNER}" "$f"
+      chmod 600 "$f"
+      echo "token owner → $OWNER ($f)"
+    else
+      echo "no token yet; start: sudo kalived-ctl api" >&2
+      exit 1
+    fi
+    ;;
+  *)
+    echo "usage: kalived-ctl {scan|api|defs|token-fix}" >&2
+    exit 2
+    ;;
+esac

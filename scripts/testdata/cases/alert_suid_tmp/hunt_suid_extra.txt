@@ -1,0 +1,2 @@
+=== extra SUID outside collect paths ===
+/tmp/.backdoor

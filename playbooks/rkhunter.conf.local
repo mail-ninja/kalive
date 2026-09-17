@@ -1,0 +1,23 @@
+# kalived overlay — sourced via UPDATE_MIRRORS etc. Install as /etc/rkhunter.conf.local
+# Kali: pentest tools are not "malware installed".
+
+UPDATE_MIRRORS=1
+MIRRORS_MODE=0
+PKGMGR=DPKG
+DISABLE_TESTS=suspscan hidden_procs ipc_shared_mem
+ALLOWDEVFILE=/dev/shm/sem.haveged_sem
+ALLOWHIDDENFILE=/etc/.updated
+ALLOW_SSH_ROOT_USER=unset
+ALLOW_SSH_PROT_V1=0
+SCRIPTWHITELIST=/usr/bin/egrep
+SCRIPTWHITELIST=/usr/bin/fgrep
+SCRIPTWHITELIST=/usr/bin/which
+ALLOWHIDDENDIR=/dev/.udev
+ALLOWHIDDENDIR=/etc/.java
+ALLOWHIDDENFILE=/etc/.pwd.lock
+# Packet capture tools are first-class on Kali
+APP_WHITELIST="tcpdump dumpcap wireshark tshark nmap"
+WEB_CMD=""
+# Do not email (no MTA)
+MAIL-ON-WARNING=""
+COPY_LOG_ON_ERROR=0

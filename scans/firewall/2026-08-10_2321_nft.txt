@@ -1,0 +1,6 @@
+# Full nft ruleset was reviewed interactively 2026-08-10 ~23:21–23:25.
+# Structured summary (authoritative for this repo):
+#   scans/firewall/2026-08-10_2321_nft_summary.md
+#
+# Re-dump raw with:
+#   sudo nft list ruleset | tee scans/firewall/$(date +%Y-%m-%d_%H%M)_nft.txt

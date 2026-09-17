@@ -1,0 +1,8 @@
+# Rename to urlhaus.feed and set enabled=1 when we wire HTTP IOC ingest.
+# Better "latest threats" source than news sites.
+id=urlhaus
+type=url-ioc
+enabled=0
+url=https://urlhaus.abuse.ch/downloads/text_online/
+format=urls
+desc=abuse.ch URLhaus recent malicious URLs

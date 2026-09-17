@@ -1,0 +1,6 @@
+# News only — never auto-ALERT. Optional later: threat-brief.md
+id=theregister
+type=news
+enabled=0
+url=https://www.theregister.com/security/headlines.atom
+desc=The Register security headlines (context, not signatures)

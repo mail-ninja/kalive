@@ -1,0 +1,15 @@
+# chkrootkit — konkrete FP, ikke overskrifter alene
+not infected
+nothing found
+nothing detected
+[From Debian package:
+PACKET SNIFFER(/usr/sbin/NetworkManager
+PACKET SNIFFER(/usr/sbin/wpa_supplicant
+PACKET SNIFFER(/usr/sbin/tcpdump
+llvm-19-tools
+llvm-18-tools
+firmware-atheros
+ruby-rubygems
+.coveragerc
+.notice
+.document
