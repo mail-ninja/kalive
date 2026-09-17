@@ -1,0 +1,2 @@
+Nmap localhost fixture
+target=127.0.0.1 port_spec=-

@@ -1,0 +1,3 @@
+# Nmap 7.94 fixture
+Host: 127.0.0.1 ()	Ports: 4444/open/tcp//unknown///, 7878/open/tcp//unknown///	Ignored State: closed (65533)
+# Nmap done

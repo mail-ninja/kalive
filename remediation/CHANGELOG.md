@@ -300,3 +300,21 @@ Format: dato — hva — hvorfor — referanse (finding/rapport).
 
 ### 2026-09-17_2008 — aide-init.sh
 - AIDE kalived.db.gz init (identity/persistens). Gate: ALERT. Checksum i baselines/aide.sha256
+
+### 2026-09-17_2219 — install-kalived-helper.sh
+- scan-kopi til /usr/local/lib/kalived root:root (timer ExecStart). Ingen NOPASSWD mot home.
+
+### 2026-09-17_2229 — install-kalived-helper.sh
+- scan-kopi til /usr/local/lib/kalived root:root (timer ExecStart). Ingen NOPASSWD mot home.
+
+### 2026-09-17_2247 — install-kalived-helper.sh
+- scan-kopi til /usr/local/lib/kalived root:root (timer ExecStart). Ingen NOPASSWD mot home.
+
+### 2026-09-17_2247 — aide-init.sh
+- AIDE kalived.db.gz init (identity/persistens). Gate: CLEAN. Checksum i baselines/aide.sha256
+
+### 2026-09-17_2303 — install-kalived-helper.sh
+- scan-kopi til /usr/local/lib/kalived root:root (timer ExecStart). Ingen NOPASSWD mot home.
+
+### 2026-09-17_2303 — aide-init.sh
+- AIDE kalived.db.gz init (identity/persistens). Gate: WARN. Checksum i baselines/aide.sha256

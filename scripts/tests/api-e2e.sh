@@ -35,10 +35,11 @@ else
   echo "[isolated] $BASE"
   _e2elog="$(mktemp)"
   _e2eerr="$(mktemp)"
-  KALIVED_CONFIG="$cfg" KALIVED_API_TOKEN="$tokf" KALIVED_DATA="$ROOT" KALIVED_ROOT="$ROOT" \
+  _e2edata="$(mktemp -d)"
+  KALIVED_CONFIG="$cfg" KALIVED_API_TOKEN="$tokf" KALIVED_DATA="$_e2edata" KALIVED_ROOT="$ROOT" \
     python3 "$ROOT/api/server.py" >"$_e2elog" 2>"$_e2eerr" &
   APIPID=$!
-  cleanup() { kill "$APIPID" 2>/dev/null || true; wait "$APIPID" 2>/dev/null || true; rm -f "$cfg" "$tokf" "$_e2elog" "$_e2eerr"; }
+  cleanup() { kill "$APIPID" 2>/dev/null || true; wait "$APIPID" 2>/dev/null || true; rm -f "$cfg" "$tokf" "$_e2elog" "$_e2eerr"; rm -rf "${_e2edata:-}"; }
   trap cleanup EXIT
   for _ in 1 2 3 4 5 6 7 8 9 10; do
     curl -sf -o /dev/null "$BASE/v1/health" && break
@@ -96,7 +97,7 @@ fi
 c=$(curl -sS -o "$TMP/ai.json" -w '%{http_code}' "${AUTH[@]}" \
   -H 'Content-Type: application/json' -d '{}' \
   -X POST "$BASE/v1/ai/advise")
-[[ "$c" == "501" ]] && ok "ai/advise stub $c" || bad "ai $c"
+[[ "$c" == "200" || "$c" == "404" || "$c" == "502" ]] && ok "ai/advise $c" || bad "ai $c $(head -c 200 "$TMP/ai.json")"
 c=$(curl -sS -o "$TMP/put.json" -w '%{http_code}' "${AUTH[@]}" \
   -H 'Content-Type: application/json' -d '{"listen_bind":"0.0.0.0"}' \
   -X PUT "$BASE/v1/config")

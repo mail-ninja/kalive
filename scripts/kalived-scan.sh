@@ -37,6 +37,10 @@ source "$ROOT/scripts/lib/check-docker.sh"
 source "$ROOT/scripts/lib/check-kernel.sh"
 # shellcheck source=lib/check-rootkit.sh
 source "$ROOT/scripts/lib/check-rootkit.sh"
+# shellcheck source=lib/check-nmap.sh
+source "$ROOT/scripts/lib/check-nmap.sh"
+# shellcheck source=lib/check-helper-stale.sh
+source "$ROOT/scripts/lib/check-helper-stale.sh"
 
 usage() {
   cat << 'EOF'
@@ -60,7 +64,7 @@ FIXTURE_DIR=""
 SKIP_HUNT=0
 QUIET=0
 WANT_SUDO=1
-SCAN_VERSION=6
+SCAN_VERSION=7
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -213,10 +217,21 @@ if kalived_is_live; then
     if [[ "${CFG_DEFS_AUTO_UPDATE:-0}" == "1" ]]; then
       "$ROOT/scripts/update-threat-defs.sh" || add_finding WARN SCAN "defs-update feilet" "se logs/defs"
     fi
+    _nmap_pid=""
+    _rk_pid=""
+    if [[ "${CFG_NMAP_LOCALHOST:-1}" == "1" ]]; then
+      "$ROOT/scripts/hunt-nmap.sh" &
+      _nmap_pid=$!
+    fi
     if [[ "${CFG_SKIP_ROOTKIT:-0}" != "1" ]]; then
-      if ! "$ROOT/scripts/hunt-rootkit.sh"; then
-        add_finding ERROR SCAN "hunt-rootkit.sh feilet" "se scan.log"
-      fi
+      "$ROOT/scripts/hunt-rootkit.sh" &
+      _rk_pid=$!
+    fi
+    if [[ -n "$_nmap_pid" ]]; then
+      wait "$_nmap_pid" || add_finding ERROR SCAN "hunt-nmap.sh feilet" "se scan.log"
+    fi
+    if [[ -n "$_rk_pid" ]]; then
+      wait "$_rk_pid" || add_finding ERROR SCAN "hunt-rootkit.sh feilet" "se scan.log"
     fi
   fi
 fi
@@ -265,6 +280,8 @@ run_mod kernel check_kernel
 run_mod debsums check_debsums
 run_mod dpkgage check_dpkg_age
 run_mod rootkit check_rootkit
+run_mod nmap check_nmap
+run_mod helperstale check_helper_stale
 
 # PR 2 dummy: SUDO-MISS-INPUT only on live sudo=0 (should not happen — we ERROR earlier).
 if kalived_is_live && [[ "${KALIVED_SUDO_FLAG}" == "0" ]]; then
@@ -290,6 +307,20 @@ fi
 
 if [[ "$QUIET" == "1" ]]; then
   cat "$OUT/verdict.json"
+fi
+
+# Advisor: interactive (tty) live scans only — ikke ukentlig timer.
+if kalived_is_live && [[ "${CFG_AI_ENABLED:-0}" == "1" ]] && [[ "${CFG_AI_AFTER_SCAN:-1}" == "1" ]] && [[ "${KALIVED_FIXTURE:-0}" != "1" ]]; then
+  if [[ -t 0 || -t 2 ]]; then
+    echo "" >&2
+    echo "----- kalived advisor -----" >&2
+    if "$ROOT/scripts/kalived-advise.sh" --snapshot "$OUT" >&2; then
+      :
+    else
+      echo "(advisor hoppet over — sjekk XAI_API_KEY i ~/.config/kalived/env)" >&2
+    fi
+    echo "---------------------------" >&2
+  fi
 fi
 
 exit "$EXIT_CODE"

@@ -46,6 +46,11 @@ if ! command -v aide >/dev/null 2>&1; then
 fi
 
 install -m 644 "$ROOT/playbooks/aide-99-kalived.conf" /etc/aide/kalived.conf
+if [[ "${CFG_AIDE_WATCH_HELPER:-1}" != "1" ]]; then
+  grep -vE '/usr/local/lib/kalived|/usr/sbin/kalived-ctl' /etc/aide/kalived.conf > /etc/aide/kalived.conf.tmp
+  mv /etc/aide/kalived.conf.tmp /etc/aide/kalived.conf
+  echo "aide_watch_helper=0 — helper-stier utelatt"
+fi
 mkdir -p /var/lib/aide
 # Debian aide-common enables a daily full-tree check. We use a focused DB only.
 systemctl disable --now dailyaidecheck.timer dailyaidecheck.service 2>/dev/null || true

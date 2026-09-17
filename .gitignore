@@ -1,6 +1,8 @@
 # Data / evidens (lokalt, ikke git)
 logs/
 *.log
+scans/
+reports/*_scan.md
 
 # Secrets — aldri commit
 .env

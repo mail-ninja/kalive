@@ -166,11 +166,16 @@ Override: `KALIVED_CONFIG=/sti/til.toml`.
 | `scan_sudo_mode` | `prompt` | `helper` / `never`; live krever fortsatt root |
 | `docker_stop_idle` | true | playbook default; `--no-stop` overstyrer |
 | `timer_enabled` | true | GUI-felt; systemd er sannhet |
-| `ai_enabled` | false | ikke implementert |
-| `ai_model` | `grok-4.6` | SpaceXAI senere |
+| `ai_enabled` | false | SpaceXAI advisor |
+| `ai_model` | `grok-4.6` | |
+| `ai_after_scan` | true | etter interaktiv scan (ikke timer) |
 | `listen_bind` | `127.0.0.1` | kun loopback; **ikke** `0.0.0.0` |
 | `listen_port` | 8787 | 1–65535 |
 | `apparmor_enforce_selected` | false | F-019 |
+| `nmap_localhost` | true | TCP-scan kun 127.0.0.1, parallelt med rkhunter |
+| `nmap_port_spec` | `"-"` | nmap `-p` (siffer/`,`/`-`). Ikke CIDR/host |
+| `helper_stale_check` | true | WARN helper ≠ git-tre |
+| `aide_watch_helper` | true | AIDE på `/usr/local/lib/kalived` + ctl |
 
 ---
 
@@ -193,7 +198,7 @@ OpenAPI: `api/openapi.yaml`. Bind fra config; **ikke** `0.0.0.0`.
 | POST | `/v1/playbooks/{name}` | Confirm + gate |
 | POST | `/v1/defs/update` | `update-threat-defs.sh` |
 | GET | `/v1/defs/feeds` | `defs/feeds.d/` |
-| POST | `/v1/ai/advise` | *planlagt* redacted verdict → SpaceXAI |
+| POST | `/v1/ai/advise` | SpaceXAI, redacted verdict.json. Body: `{stamp?, ask?}`. Ikke root. |
 
 Auth: token i `~/.config/kalived/api.token` modus 0600. AI får aldri sudo.
 

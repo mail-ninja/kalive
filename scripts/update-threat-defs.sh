@@ -45,7 +45,18 @@ run_feed() {
 }
 
 if command -v rkhunter >/dev/null 2>&1; then
-  install -m 644 "$ROOT/playbooks/rkhunter.conf.local" /etc/rkhunter.conf.local
+  _rkconf=""
+  for _c in "$ROOT/playbooks/rkhunter.conf.local" \
+            "$ROOT/config/rkhunter.conf.local" \
+            "${KALIVED_DATA:-}/playbooks/rkhunter.conf.local"; do
+    [[ -f "$_c" ]] && _rkconf="$_c" && break
+  done
+  if [[ -n "$_rkconf" ]]; then
+    install -m 644 "$_rkconf" /etc/rkhunter.conf.local
+    echo "rkhunter.conf.local ← $_rkconf"
+  else
+    echo "WARN: rkhunter.conf.local not in helper/playbooks — skip install, fortsetter --update"
+  fi
 fi
 
 shopt -s nullglob

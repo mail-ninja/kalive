@@ -13,17 +13,21 @@ source "$ROOT/playbooks/lib/kalived-gate.sh"
 PREFIX=/usr/local/lib/kalived
 mkdir -p "$PREFIX/scripts/lib" "$PREFIX/baselines"
 cp -a "$ROOT/scripts/"*.sh "$PREFIX/scripts/"
+cp -a "$ROOT/scripts/"*.py "$PREFIX/scripts/" 2>/dev/null || true
 cp -a "$ROOT/scripts/lib/"*.sh "$PREFIX/scripts/lib/"
+cp -a "$ROOT/prompts/." "$PREFIX/prompts/" 2>/dev/null || true
 cp -a "$ROOT/baselines/." "$PREFIX/baselines/"
 mkdir -p "$PREFIX/defs"
 cp -a "$ROOT/defs/." "$PREFIX/defs/"
-mkdir -p "$PREFIX/config" "$PREFIX/api"
+mkdir -p "$PREFIX/config" "$PREFIX/api" "$PREFIX/prompts" "$PREFIX/playbooks"
 cp -a "$ROOT/config/." "$PREFIX/config/"
 cp -a "$ROOT/api/." "$PREFIX/api/"
+cp -a "$ROOT/playbooks/rkhunter.conf.local" "$PREFIX/playbooks/" 2>/dev/null || true
+cp -a "$ROOT/playbooks/"*.conf "$PREFIX/playbooks/" 2>/dev/null || true
 chown -R root:root "$PREFIX"
 find "$PREFIX" -type d -exec chmod 755 {} \;
 find "$PREFIX" -type f -exec chmod 644 {} \;
-chmod 755 "$PREFIX/scripts/"*.sh
+chmod 755 "$PREFIX/scripts/"*.sh "$PREFIX/scripts/"*.py 2>/dev/null || true
 # No NOPASSWD on /home/void/kalived.
 echo "Helper: $PREFIX (root:root)"
 ls -ld "$PREFIX" "$PREFIX/scripts/kalived-scan.sh"

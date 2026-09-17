@@ -65,6 +65,22 @@ else
   echo "  OK"
 fi
 
+echo "[test] advisor dry-run redact"
+if python3 "$ROOT/scripts/kalived-advise.py" --dry-run --snapshot "$CASES/clean_full_root" >/tmp/kalived-advise-dry.$$ 2>/tmp/kalived-advise-dry-err.$$; then
+  echo "  (no verdict in fixture dir — ok if fails)"
+fi
+# use last real snapshot if present
+if [[ -f "$ROOT/logs/status/2026-09-17_201000/verdict.json" ]]; then
+  python3 "$ROOT/scripts/kalived-advise.py" --dry-run --snapshot "$ROOT/logs/status/2026-09-17_201000" >/tmp/kalived-advise-dry.$$ 2>/tmp/kalived-advise-dry-err.$$
+  if grep -q '"verdict": "CLEAN"' /tmp/kalived-advise-dry.$$ && ! grep -qi 'ss_established' /tmp/kalived-advise-dry.$$; then
+    echo "  OK redacted CLEAN, no raw ss"
+  else
+    echo "  FAIL redact"
+    fail=1
+  fi
+fi
+rm -f /tmp/kalived-advise-dry.$$ /tmp/kalived-advise-dry-err.$$
+
 echo "[test] ugyldig config enum → exit 3"
 badcfg="$(mktemp)"
 printf 'aide_init_policy = "bogus"\n' > "$badcfg"

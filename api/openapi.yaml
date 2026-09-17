@@ -98,8 +98,17 @@ paths:
   /v1/ai/advise:
     post:
       security: [{ bearerAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                stamp: { type: string }
+                ask: { type: string }
       responses:
-        "501": { description: not implemented }
+        "200": { description: advice text }
+        "502": { description: xAI/key error }
 components:
   securitySchemes:
     bearerAuth:

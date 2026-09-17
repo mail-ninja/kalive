@@ -20,6 +20,7 @@ timer_enabled = true
 # (XAI_API_KEY). Aldri auto-sudo.
 ai_enabled = false
 ai_model = "grok-4.6"
+ai_after_scan = true
 
 # Planlagt API — MÅ være loopback. 0.0.0.0 avvises.
 listen_bind = "127.0.0.1"
@@ -35,3 +36,13 @@ skip_hunt = false
 skip_rootkit = false
 # Kjør rkhunter --update før live scan (tregt, trenger nett). Ellers: POST /v1/defs/update
 defs_auto_update = false
+
+# Lokal TCP-portscan (127.0.0.1 only) parallelt med rkhunter. "-" = alle porter.
+nmap_localhost = true
+nmap_port_spec = "-"
+
+# WARN når /usr/local/lib/kalived er bak git-treet
+helper_stale_check = true
+
+# AIDE hasher helper + kalived-ctl (krever aide-init etter endring)
+aide_watch_helper = true

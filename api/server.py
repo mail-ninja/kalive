@@ -29,6 +29,7 @@ DEFAULTS = {
     "timer_enabled": True,
     "ai_enabled": False,
     "ai_model": "grok-4.6",
+    "ai_after_scan": True,
     "listen_bind": "127.0.0.1",
     "listen_port": 8787,
     "apparmor_enforce_selected": False,
@@ -37,6 +38,10 @@ DEFAULTS = {
     "skip_hunt": False,
     "skip_rootkit": False,
     "defs_auto_update": False,
+    "nmap_localhost": True,
+    "nmap_port_spec": "-",
+    "helper_stale_check": True,
+    "aide_watch_helper": True,
 }
 ENUMS = {
     "aide_init_policy": {"clean_only", "allow_known_warn", "always_prompt"},
@@ -326,7 +331,7 @@ class Handler(BaseHTTPRequestHandler):
             name = path.split("/")[-1]
             return self._post_playbook(name)
         if path == "/v1/ai/advise":
-            return self._send(501, {"error": "AI advise not implemented", "ai_enabled": load_config().get("ai_enabled")})
+            return self._post_ai()
         return self._send(404, {"error": "not found"})
 
     def _need_root(self) -> bool:
@@ -368,6 +373,35 @@ class Handler(BaseHTTPRequestHandler):
                 "stderr_tail": (p.stderr or "")[-4000:],
             },
         )
+
+    def _post_ai(self):
+        cfg = load_config()
+        body = self._body()
+        snap = None
+        if body.get("stamp"):
+            cand = DATA / "logs" / "status" / str(body["stamp"])
+            if (cand / "verdict.json").is_file():
+                snap = cand
+        if snap is None:
+            snap = latest_snapshot()
+        if snap is None:
+            return self._send(404, {"error": "no verdict to advise on"})
+        cmd = [sys.executable, str(ROOT / "scripts" / "kalived-advise.py"), "--snapshot", str(snap)]
+        if body.get("ask"):
+            cmd += ["--ask", str(body["ask"])]
+        env = os.environ.copy()
+        env["KALIVED_ROOT"] = str(ROOT)
+        env["KALIVED_DATA"] = str(DATA)
+        env["KALIVED_OWNER"] = OWNER
+        env["KALIVED_OWNER_HOME"] = str(HOME)
+        env["CFG_AI_MODEL"] = str(cfg.get("ai_model") or "grok-4.6")
+        try:
+            p = subprocess.run(cmd, cwd=str(ROOT), env=env, capture_output=True, text=True, timeout=120)
+        except subprocess.TimeoutExpired:
+            return self._send(504, {"error": "advisor timeout"})
+        if p.returncode != 0:
+            return self._send(502, {"error": (p.stderr or p.stdout or "advise failed")[-1500:], "exit_code": p.returncode})
+        return self._send(200, {"advice": p.stdout, "snapshot": str(snap), "model": cfg.get("ai_model")})
 
     def _post_defs(self):
         if not self._need_root():
