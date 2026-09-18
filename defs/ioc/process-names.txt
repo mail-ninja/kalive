@@ -1,0 +1,42 @@
+# Local IOC process-name fragments (git-owned → ALERT). Update: sudo kalived-ctl defs
+# One substring per line. Comments start with #
+# Linux C2 / RAT / fileless
+sliver
+mythic
+havoc
+ligolo
+chisel
+gsocket
+pwncat
+hoaxshell
+vshell
+meterpreter
+# miners / botnets seen on Linux
+xmrig
+kinsing
+kdevtmpfsi
+pnscan
+tsunami
+dbused
+redtail
+rotajakiro
+# Windows names: only ALERT if they actually appear in ps (rare on Kali)
+beacon.exe
+cobaltstrike
+csrss_mem
+mimikatz
+lazagne
+pypykatz
+# tunnels / RATs operators actually run
+ngrok
+ncat
+# nc as whole-word is too noisy on Kali (netcat package)
+socat
+rustdesk
+anydesk
+teamviewer
+todesk
+logkeys
+pynput
+pyxhook
+

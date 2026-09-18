@@ -1,0 +1,8 @@
+# Opt-in remote IOC. Cache only — checkers treat as WARN, never eval, never ALERT alone.
+# Enable: set enabled=1 then sudo kalived-ctl defs
+id=urlhaus
+type=url-ioc
+enabled=0
+url=https://urlhaus.abuse.ch/downloads/text_online/
+format=urls
+desc=abuse.ch URLhaus recent malicious URLs (hostnames → cache)

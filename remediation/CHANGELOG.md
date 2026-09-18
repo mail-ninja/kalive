@@ -318,3 +318,102 @@ Format: dato — hva — hvorfor — referanse (finding/rapport).
 
 ### 2026-09-17_2303 — aide-init.sh
 - AIDE kalived.db.gz init (identity/persistens). Gate: WARN. Checksum i baselines/aide.sha256
+
+### 2026-09-17_2358 — install-kalived-helper.sh
+- scan-kopi til /usr/local/lib/kalived root:root (timer ExecStart). Ingen NOPASSWD mot home.
+
+### 2026-09-18_0007 — aide-init.sh
+- AIDE kalived.db.gz init (identity/persistens). Gate: WARN. Checksum i baselines/aide.sha256
+
+### 2026-09-18_0120 — install-kalived-helper.sh
+- scan-kopi til /usr/local/lib/kalived root:root (timer ExecStart). Ingen NOPASSWD mot home.
+
+### 2026-09-18_0120 — aide-init.sh
+- AIDE kalived.db.gz init (identity/persistens). Gate: CLEAN. Checksum i baselines/aide.sha256
+
+### 2026-09-18_0155 — install-kalived-helper.sh
+- scan-kopi til /usr/local/lib/kalived root:root (timer ExecStart). Ingen NOPASSWD mot home.
+
+### 2026-09-18_0155 — aide-init.sh
+- AIDE kalived.db.gz init (identity/persistens). Gate: WARN. Checksum i baselines/aide.sha256
+
+### 2026-09-18_0240 — install-kalived-helper.sh
+- scan-kopi til /usr/local/lib/kalived root:root (timer ExecStart). Ingen NOPASSWD mot home.
+
+### 2026-09-18_0240 — aide-init.sh
+- AIDE kalived.db.gz init (identity/persistens). Gate: CLEAN force=1 force_alert=0. Checksum i baselines/aide.sha256
+
+### 2026-09-18_0417 — install-kalived-helper.sh
+- scan-kopi til /usr/local/lib/kalived root:root (timer ExecStart). Ingen NOPASSWD mot home.
+
+### 2026-09-18_0417 — aide-init.sh
+- AIDE kalived.db.gz init (identity/persistens). Gate: CLEAN force=1 force_alert=0. Checksum i baselines/aide.sha256
+
+### 2026-09-18_0435 — install-kalived-helper.sh
+- scan-kopi til /usr/local/lib/kalived root:root (timer ExecStart). Ingen NOPASSWD mot home.
+
+### 2026-09-18_0435 — aide-init.sh
+- AIDE kalived.db.gz init (identity/persistens). Gate: CLEAN force=1 force_alert=0. Checksum i baselines/aide.sha256
+
+### 2026-09-18_0502 — install-kalived-helper.sh
+- scan-kopi til /usr/local/lib/kalived root:root (timer ExecStart). Ingen NOPASSWD mot home.
+
+### 2026-09-18_0512 — install-kalived-helper.sh
+- scan-kopi til /usr/local/lib/kalived root:root (timer ExecStart). Ingen NOPASSWD mot home.
+
+### 2026-09-18_0512 — aide-init.sh
+- AIDE kalived.db.gz init (identity/persistens). Gate: CLEAN force=1 force_alert=0. Checksum i baselines/aide.sha256
+
+### 2026-09-18_0545 — install-kalived-helper.sh
+- scan-kopi til /usr/local/lib/kalived root:root (timer ExecStart). Ingen NOPASSWD mot home.
+
+### 2026-09-18_0551 — auditd-mini.sh
+- auditd + /etc/audit/rules.d/99-kalived.rules (USB/execve kommentert). Gate: ikke ALERT.
+
+### 2026-09-18_0601 — rkhunter-setup.sh
+- rkhunter+chkrootkit+debsums. --propupd. lsmod.expected freeze. Defs: defs/ + update-threat-defs.sh
+
+### 2026-09-18_0710 — install-kalived-helper.sh
+- scan-kopi til /usr/local/lib/kalived root:root (timer ExecStart). Ingen NOPASSWD mot home.
+
+### 2026-09-18_0716 — journald-persistent.sh
+- journald persistent 500M/14d (/etc/systemd/journald.conf.d/99-kalived.conf). Gate: ikke ALERT.
+
+### 2026-09-18_0716 — aide-init.sh
+- AIDE kalived.db.gz init (identity/persistens). Gate: WARN force=1 force_alert=0. Checksum i baselines/aide.sha256
+
+### 2026-09-18_0717 — auditd-mini.sh
+- auditd + /etc/audit/rules.d/99-kalived.rules (USB/execve kommentert). Gate: ikke ALERT.
+
+### 2026-09-18_0718 — install-kalived-helper.sh
+- scan-kopi til /usr/local/lib/kalived root:root (timer ExecStart). Ingen NOPASSWD mot home.
+
+### 2026-09-18_0718 — install-scan-timer.sh
+- kalived-scan.timer weekly enabled. SuccessExitStatus=1 2. Opt-in av operator.
+
+### 2026-09-18_0719 — journald-persistent.sh
+- journald persistent 500M/14d (/etc/systemd/journald.conf.d/99-kalived.conf). Gate: ikke ALERT.
+
+### 2026-09-18_0719 — journald-persistent.sh
+- journald persistent 500M/14d (/etc/systemd/journald.conf.d/99-kalived.conf). Gate: ikke ALERT.
+
+### 2026-09-18_0721 — ufw-logging-medium.sh
+- ufw logging medium (ikke deny-out). Gate: ikke ALERT. Rollback: ufw logging low
+
+### 2026-09-18_0722 — rkhunter-setup.sh
+- rkhunter+chkrootkit+debsums. --propupd. lsmod.expected freeze. Defs: defs/ + update-threat-defs.sh
+
+### 2026-09-18_0723 — rkhunter-setup.sh
+- rkhunter+chkrootkit+debsums. --propupd. lsmod.expected freeze. Defs: defs/ + update-threat-defs.sh
+
+### 2026-09-18_0726 — rkhunter-setup.sh
+- rkhunter+chkrootkit+debsums. --propupd. lsmod.expected freeze. Defs: defs/ + update-threat-defs.sh
+
+### 2026-09-18_0816 — install-kalived-helper.sh
+- scan-kopi til /usr/local/lib/kalived root:root (timer ExecStart). Ingen NOPASSWD mot home.
+
+### 2026-09-18_0932 — aide-init.sh
+- AIDE kalived.db.gz init (identity/persistens). Gate: CLEAN force=1 force_alert=0. Checksum i baselines/aide.sha256
+
+### 2026-09-18_0932 — auditd-mini.sh
+- auditd + /etc/audit/rules.d/99-kalived.rules (USB/execve kommentert). Gate: ikke ALERT.

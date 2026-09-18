@@ -97,10 +97,49 @@ with open(path, encoding="utf-8") as f:
 PY
 }
 
+_banner_quality() {
+  local raw="-" kept="-" listen="lo-only" aide="skip" pcap="skip" exitc="${EXIT_CODE:-?}"
+  local py
+  py="$(command -v python3 || command -v python || true)"
+  if [[ -f "$OUT/hunt_hidden_raw.txt" ]]; then
+    raw="$(grep '^hidden_raw=' "$OUT/hunt_hidden_raw.txt" 2>/dev/null | cut -d= -f2 || true)"
+  elif [[ -f "$OUT/hunt_procs_summary.json" && -n "$py" ]]; then
+    raw="$("$py" -c 'import json,sys; d=json.load(open(sys.argv[1])); print(d.get("hidden_raw", d.get("hidden_count","-")))' "$OUT/hunt_procs_summary.json" 2>/dev/null || true)"
+  fi
+  if [[ -f "$OUT/hunt_hidden_kept.txt" ]]; then
+    kept="$(grep '^hidden_kept=' "$OUT/hunt_hidden_kept.txt" 2>/dev/null | cut -d= -f2 || true)"
+  elif [[ -f "$OUT/hunt_procs_summary.json" && -n "$py" ]]; then
+    kept="$("$py" -c 'import json,sys; print(json.load(open(sys.argv[1])).get("hidden_kept","-"))' "$OUT/hunt_procs_summary.json" 2>/dev/null || true)"
+  fi
+  raw="${raw:--}"
+  kept="${kept:--}"
+  if [[ -f "${FINDINGS_JSONL:-}" ]] && grep -q '"id": "NET-LISTEN-EXT"' "$FINDINGS_JSONL"; then
+    listen="ext"
+  fi
+  if [[ -f "$OUT/aide_check.txt" ]]; then
+    if grep -qiE 'NO differences|Looks okay' "$OUT/aide_check.txt"; then
+      aide="ok"
+    elif grep -qiE 'failed to open|No such file|mangler' "$OUT/aide_check.txt"; then
+      aide="none"
+    elif [[ -s "$OUT/aide_check.txt" ]]; then
+      aide="diff"
+    fi
+  fi
+  if [[ -f "$OUT/hunt_pcap_summary.json" && -n "$py" ]]; then
+    pcap="$("$py" -c 'import json,sys; d=json.load(open(sys.argv[1])); print(d.get("vs_ss") or d.get("status") or "ok")' "$OUT/hunt_pcap_summary.json" 2>/dev/null || echo ok)"
+  elif [[ -f "$OUT/hunt_pcap.txt" ]] && grep -q 'tshark missing' "$OUT/hunt_pcap.txt"; then
+    pcap="miss"
+  elif [[ -f "$OUT/hunt_pcap.txt" ]] && grep -q 'pcap_localhost=0' "$OUT/hunt_pcap.txt"; then
+    pcap="off"
+  fi
+  printf 'exit=%s | hidden_raw=%s kept=%s | listen=%s | aide=%s | pcap=%s' "$exitc" "$raw" "$kept" "$listen" "$aide" "$pcap"
+}
+
 print_banner() {
   local verdict="$1"
   local fd="${KALIVED_BANNER_FD:-1}"
-  local color reset=""
+  local color reset="" q
+  q="$(_banner_quality)"
   case "$verdict" in
     ERROR|ALERT) color="$(kalived_color red)" ;;
     WARN) color="$(kalived_color yellow)" ;;
@@ -114,6 +153,7 @@ print_banner() {
     ALERT)
       _emit "${color}!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!${reset}"
       _emit "${color}  ALERT — mulig kompromittering${reset}"
+      _emit "${color}  ${q}${reset}"
       _emit "${color}!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!${reset}"
       printf '\a' >&"$fd" || true
       _findings_lines ALERT >&"$fd"
@@ -129,6 +169,7 @@ print_banner() {
     WARN)
       _emit "${color}************************************************************${reset}"
       _emit "${color}  WARN — avvik / hygiene, ikke nødvendigvis innbrudd${reset}"
+      _emit "${color}  ${q}${reset}"
       _emit "${color}************************************************************${reset}"
       _findings_lines WARN >&"$fd"
       _emit "  Snapshot: $OUT"
@@ -136,14 +177,14 @@ print_banner() {
       ;;
     CLEAN)
       _emit "${color}============================================================${reset}"
-      _emit "${color}  CLEAN — ingen uventede funn mot baseline${reset}"
+      _emit "${color}  CLEAN | ${q}${reset}"
       _emit "${color}============================================================${reset}"
       _emit "  Sudo: $([ "${KALIVED_SUDO_FLAG:-0}" = 1 ] && echo ja || echo nei) | Snapshot: $OUT"
-      _emit "  TCP-lyttere utenfor loopback: ingen"
       ;;
     ERROR)
       _emit "${color}################################################################${reset}"
       _emit "${color}  ERROR — scannen kunne ikke fullføres${reset}"
+      _emit "${color}  ${q}${reset}"
       _emit "${color}################################################################${reset}"
       _findings_lines ERROR >&"$fd"
       _findings_lines ALERT >&"$fd"
@@ -201,9 +242,9 @@ write_verdict_json() {
     printf '{"verdict":"ERROR","exit_code":3}\n' > "$OUT/verdict.json"
     return 0
   fi
-  "$py" - "$OUT/verdict.json" "$FINDINGS_JSONL" "$verdict" "$exitc" "$STAMP" "${KALIVED_SUDO_FLAG:-0}" "$OUT" << 'PY'
+  "$py" - "$OUT/verdict.json" "$FINDINGS_JSONL" "$verdict" "$exitc" "$STAMP" "${KALIVED_SUDO_FLAG:-0}" "$OUT" "${ROOT:-}" << 'PY'
 import json, sys, os
-out, findings_path, verdict, exitc, stamp, sudo, snap = sys.argv[1:8]
+out, findings_path, verdict, exitc, stamp, sudo, snap, root = sys.argv[1:9]
 findings = []
 if os.path.isfile(findings_path):
     with open(findings_path, encoding="utf-8") as f:
@@ -211,6 +252,25 @@ if os.path.isfile(findings_path):
             line = line.strip()
             if line:
                 findings.append(json.loads(line))
+refs = []
+used = [
+    "baselines/machine/prev_snapshot.txt",
+    "baselines/machine/lsmod.expected",
+    "baselines/machine/preload_allow.txt",
+    "baselines/machine/suid.expected",
+    "baselines/machine/systemd_allow.txt",
+    "baselines/machine/outbound_proc.allow",
+    "baselines/machine/input_holders.allow",
+]
+if root:
+    prevp = os.path.join(root, "baselines/machine/prev_snapshot.txt")
+    if os.path.isfile(prevp):
+        prev = open(prevp, encoding="utf-8").read().strip()
+        if prev:
+            refs.append(prev)
+    for rel in used:
+        if os.path.isfile(os.path.join(root, rel)):
+            refs.append(rel)
 doc = {
     "schema": 1,
     "verdict": verdict,
@@ -218,7 +278,7 @@ doc = {
     "stamp": stamp,
     "sudo": int(sudo),
     "snapshot": snap,
-    "baseline_ref": [],
+    "baseline_ref": refs,
     "findings": findings,
 }
 with open(out, "w", encoding="utf-8") as f:

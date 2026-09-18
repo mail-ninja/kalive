@@ -15,6 +15,7 @@ mkdir -p "$PREFIX/scripts/lib" "$PREFIX/baselines"
 cp -a "$ROOT/scripts/"*.sh "$PREFIX/scripts/"
 cp -a "$ROOT/scripts/"*.py "$PREFIX/scripts/" 2>/dev/null || true
 cp -a "$ROOT/scripts/lib/"*.sh "$PREFIX/scripts/lib/"
+cp -a "$ROOT/scripts/lib/"*.py "$PREFIX/scripts/lib/" 2>/dev/null || true
 cp -a "$ROOT/prompts/." "$PREFIX/prompts/" 2>/dev/null || true
 cp -a "$ROOT/baselines/." "$PREFIX/baselines/"
 mkdir -p "$PREFIX/defs"

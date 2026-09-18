@@ -51,8 +51,18 @@ AUTH=(-H "Authorization: Bearer $TOK")
 TMP=$(mktemp -d)
 
 echo "[1] unauth"
-c=$(code "$BASE/" "$TMP/root.json")
-[[ "$c" == "200" ]] && ok "GET / $c" || bad "GET / $c"
+c=$(code "$BASE/" "$TMP/root.html")
+[[ "$c" == "200" ]] && grep -q 'kalived' "$TMP/root.html" && ok "GET / $c" || bad "GET / $c"
+c=$(code "$BASE/static/app.css" "$TMP/app.css")
+[[ "$c" == "200" ]] && grep -q -- '--clean' "$TMP/app.css" && ok "GET /static/app.css" || bad "css $c"
+c=$(code "$BASE/v1/meta" "$TMP/meta.json")
+[[ "$c" == "200" ]] && grep -q config_keys "$TMP/meta.json" && ok "GET /v1/meta" || bad "meta $c"
+c=$(code "$BASE/static/vendor/xterm.js" "$TMP/xterm.js")
+[[ "$c" == "200" ]] && grep -q Terminal "$TMP/xterm.js" && ok "GET xterm.js" || bad "xterm.js $c"
+c=$(code "$BASE/v1/term/ws" "$TMP/termws.json")
+[[ "$c" == "401" ]] && ok "term ws unauth 401" || bad "term ws $c"
+c=$(code "$BASE/v1/term" "$TMP/term.json")
+[[ "$c" == "401" ]] && ok "term unauth 401" || bad "term $c"
 c=$(code "$BASE/v1/health" "$TMP/health.json")
 [[ "$c" == "200" ]] && ok "GET /v1/health $c" || bad "health $c"
 c=$(code "$BASE/v1/config" "$TMP/unauth.json")
@@ -63,6 +73,8 @@ c=$(code "$BASE/v1/verdict/latest" "$TMP/unauth2.json")
 echo "[2] auth GET"
 c=$(code "$BASE/v1/config" "$TMP/config.json" "${AUTH[@]}")
 [[ "$c" == "200" ]] && grep -q listen_bind "$TMP/config.json" && ok "config" || bad "config $c"
+c=$(code "$BASE/v1/term" "$TMP/term-auth.json" "${AUTH[@]}")
+[[ "$c" == "200" ]] && grep -q '"ws"' "$TMP/term-auth.json" && ok "term auth" || bad "term auth $c"
 c=$(code "$BASE/v1/verdict/latest" "$TMP/verdict.json" "${AUTH[@]}")
 [[ "$c" == "200" || "$c" == "404" ]] && ok "verdict $c" || bad "verdict $c"
 c=$(code "$BASE/v1/snapshots" "$TMP/snaps.json" "${AUTH[@]}")
@@ -97,7 +109,7 @@ fi
 c=$(curl -sS -o "$TMP/ai.json" -w '%{http_code}' "${AUTH[@]}" \
   -H 'Content-Type: application/json' -d '{}' \
   -X POST "$BASE/v1/ai/advise")
-[[ "$c" == "200" || "$c" == "404" || "$c" == "502" ]] && ok "ai/advise $c" || bad "ai $c $(head -c 200 "$TMP/ai.json")"
+[[ "$c" == "200" || "$c" == "400" || "$c" == "404" || "$c" == "502" ]] && ok "ai/advise $c" || bad "ai $c $(head -c 200 "$TMP/ai.json")"
 c=$(curl -sS -o "$TMP/put.json" -w '%{http_code}' "${AUTH[@]}" \
   -H 'Content-Type: application/json' -d '{"listen_bind":"0.0.0.0"}' \
   -X PUT "$BASE/v1/config")

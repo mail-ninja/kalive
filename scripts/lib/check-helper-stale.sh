@@ -28,8 +28,12 @@ patterns = [
     "scripts/*.sh",
     "scripts/*.py",
     "scripts/lib/*.sh",
+    "scripts/lib/*.py",
     "prompts/*",
     "playbooks/rkhunter.conf.local",
+    "api/server.py",
+    "api/static/*",
+    "api/openapi.yaml",
 ]
 rel = []
 for pat in patterns:

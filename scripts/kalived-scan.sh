@@ -41,6 +41,12 @@ source "$ROOT/scripts/lib/check-rootkit.sh"
 source "$ROOT/scripts/lib/check-nmap.sh"
 # shellcheck source=lib/check-helper-stale.sh
 source "$ROOT/scripts/lib/check-helper-stale.sh"
+# shellcheck source=lib/check-procs.sh
+source "$ROOT/scripts/lib/check-procs.sh"
+# shellcheck source=lib/check-pcap.sh
+source "$ROOT/scripts/lib/check-pcap.sh"
+# shellcheck source=lib/check-ufw-digest.sh
+source "$ROOT/scripts/lib/check-ufw-digest.sh"
 
 usage() {
   cat << 'EOF'
@@ -64,7 +70,7 @@ FIXTURE_DIR=""
 SKIP_HUNT=0
 QUIET=0
 WANT_SUDO=1
-SCAN_VERSION=7
+SCAN_VERSION=11
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -219,16 +225,32 @@ if kalived_is_live; then
     fi
     _nmap_pid=""
     _rk_pid=""
+    _proc_pid=""
+    _pcap_pid=""
+    if [[ "${CFG_PCAP_LOCALHOST:-1}" == "1" ]]; then
+      "$ROOT/scripts/hunt-pcap.sh" &
+      _pcap_pid=$!
+    fi
     if [[ "${CFG_NMAP_LOCALHOST:-1}" == "1" ]]; then
       "$ROOT/scripts/hunt-nmap.sh" &
       _nmap_pid=$!
+    fi
+    if [[ "${CFG_PROC_INVENTORY:-1}" == "1" ]]; then
+      "$ROOT/scripts/hunt-procs.sh" &
+      _proc_pid=$!
     fi
     if [[ "${CFG_SKIP_ROOTKIT:-0}" != "1" ]]; then
       "$ROOT/scripts/hunt-rootkit.sh" &
       _rk_pid=$!
     fi
+    if [[ -n "$_pcap_pid" ]]; then
+      wait "$_pcap_pid" || add_finding ERROR SCAN "hunt-pcap.sh feilet" "se scan.log"
+    fi
     if [[ -n "$_nmap_pid" ]]; then
       wait "$_nmap_pid" || add_finding ERROR SCAN "hunt-nmap.sh feilet" "se scan.log"
+    fi
+    if [[ -n "$_proc_pid" ]]; then
+      wait "$_proc_pid" || add_finding ERROR SCAN "hunt-procs.sh feilet" "se scan.log"
     fi
     if [[ -n "$_rk_pid" ]]; then
       wait "$_rk_pid" || add_finding ERROR SCAN "hunt-rootkit.sh feilet" "se scan.log"
@@ -267,6 +289,7 @@ run_mod listen check_listen
 run_mod units check_units
 run_mod passwd check_passwd
 run_mod firewall check_firewall
+run_mod ufwdigest check_ufw_digest
 run_mod persist check_persistence
 run_mod process check_process
 run_mod outbound check_outbound
@@ -282,6 +305,8 @@ run_mod dpkgage check_dpkg_age
 run_mod rootkit check_rootkit
 run_mod nmap check_nmap
 run_mod helperstale check_helper_stale
+run_mod procs check_procs
+run_mod pcap check_pcap
 
 # PR 2 dummy: SUDO-MISS-INPUT only on live sudo=0 (should not happen — we ERROR earlier).
 if kalived_is_live && [[ "${KALIVED_SUDO_FLAG}" == "0" ]]; then
@@ -314,7 +339,7 @@ if kalived_is_live && [[ "${CFG_AI_ENABLED:-0}" == "1" ]] && [[ "${CFG_AI_AFTER_
   if [[ -t 0 || -t 2 ]]; then
     echo "" >&2
     echo "----- kalived advisor -----" >&2
-    if "$ROOT/scripts/kalived-advise.sh" --snapshot "$OUT" >&2; then
+    if "$ROOT/scripts/kalived-advise.sh" --snapshot "$OUT" --playbook signal >&2; then
       :
     else
       echo "(advisor hoppet over — sjekk XAI_API_KEY i ~/.config/kalived/env)" >&2

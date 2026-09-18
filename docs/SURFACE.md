@@ -27,6 +27,7 @@ Kjent-godt snapshot: `baselines/machine/prev_snapshot.txt` → `logs/status/2026
 | `exit_code` | 0 / 1 / 2 / 3 |
 | `sudo` | 0 \| 1 |
 | `findings[]` | `{severity, id, title, detail, source}` |
+| `baseline_ref` | kjente machine-baselines + `prev_snapshot.txt` |
 | Banner | bokmål, rød/gul/grønn; `notify-send` på ALERT/ERROR (ikke `--fixture`) |
 | Aggregering | ERROR > ALERT > WARN > CLEAN (INFO hever ikke) |
 
@@ -45,7 +46,7 @@ Kjent-godt snapshot: `baselines/machine/prev_snapshot.txt` → `logs/status/2026
 | `--from-dir DIR` | evaluer kopi av historisk snapshot; skriver ikke i DIR |
 | `--fixture DIR` | som from-dir + testmodus (ingen live ss/ps) |
 | `--skip-hunt` | hopp over hunt-persistence/keylog/rootkit; sjekker filer som finnes |
-| `--quiet` | banner på stderr, JSON på stdout; `NO_COLOR=1` |
+| `--quiet` | banner på stderr, JSON på stdout; `NO_COLOR=1`. **Default for `kalived-ctl scan`** |
 | `--help` | brukstekst |
 | `--accept-alert-suppress` | **stub** — ignoreres |
 
@@ -63,7 +64,7 @@ Ukjent flagg → exit 3.
 | `KALIVED_FIXTURE` / `KALIVED_FROM_DIR` | settes av flagg |
 | `NO_COLOR` | slå av ANSI |
 | `KALIVED_AIDE_INIT_POLICY` | `clean_only` / `allow_known_warn` (default) / `always_prompt` — playbook |
-| `SCAN_VERSION` | 5 (nå) |
+| `SCAN_VERSION` | 11 (nå) |
 
 Timer kjører: `/usr/local/lib/kalived/scripts/kalived-scan.sh --quiet` med `KALIVED_DATA=/home/void/kalived`.
 
@@ -88,9 +89,12 @@ Timer kjører: `/usr/local/lib/kalived/scripts/kalived-scan.sh --quiet` med `KAL
 | ID | Trigger |
 |----|---------|
 | `NET-LISTEN-EXT` | TCP LISTEN utenfor loopback |
+| `NET-NMAP` | nmap åpen TCP på 127.0.0.1 som ss ikke viser |
+| `NET-NMAP-SVC` | nmap `-sV` meterpreter/backdoor/trojan |
 | `NET-SSH-UNIT` | ssh active/enabled |
 | `NET-UFW` | UFW ikke active |
 | `NET-UFW-ALLOW` | ALLOW IN vs tom baseline |
+| `NET-UFW-HIT` | UFW BLOCK/ALLOW mot lyttende port med `IN≠lo` |
 | `NET-NFT-NAT` | REDIRECT/DNAT/TPROXY utenom Docker-MASQ |
 | `NET-PROMISC` | PROMISC på ikke-lo |
 | `NET-DNS` | privat NS ≠ gw (unntak Proton 10.2.0.1) |
@@ -99,6 +103,10 @@ Timer kjører: `/usr/local/lib/kalived/scripts/kalived-scan.sh --quiet` med `KAL
 | `PROC-DELETED` / `PROC-MEMFD` | deleted/memfd exe |
 | `PROC-INPUT` | ukjent holder av `/dev/input/event*` |
 | `PROC-NAME` | ngrok/anydesk/… (supplement) |
+| `PROC-HIDDEN` | sil 4: PID lever, usynlig for `ps`/`ps -eT`, exe deleted/memfd |
+| `PROC-FAKEKTH` | sil 4: `[kworker…]` men PPID≠2 eller userspace-exe |
+| `PROC-COMMEXE` | sil 4: comm≠exe på tmp/shm/home |
+| `PROC-IOC` | `defs/ioc/process-names.txt` |
 | `PERS-UID0` | extra UID 0 |
 | `PERS-PRELOAD` | ld.so.preload eller ukjent LD_PRELOAD |
 | `PERS-AUTHKEYS` | nøkkelmateriale i authorized_keys |
@@ -115,11 +123,13 @@ Timer kjører: `/usr/local/lib/kalived/scripts/kalived-scan.sh --quiet` med `KAL
 
 ### WARN (hygiene / kjent avvik)
 
-`PERS-SUID` ny i `/usr`, `PERS-DOCKER` socket idle, `PERS-SYSTEMD` spice-vdagent, `FIM-AIDE` systemd/cron mtime, `ROOT-RKH` rkhunter-støy, `ROOT-TAINT`, `ROOT-LSMOD` nye hw-moduler, `ROOT-BPF`, `F-007` dpkg > 30 d, `LOG-AUDIT`/`LOG-JOURNAL`, `NET-DNS` usb0 tether.
+`PERS-SUID` ny i `/usr`, `PERS-DOCKER` socket idle, `PERS-SYSTEMD` spice-vdagent, `FIM-AIDE` systemd/cron mtime, `ROOT-RKH` rkhunter-støy, `ROOT-TAINT`, `ROOT-LSMOD` nye hw-moduler, `ROOT-BPF`, `F-007` dpkg > 30 d, `LOG-AUDIT`/`LOG-JOURNAL`, `NET-DNS` usb0 tether, `PROC-HIDDEN-WEAK` (`/proc`≠`ps` men normal exe), `PCAP-EXTRA` (tshark SYN-ACK uten nmap/ss), `PROC-IOC-REMOTE` (cache, ikke git).
 
 ### INFO (hever ikke verdict)
 
-Brave sandbox, Proton DNS, SNAP-MISS, timer ikke enabled, auditd-playbook ikke kjørt.
+Brave sandbox, Proton DNS, SNAP-MISS, timer ikke enabled, auditd-playbook ikke kjørt, `PROC-HIDDEN-NOISE` (raw>0 kept=0), `PROC-HIDDEN-RAW` (gammelt snapshot uten sil), `PCAP-NOISE` / `PCAP-CONFIRM` / `PCAP-MISS`, `NET-UFW-NOISE` (24t BLOCK-støy), `NET-UFW-SCAN` (portscan/flood mot deny-in, ingen listen-treff).
+
+UFW-loggen er støy inntil den viser **mønster**: samme kilde mot mange porter, unormal rate, eller treff på noe vi faktisk lytter på. Enkeltblokkerte pakker på en `deny incoming`-boks er default, ikke angrep. Advisor får `ufw_digest`-tall, ikke journalen.
 
 ---
 
@@ -132,7 +142,7 @@ Alle unntatt merket: **gate = siste `kalived_scan=1` verdict ≠ ALERT/ERROR**.
 | `journald-persistent.sh` | ja | journald 500M/14d | slett drop-in, restart journald |
 | `auditd-mini.sh` | ja | auditd + `99-kalived.rules` | slett rules, `augenrules --load` |
 | `ufw-logging-medium.sh` | ja | `ufw logging medium` | `ufw logging low` |
-| `aide-init.sh` | ja (+ policy) | init/re-baseline AIDE DB | slett `/var/lib/aide/kalived.db.gz` |
+| `aide-init.sh` | ja (+ policy). `--force` hopper **ikke** over ALERT. `--force-alert` gjør det. | init/re-baseline AIDE DB | slett `/var/lib/aide/kalived.db.gz` |
 | `install-kalived-helper.sh` | **nei** | kopi root:root `/usr/local/lib/kalived` | slett prefix |
 | `install-scan-timer.sh` | ja | weekly system-timer | `systemctl disable --now kalived-scan.timer` |
 | `docker-hygiene.sh [--prune] [--no-stop]` | ja | stop-idle + dangling prune | `systemctl start docker` |
@@ -148,7 +158,7 @@ Alle unntatt merket: **gate = siste `kalived_scan=1` verdict ≠ ALERT/ERROR**.
 
 **Telefon** (utenfor host-GUI v1): `cep1er-phone-checklist.md`, `iqoo-*`.
 
-Etter bevisst filendring: `aide-init.sh` deretter scan. Etter script-endring: `install-kalived-helper.sh`.
+Etter bevisst filendring: `aide-init.sh --force` deretter scan. Etter script-endring: `install-kalived-helper.sh`. Ikke lim helper+AIDE foran daglig `kalived-ctl scan`. `--force-alert` bare når siste verdict er ALERT og evidens allerede er lagret.
 
 ---
 
@@ -175,7 +185,15 @@ Override: `KALIVED_CONFIG=/sti/til.toml`.
 | `nmap_localhost` | true | TCP-scan kun 127.0.0.1, parallelt med rkhunter |
 | `nmap_port_spec` | `"-"` | nmap `-p` (siffer/`,`/`-`). Ikke CIDR/host |
 | `helper_stale_check` | true | WARN helper ≠ git-tre |
-| `aide_watch_helper` | true | AIDE på `/usr/local/lib/kalived` + ctl |
+| `aide_watch_helper` | true | AIDE på helper scripts/prompts + ctl |
+| `proc_inventory` | true | ps /proc pstree lsof parallelt med nmap/rk |
+| `proc_hidden_check` | true | sil 4 på skjulte PID (ikke raw `/proc`−`ps`) |
+| `proc_ioc_check` | true | `defs/ioc/process-names.txt` |
+| `pcap_localhost` | true | tshark lo-burst parallelt med nmap |
+| `pcap_duration_s` | 8 | 1–30 |
+| `pcap_max_packets` | 4000 | 1–20000 |
+| `nmap_svc_probe` | true | `-sV` kun på allerede åpne porter |
+| `ufw_digest` | true | 24t journal → `ufw_digest.json` (ikke rå logg) |
 
 ---
 
@@ -187,7 +205,12 @@ OpenAPI: `api/openapi.yaml`. Bind fra config; **ikke** `0.0.0.0`.
 
 | Metode | Sti | Mapper til |
 |--------|-----|------------|
+| GET | `/` | HTML-UI (token i nettleser) |
+| GET | `/static/app.css` `/static/app.js` | UI-assets |
+| GET | `/v1/meta` | nøkler/enums (ingen hemmeligheter) |
 | GET | `/v1/health` | prosess oppe |
+| GET | `/v1/term` | PTY-status (`root` hvis API er sudo) |
+| GET | `/v1/term/ws` | WebSocket xterm PTY (token i query). **Samme uid som API** — `sudo kalived-ctl api` = root-shell på hosten. Kun loopback. |
 | GET | `/v1/verdict/latest` | siste `verdict.json` |
 | GET | `/v1/snapshots` | `logs/status/*` |
 | GET | `/v1/snapshots/{stamp}` | snapshot + VERDICT.md |
@@ -250,9 +273,16 @@ Fixtures: `alert_listen_ncat`, `alert_uid0`, `alert_ufw_8000`, `alert_preload`, 
 
 ---
 
-## 11. GUI-byggerekkefølge (når vi bygger)
+## 11. GUI (finnes)
 
-1. Denne filen + `config.toml` (PR 11) — knapper uten HTTP.
-2. FastAPI 127.0.0.1 (PR 12) — tabellen i §7.
-3. Tynn HTML (PR 13) — verdict, scan, playbook-confirm, defs-update.
-4. AI advise (PR 14) — redacted JSON inn, Confirm-gate, ingen sudo.
+Tynn HTML på `http://127.0.0.1:8787/` servert av `kalived-api`. Samme `config.toml` og `verdict.json`. Ingen nye detektorer.
+
+```bash
+sudo kalived-ctl api
+# nettleser: http://127.0.0.1:8787
+# token: cat ~/.config/kalived/api.token
+```
+
+Faner: Status (verdict + scan), Innstillinger (PUT config), Playbooks (confirm-gate), Råd (`POST /v1/ai/advise` med valgfri `playbook`). Mutasjon krever API som root.
+
+Advisor: default `prompts/advisor.md` er personlighet. Signal/støy-dommen er `prompts/playbooks/signal.md` via `--playbook signal` / `{playbook:"signal"}`. Etter live scan kalles signal automatisk.

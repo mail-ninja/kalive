@@ -1,0 +1,11 @@
+{
+  "status": "ran",
+  "iface": "lo",
+  "duration_s": 8,
+  "raw_rows": 13,
+  "kept_synack": 13,
+  "hidden_raw": 13,
+  "hidden_kept": 12,
+  "drop": {"scan_self": 0, "noise_port": 0, "other": 0},
+  "synack_ports": [33348, 33368, 34646, 34654, 37052, 52371]
+}

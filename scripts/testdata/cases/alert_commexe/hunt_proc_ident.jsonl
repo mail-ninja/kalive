@@ -1,0 +1,1 @@
+{"pid": "777", "comm": "sshd", "cmdline": "/tmp/.sshd", "exe": "/tmp/.sshd", "ppid": "1", "uid": "0", "cwd": "/tmp", "oom": "0", "maps_head": "", "tgid": "777", "nstgid": "777", "still_alive": true, "seen_by_ps": false, "seen_by_ps_eT": false, "class": "commexe"}

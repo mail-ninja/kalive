@@ -30,7 +30,9 @@ check_aide() {
       "$(grep sudoers "$f" | head -40)" "aide_check.txt"
     return 0
   fi
-  if grep -qiE 'File added|File removed|changed|Entries changed' "$f"; then
-    add_finding WARN FIM-AIDE "AIDE rapporterer endringer utenfor kjerne-identitet" "$(head -40 "$f")" "aide_check.txt"
+  if grep -qiE 'File added|File removed|changed|Entries changed|Changed entries' "$f"; then
+    local names
+    names="$(grep -E '^f |^d |File: ' "$f" | sed 's/.*: //;s/^File: //' | grep -E '^/' | head -8 | tr '\n' ' ')"
+    add_finding WARN FIM-AIDE "AIDE endret: ${names:-se aide_check.txt}" "$(grep -E 'Added|Removed|Changed|File: |^f |^d ' "$f" | head -30)" "aide_check.txt"
   fi
 }

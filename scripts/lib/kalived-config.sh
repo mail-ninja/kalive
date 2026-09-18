@@ -49,6 +49,15 @@ defaults = {
     "nmap_port_spec": "-",
     "helper_stale_check": True,
     "aide_watch_helper": True,
+    "proc_inventory": True,
+    "proc_hidden_check": True,
+    "proc_ioc_check": True,
+    "pcap_localhost": True,
+    "pcap_duration_s": 8,
+    "pcap_max_packets": 4000,
+    "nmap_svc_probe": True,
+    "ufw_digest": True,
+    "web_terminal": True,
 }
 enums = {
     "aide_init_policy": {"clean_only", "allow_known_warn", "always_prompt"},
@@ -89,6 +98,24 @@ if "/" in spec or spec.lower() in ("any", "all"):
     print("CONFIG ERROR: nmap_port_spec is ports not targets", file=sys.stderr)
     sys.exit(3)
 data["nmap_port_spec"] = spec or "-"
+try:
+    dur = int(data["pcap_duration_s"])
+except (TypeError, ValueError):
+    print("CONFIG ERROR: pcap_duration_s must be int", file=sys.stderr)
+    sys.exit(3)
+if not (1 <= dur <= 30):
+    print(f"CONFIG ERROR: pcap_duration_s={dur} (1-30)", file=sys.stderr)
+    sys.exit(3)
+data["pcap_duration_s"] = dur
+try:
+    mx = int(data["pcap_max_packets"])
+except (TypeError, ValueError):
+    print("CONFIG ERROR: pcap_max_packets must be int", file=sys.stderr)
+    sys.exit(3)
+if not (1 <= mx <= 20000):
+    print(f"CONFIG ERROR: pcap_max_packets={mx} (1-20000)", file=sys.stderr)
+    sys.exit(3)
+data["pcap_max_packets"] = mx
 
 def b(v):
     return "1" if v in (True, "true", "1", 1) else "0"
@@ -114,6 +141,15 @@ print(f"CFG_NMAP_LOCALHOST={b(data['nmap_localhost'])}")
 print(f"CFG_NMAP_PORT_SPEC={q(data['nmap_port_spec'])}")
 print(f"CFG_HELPER_STALE_CHECK={b(data['helper_stale_check'])}")
 print(f"CFG_AIDE_WATCH_HELPER={b(data['aide_watch_helper'])}")
+print(f"CFG_PROC_INVENTORY={b(data['proc_inventory'])}")
+print(f"CFG_PROC_HIDDEN_CHECK={b(data['proc_hidden_check'])}")
+print(f"CFG_PROC_IOC_CHECK={b(data['proc_ioc_check'])}")
+print(f"CFG_PCAP_LOCALHOST={b(data['pcap_localhost'])}")
+print(f"CFG_PCAP_DURATION_S={data['pcap_duration_s']}")
+print(f"CFG_PCAP_MAX_PACKETS={data['pcap_max_packets']}")
+print(f"CFG_NMAP_SVC_PROBE={b(data['nmap_svc_probe'])}")
+print(f"CFG_UFW_DIGEST={b(data['ufw_digest'])}")
+print(f"CFG_WEB_TERMINAL={b(data['web_terminal'])}")
 PY
 )"; then
     return 3
@@ -123,6 +159,9 @@ PY
     CFG_TIMER_ENABLED CFG_AI_ENABLED CFG_AI_MODEL CFG_AI_AFTER_SCAN CFG_LISTEN_BIND \
     CFG_LISTEN_PORT CFG_APPARMOR_ENFORCE CFG_VERBOSE CFG_NOTIFY_ON_ALERT \
     CFG_SKIP_HUNT CFG_SKIP_ROOTKIT CFG_DEFS_AUTO_UPDATE \
-    CFG_NMAP_LOCALHOST CFG_NMAP_PORT_SPEC CFG_HELPER_STALE_CHECK CFG_AIDE_WATCH_HELPER
+    CFG_NMAP_LOCALHOST CFG_NMAP_PORT_SPEC CFG_HELPER_STALE_CHECK CFG_AIDE_WATCH_HELPER \
+    CFG_PROC_INVENTORY CFG_PROC_HIDDEN_CHECK CFG_PROC_IOC_CHECK \
+    CFG_PCAP_LOCALHOST CFG_PCAP_DURATION_S CFG_PCAP_MAX_PACKETS CFG_NMAP_SVC_PROBE \
+    CFG_UFW_DIGEST CFG_WEB_TERMINAL
   return 0
 }

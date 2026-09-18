@@ -20,7 +20,7 @@ if [[ "$(id -u)" -eq 0 ]]; then
   KALIVED_SUDO=1
 fi
 
-echo "[*] Snapshot → $OUT"
+echo "[*] Snapshot → $OUT" >&2
 
 META_FILE="$OUT/meta.txt"
 if [[ -n "${KALIVED_OUT:-}" ]]; then
@@ -81,14 +81,15 @@ grep -vE '^\s*#|^\s*$' /etc/ssh/sshd_config > "$OUT/sshd_config_active.txt" 2>&1
 # Quick alert: non-localhost TCP listeners
 ALERT="$OUT/ALERT_non_localhost_tcp.txt"
 if ss -tln | awk 'NR>1 {print $4}' | grep -vE '127\.0\.0\.1:|\[::1\]:' >/dev/null 2>&1; then
-  ss -tlnp | tee "$ALERT"
-  echo "[!] Non-localhost TCP listeners found — see $ALERT"
+  ss -tlnp > "$ALERT" 2>&1 || true
+  echo "[!] Non-localhost TCP listeners — $ALERT" >&2
 else
-  echo "OK: no non-localhost TCP listeners" | tee "$ALERT"
+  echo "OK: no non-localhost TCP listeners" > "$ALERT"
+  echo "OK: no non-localhost TCP listeners" >&2
 fi
 
 if [[ "${KALIVED_SUDO:-0}" == "1" ]]; then
-  echo "[*] Collecting sudo-backed firewall/MAC…"
+  echo "[*] Collecting sudo-backed firewall/MAC…" >&2
   # Orchestrated scan: files only (ikke dump aa-status til TTY).
   _run() { if [[ "$(id -u)" -eq 0 ]]; then "$@"; else sudo -n "$@"; fi; }
   _run ufw status verbose > "$OUT/ufw_status.txt" 2>&1 || true
@@ -123,7 +124,19 @@ if [[ "${KALIVED_SUDO:-0}" == "1" ]]; then
   elif [[ -e /var/lib/aide/kalived.db.gz ]]; then
     echo 'db exists but /etc/aide/kalived.conf missing' > "$OUT/aide_check.txt"
   fi
+  # UFW packet digest (24t journal). Raw for operator; JSON for check/advisor.
+  if command -v journalctl >/dev/null 2>&1; then
+    journalctl -k -g '\[UFW ' --since '24 hours ago' --no-pager -o short-iso \
+      > "$OUT/ufw_journal.txt" 2>/dev/null || true
+    _dig="$ROOT/scripts/lib/ufw-digest.py"
+    if [[ ! -f "$_dig" && -n "${KALIVED_ROOT:-}" ]]; then
+      _dig="${KALIVED_ROOT}/scripts/lib/ufw-digest.py"
+    fi
+    if [[ -f "$_dig" ]]; then
+      python3 "$_dig" "$OUT/ufw_journal.txt" "$OUT/ufw_digest.json" "$OUT/ss_tulpn.txt" \
+        2>/dev/null || true
+    fi
+  fi
 fi
 
-echo "[+] Done: $OUT"
-ls -la "$OUT" | tail -n +1
+echo "[+] Done: $OUT" >&2

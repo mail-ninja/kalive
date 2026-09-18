@@ -1,0 +1,8 @@
+# Destination ports tshark egress sieve drops (not lo).
+# 443/80/53/mdns/dhcp6 — not C2 by themselves on a workstation.
+53
+80
+443
+5353
+546
+547

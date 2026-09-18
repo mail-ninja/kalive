@@ -2,18 +2,27 @@
 
 Oppdaterbare lister scannen bruker. **Nyheter ≠ signaturer.**
 
-| Kilde | Type | Brukes nå | Kommentar |
-|-------|------|-----------|-----------|
-| rkhunter mirrors (`rkhunter --update`) | rootkit-filer / hashes | **ja** | offisiell DB |
-| `defs/kali-allow/` | whitelist for Kali-støy | **ja** | lokale unntak, ikke «maskering» av unknown |
-| `defs/ioc/` | hashes / domen / YARA | nei (stub) | fremtid |
-| The Register / nyhetssider | kontekst | nei | RSS kan bli `type=news` senere, **ikke** ALERT-grunnlag |
-| URLhaus, CISA KEV, OpenPhish | IOC-feeds | nei (eksempel i `feeds.d/`) | bedre enn nyheter for «siste skrik» |
+Tillitsmodell:
 
-Oppdater:
+| Lag | Sti | Verdict |
+|-----|-----|---------|
+| Git IOC | `defs/ioc/*.txt` | ALERT (kjent navn/port) |
+| Kali-allow | `defs/kali-allow/` | sil 2 — kast vendor-støy |
+| Remote cache | `defs/cache/*.remote.txt` | WARN inntil det merges i git |
+| News / CISA KEV | `feeds.d/*.example` | kontekst, **aldri** ALERT |
+
+| Kilde | Type | Brukes nå |
+|-------|------|-----------|
+| rkhunter `--update` | rootkit-filer / hashes | ja (`enabled=1`) |
+| `local-ioc` | kopi av git-lister til cache | ja |
+| URLhaus | url-ioc → hostnames i cache | nei (`enabled=0`) |
+| CISA KEV / The Register | json-cve / news | nei — aldri ALERT |
+
+Oppdater (parallelt rkhunter + enabled HTTP):
 
 ```bash
-sudo ./scripts/update-threat-defs.sh
+sudo kalived-ctl defs
 ```
 
 Aldri `eval` av nedlastet innhold. Feeds skrives til `defs/cache/` og parses som data.
+`MANIFEST.json` i cache er evidens for hva som ble hentet.

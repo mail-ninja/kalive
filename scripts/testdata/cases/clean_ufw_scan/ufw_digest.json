@@ -1,0 +1,12 @@
+{
+  "window_h": 24,
+  "lines": 200,
+  "block": 180,
+  "allow": 0,
+  "allow_dns_proton": 0,
+  "dropped_noise": 20,
+  "scans": [{"src": "198.51.100.50", "dpts": 24, "secs": 40}],
+  "floods": [],
+  "hits_listen": [],
+  "top_block_dpt": [23, 445, 22]
+}

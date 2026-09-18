@@ -16,6 +16,7 @@ export NO_COLOR=1
 
 if [[ "$(id -u)" -ne 0 ]]; then
   echo "bruk: sudo kalived-ctl {scan|api|defs|token-fix}" >&2
+  echo "daglig: sudo kalived-ctl scan   (exit 0/1/2/3 = CLEAN/WARN/ALERT/ERROR)" >&2
   echo "(Kali sudo PATH mangler /usr/local/sbin — binær ligger i /usr/sbin/kalived-ctl)" >&2
   exit 1
 fi

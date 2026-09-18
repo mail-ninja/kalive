@@ -46,3 +46,22 @@ helper_stale_check = true
 
 # AIDE hasher helper + kalived-ctl (krever aide-init etter endring)
 aide_watch_helper = true
+
+# Prosesinventar (ps /proc pstree lsof) parallelt med nmap/rkhunter
+# proc_hidden_check: sil 4 (kept+class), ikke raw /proc−ps-diff
+proc_inventory = true
+proc_hidden_check = true
+proc_ioc_check = true
+
+# Kort tshark-burst på lo, parallelt med nmap (ikke LAN, ikke pcapng til advisor)
+pcap_localhost = true
+pcap_duration_s = 8
+pcap_max_packets = 4000
+# -sV bare på porter nmap allerede fant åpne
+nmap_svc_probe = true
+
+# 24t UFW-journal → ufw_digest.json (ikke rå logg til advisor)
+ufw_digest = true
+
+# xterm.js PTY i GUI (loopback + token). Shell som eier, ikke root.
+web_terminal = true

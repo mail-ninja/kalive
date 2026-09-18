@@ -4,6 +4,10 @@ chromium
 chrome
 chrome_crashpad_handler
 firefox
+firefox-esr
+firefox-bin
+brave
+brave-browser
 x-www-browser
 cursor
 NetworkManager

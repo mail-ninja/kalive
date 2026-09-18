@@ -56,6 +56,77 @@ for d in "$CASES"/*; do
   run_case "$d"
 done
 
+echo "[test] ufw-digest parser"
+tmpu="$(mktemp)"
+{
+  echo '2026-09-18T01:00:00+02:00 kali kernel: [UFW BLOCK] IN=eth0 OUT= SRC=198.51.100.7 DST=192.0.2.1 PROTO=TCP SPT=1 DPT=1000'
+  echo '2026-09-18T01:00:01+02:00 kali kernel: [UFW BLOCK] IN=eth0 OUT= SRC=198.51.100.7 DST=192.0.2.1 PROTO=TCP SPT=1 DPT=1001'
+  echo '2026-09-18T01:00:02+02:00 kali kernel: [UFW BLOCK] IN=eth0 OUT= SRC=198.51.100.7 DST=192.0.2.1 PROTO=TCP SPT=1 DPT=1002'
+  echo '2026-09-18T01:00:03+02:00 kali kernel: [UFW BLOCK] IN=eth0 OUT= SRC=198.51.100.7 DST=192.0.2.1 PROTO=TCP SPT=1 DPT=1003'
+  echo '2026-09-18T01:00:04+02:00 kali kernel: [UFW BLOCK] IN=eth0 OUT= SRC=198.51.100.7 DST=192.0.2.1 PROTO=TCP SPT=1 DPT=1004'
+  echo '2026-09-18T01:00:05+02:00 kali kernel: [UFW BLOCK] IN=eth0 OUT= SRC=198.51.100.7 DST=192.0.2.1 PROTO=TCP SPT=1 DPT=1005'
+  echo '2026-09-18T01:00:06+02:00 kali kernel: [UFW BLOCK] IN=eth0 OUT= SRC=198.51.100.7 DST=192.0.2.1 PROTO=TCP SPT=1 DPT=1006'
+  echo '2026-09-18T01:00:07+02:00 kali kernel: [UFW BLOCK] IN=eth0 OUT= SRC=198.51.100.7 DST=192.0.2.1 PROTO=TCP SPT=1 DPT=1007'
+  echo '2026-09-18T01:00:08+02:00 kali kernel: [UFW BLOCK] IN=eth0 OUT= SRC=198.51.100.7 DST=192.0.2.1 PROTO=TCP SPT=1 DPT=1008'
+  echo '2026-09-18T01:00:09+02:00 kali kernel: [UFW BLOCK] IN=eth0 OUT= SRC=198.51.100.7 DST=192.0.2.1 PROTO=TCP SPT=1 DPT=1009'
+  echo '2026-09-18T01:00:10+02:00 kali kernel: [UFW BLOCK] IN=eth0 OUT= SRC=198.51.100.7 DST=192.0.2.1 PROTO=TCP SPT=1 DPT=1010'
+  echo '2026-09-18T01:00:20+02:00 kali kernel: [UFW ALLOW] IN= OUT=proton0 SRC=10.2.0.2 DST=10.2.0.1 PROTO=UDP SPT=1 DPT=53'
+  i=0
+  while [[ $i -lt 25 ]]; do
+    echo "2026-09-18T01:01:00+02:00 kali kernel: [UFW ALLOW] IN= OUT=proton0 SRC=fdeb:446c:912d:8da:: DST=2606:4700:: PROTO=TCP SPT=40000 DPT=443"
+    i=$((i + 1))
+  done
+} > "$tmpu.j"
+python3 "$ROOT/scripts/lib/ufw-digest.py" "$tmpu.j" "$tmpu.json"
+if python3 -c 'import json,sys; d=json.load(open(sys.argv[1]));
+assert d["scans"] and d["scans"][0]["dpts"]>=10, d
+assert d["allow_dns_proton"]==1, d
+assert not d["hits_listen"], d
+assert not d["floods"], d' "$tmpu.json"; then
+  echo "  OK digest scan + proton DNS, ingen listen-hit/HTTPS-flood"
+else
+  echo "  FAIL ufw-digest"
+  cat "$tmpu.json" || true
+  fail=1
+fi
+rm -f "$tmpu" "$tmpu.j" "$tmpu.json"
+
+echo "[test] advisor pcap summary"
+tmpp="$(mktemp -d)"
+printf '{"verdict":"CLEAN","exit_code":0,"stamp":"t","sudo":1,"findings":[]}\n' > "$tmpp/verdict.json"
+printf '{"status":"ran","iface":"lo","raw_rows":10,"synack_ports":[8787],"vs_ss":"match","drop":{"scan_self":9}}\n' > "$tmpp/hunt_pcap_summary.json"
+python3 "$ROOT/scripts/kalived-advise.py" --dry-run --snapshot "$tmpp" >/tmp/kalived-advise-pcap.$$
+if grep -q '"iface": "lo"' /tmp/kalived-advise-pcap.$$ && ! grep -qi 'frame.time' /tmp/kalived-advise-pcap.$$; then
+  echo "  OK pcap summary, no packet dump"
+else
+  echo "  FAIL pcap redact"
+  fail=1
+fi
+rm -rf "$tmpp" /tmp/kalived-advise-pcap.$$
+
+echo "[test] banner sil-tall (CLEAN race)"
+set +e
+"$SCAN" --fixture "$CASES/clean_hidden_race" --quiet --skip-hunt >/tmp/kalived-ban-out.$$ 2>/tmp/kalived-ban-err.$$
+set -e
+if grep -q 'hidden_raw=4' /tmp/kalived-ban-err.$$ && grep -q 'kept=0' /tmp/kalived-ban-err.$$ && grep -q 'listen=lo-only' /tmp/kalived-ban-err.$$; then
+  echo "  OK banner hidden_raw=4 kept=0"
+else
+  echo "  FAIL banner"
+  sed 's/^/  /' /tmp/kalived-ban-err.$$ || true
+  fail=1
+fi
+rm -f /tmp/kalived-ban-out.$$ /tmp/kalived-ban-err.$$
+
+echo "[test] aide-init --force gates ALERT"
+if grep -q -- '--force-alert' "$ROOT/playbooks/aide-init.sh" \
+  && grep -q 'kalived_require_not_alert' "$ROOT/playbooks/aide-init.sh" \
+  && grep -q 'FORCE_ALERT' "$ROOT/playbooks/aide-init.sh"; then
+  echo "  OK --force-alert er egen nøkkel; --force alene skipper ikke ALERT"
+else
+  echo "  FAIL aide-init gate"
+  fail=1
+fi
+
 echo "[test] testdata urørt"
 after="$(checksum_testdata)"
 if [[ "$before" != "$after" ]]; then
@@ -65,20 +136,64 @@ else
   echo "  OK"
 fi
 
+echo "[test] advisor playbooks"
+if python3 "$ROOT/scripts/kalived-advise.py" --list-playbooks | grep -qx signal \
+  && python3 "$ROOT/scripts/kalived-advise.py" --dry-run --ask "YO" | grep -q '"playbook": "default"'; then
+  echo "  OK default personality vs signal playbook"
+else
+  echo "  FAIL advisor playbooks"
+  fail=1
+fi
+
 echo "[test] advisor dry-run redact"
 if python3 "$ROOT/scripts/kalived-advise.py" --dry-run --snapshot "$CASES/clean_full_root" >/tmp/kalived-advise-dry.$$ 2>/tmp/kalived-advise-dry-err.$$; then
   echo "  (no verdict in fixture dir — ok if fails)"
 fi
-# use last real snapshot if present
-if [[ -f "$ROOT/logs/status/2026-09-17_201000/verdict.json" ]]; then
-  python3 "$ROOT/scripts/kalived-advise.py" --dry-run --snapshot "$ROOT/logs/status/2026-09-17_201000" >/tmp/kalived-advise-dry.$$ 2>/tmp/kalived-advise-dry-err.$$
-  if grep -q '"verdict": "CLEAN"' /tmp/kalived-advise-dry.$$ && ! grep -qi 'ss_established' /tmp/kalived-advise-dry.$$; then
-    echo "  OK redacted CLEAN, no raw ss"
+snap=""
+for d in "$ROOT"/logs/status/*/verdict.json; do
+  dir="${d%/verdict.json}"
+  [[ -f "$dir/hunt_nmap.gnmap" ]] || continue
+  grep -q '"verdict": "CLEAN"' "$d" || continue
+  snap="$dir"
+done
+if [[ -n "$snap" ]]; then
+  python3 "$ROOT/scripts/kalived-advise.py" --dry-run --snapshot "$snap" >/tmp/kalived-advise-dry.$$ 2>/tmp/kalived-advise-dry-err.$$
+  if grep -q '"verdict": "CLEAN"' /tmp/kalived-advise-dry.$$ && ! grep -qi 'Ignored State' /tmp/kalived-advise-dry.$$; then
+    echo "  OK redacted CLEAN + nmap summary"
   else
     echo "  FAIL redact"
     fail=1
   fi
 fi
+python3 "$ROOT/scripts/kalived-advise.py" --dry-run --snapshot "$CASES/alert_nmap_hidden" >/tmp/kalived-advise-nmap.$$ 2>/dev/null || true
+# fixture dir may lack verdict.json — synthesize nmap via a temp verdict
+if [[ ! -f "$CASES/alert_nmap_hidden/verdict.json" ]]; then
+  tmpn="$(mktemp -d)"
+  cp "$CASES/alert_nmap_hidden/"* "$tmpn/"
+  printf '{"verdict":"ALERT","exit_code":2,"stamp":"fixture","sudo":0,"findings":[]}\n' > "$tmpn/verdict.json"
+  python3 "$ROOT/scripts/kalived-advise.py" --dry-run --snapshot "$tmpn" >/tmp/kalived-advise-nmap.$$
+  rm -rf "$tmpn"
+fi
+if grep -q '"port": 4444' /tmp/kalived-advise-nmap.$$ && ! grep -qi 'Ignored State' /tmp/kalived-advise-nmap.$$; then
+  echo "  OK nmap port 4444 in context, no gnmap dump"
+else
+  echo "  FAIL nmap summary"
+  fail=1
+fi
+rm -f /tmp/kalived-advise-nmap.$$
+tmpc="$(mktemp -d)"
+printf '{"verdict":"CLEAN","exit_code":0,"stamp":"t","sudo":1,"findings":[]}\n' > "$tmpc/verdict.json"
+python3 "$ROOT/scripts/kalived-advise.py" --dry-run --snapshot "$tmpc" >/tmp/kalived-advise-clean.$$
+if grep -q '"suggested_commands"' /tmp/kalived-advise-clean.$$ \
+  && python3 -c 'import json,sys; d=json.load(open(sys.argv[1]));
+cmds=d.get("suggested_commands") or [];
+assert "sudo kalived-ctl scan" not in cmds, cmds' /tmp/kalived-advise-clean.$$; then
+  echo "  OK CLEAN suggested_commands uten re-scan"
+else
+  echo "  FAIL CLEAN re-scan i suggested_commands"
+  fail=1
+fi
+rm -rf "$tmpc" /tmp/kalived-advise-clean.$$
 rm -f /tmp/kalived-advise-dry.$$ /tmp/kalived-advise-dry-err.$$
 
 echo "[test] ugyldig config enum → exit 3"

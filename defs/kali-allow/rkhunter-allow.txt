@@ -10,6 +10,7 @@ Application 'wireshark'
 Application 'nmap'
 Application 'tshark'
 PACKET_CAP_APP
+Group 'wireshark' has been added
 Checking for hidden processes                              [ Skipped ]
 Process '/usr/lib/chromium
 Process '/opt/brave.com

@@ -1,0 +1,1 @@
+{"pid": "31337", "comm": "x", "cmdline": "/tmp/.x", "exe": "/tmp/.x (deleted)", "ppid": "1", "uid": "0", "cwd": "/tmp", "oom": "0", "maps_head": "", "tgid": "31337", "nstgid": "31337", "still_alive": true, "seen_by_ps": false, "seen_by_ps_eT": false, "class": "hidden"}

@@ -18,10 +18,15 @@ __pycache__/
 *.py[cod]
 .venv/
 venv/
+cockpit/web/node_modules/
+cockpit/web/dist/
 
 # OS
 .DS_Store
 *~
+
+# Threat-def runtime cache (local-pack / curl)
+defs/cache/
 
 # AIDE checksum is OK in baselines/; DB is under /var/lib/aide (utenfor repo)
 

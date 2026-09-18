@@ -1,0 +1,24 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #0b1020;
+  --color-paper: #f4efe4;
+  --color-clean: #5ee0b5;
+  --color-warn: #e8a85c;
+  --color-alert: #ff5d73;
+  --font-serif: "Iowan Old Style", Palatino, Georgia, serif;
+}
+
+html, body, #app {
+  height: 100%;
+  margin: 0;
+  background: var(--color-ink);
+  color: var(--color-paper);
+}
+
+body {
+  background:
+    radial-gradient(900px 500px at 10% -10%, rgba(45, 212, 191, 0.18), transparent 55%),
+    radial-gradient(700px 480px at 95% 0%, rgba(232, 168, 92, 0.12), transparent 50%),
+    var(--color-ink);
+}

@@ -1,0 +1,12 @@
+{
+  "window_h": 24,
+  "lines": 1420,
+  "block": 980,
+  "allow": 440,
+  "allow_dns_proton": 410,
+  "dropped_noise": 1400,
+  "scans": [],
+  "floods": [],
+  "hits_listen": [],
+  "top_block_dpt": [23, 445, 22]
+}

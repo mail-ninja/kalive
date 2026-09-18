@@ -6,6 +6,22 @@ info:
 servers:
   - url: http://127.0.0.1:8787
 paths:
+  /:
+    get:
+      summary: HTML UI (no auth)
+      responses:
+        "200": { description: text/html }
+  /v1/meta:
+    get:
+      summary: Config keys and playbook args (no secrets)
+      responses:
+        "200": { description: ok }
+  /v1/term:
+    get:
+      security: [{ bearerAuth: [] }]
+      summary: PTY info (root if API is sudo)
+      responses:
+        "200": { description: ok }
   /v1/health:
     get:
       summary: Liveness (no auth)

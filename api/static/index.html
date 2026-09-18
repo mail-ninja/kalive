@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="nb">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>kalived</title>
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+  <div class="mesh" aria-hidden="true"></div>
+  <header class="top">
+    <div class="brand">
+      <span class="mark">k</span>
+      <div>
+        <strong>kalived</strong>
+        <em>loopback SOC</em>
+      </div>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button type="button" data-tab="status" class="on">Status</button>
+      <button type="button" data-tab="settings">Innstillinger</button>
+      <button type="button" data-tab="playbooks">Playbooks</button>
+      <button type="button" data-tab="advise">Råd</button>
+    </nav>
+    <div class="health" id="health">…</div>
+  </header>
+
+  <main>
+    <section id="gate" class="panel gate">
+      <h1>Token</h1>
+      <p>Lim inn innholdet av <code>~/.config/kalived/api.token</code>. Lagres bare i denne nettleseren.</p>
+      <div class="row">
+        <input id="token" type="password" autocomplete="off" placeholder="Bearer-token">
+        <button type="button" id="save-token" class="primary">Lagre</button>
+      </div>
+      <p class="hint" id="gate-msg"></p>
+    </section>
+
+    <section id="tab-status" class="tab on">
+      <div class="verdict-hero" id="hero">
+        <p class="kicker">siste scan</p>
+        <h1 id="verdict-word">—</h1>
+        <p class="sub" id="verdict-sub">Henter…</p>
+        <div class="actions">
+          <button type="button" id="btn-scan" class="primary big">Kjør scan</button>
+          <label class="chk"><input type="checkbox" id="skip-hunt"> skip hunt</label>
+        </div>
+        <p class="hint" id="scan-msg"></p>
+      </div>
+      <div class="findings" id="findings"></div>
+      <div class="snaps">
+        <h2>Snapshots</h2>
+        <ul id="snap-list"></ul>
+      </div>
+    </section>
+
+    <section id="tab-settings" class="tab">
+      <h2>config.toml</h2>
+      <p class="hint">Samme fil som CLI. <code>listen_bind</code> må være loopback.</p>
+      <form id="cfg-form" class="cfg"></form>
+      <div class="actions">
+        <button type="button" id="btn-save-cfg" class="primary">Lagre</button>
+      </div>
+      <p class="hint" id="cfg-msg"></p>
+    </section>
+
+    <section id="tab-playbooks" class="tab">
+      <h2>Playbooks</h2>
+      <p class="hint">Krever <strong>confirm</strong> og API startet som root. Siste scan må ikke være ALERT for de fleste.</p>
+      <label class="chk loud"><input type="checkbox" id="pb-confirm"> Jeg bekrefter — kjør playbook på denne hosten</label>
+      <div id="pb-list" class="pb-grid"></div>
+      <pre class="log" id="pb-log" hidden></pre>
+    </section>
+
+    <section id="tab-advise" class="tab">
+      <h2>Advisor</h2>
+      <p class="hint">Default er løs prat. <code>--playbook signal</code> er den stramme SOC-dommen. Ingen sudo.</p>
+      <label class="chk">playbook
+        <select id="ask-pb">
+          <option value="">(ingen — 32 IQ)</option>
+          <option value="signal">signal</option>
+        </select>
+      </label>
+      <textarea id="ask" rows="3" placeholder="YO Gangster!"></textarea>
+      <div class="actions">
+        <button type="button" id="btn-advise" class="primary">Hent råd</button>
+      </div>
+      <article class="advice" id="advice"></article>
+
+      <div class="crt-wrap">
+        <div class="crt-top">
+          <span class="crt-led" id="term-led"></span>
+          <strong>xterm</strong>
+          <em id="term-who">loopback PTY</em>
+          <button type="button" id="btn-term" class="primary">Koble til</button>
+        </div>
+        <div class="crt-bezel">
+          <div class="crt-scan" aria-hidden="true"></div>
+          <div id="term" class="crt-screen"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+  <link rel="stylesheet" href="/static/vendor/xterm.css">
+  <script src="/static/vendor/xterm.js"></script>
+  <script src="/static/vendor/addon-fit.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>

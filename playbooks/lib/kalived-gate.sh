@@ -26,6 +26,7 @@ kalived_require_not_alert() {
   case "$verdict" in
     ALERT|ERROR)
       echo "GATE FAIL: siste scan er $verdict — ikke installer auditd/AIDE på denne tilstanden." >&2
+      echo "  (aide-init: --force hopper ikke over ALERT; bruk --force-alert bare etter evidens er lagret)" >&2
       return 2
       ;;
     CLEAN|WARN)

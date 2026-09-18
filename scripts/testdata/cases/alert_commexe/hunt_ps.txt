@@ -1,0 +1,2 @@
+    1     0 root         0 Ss   Thu Jan  1 00:00:00 1970 /sbin/init
+  100     1 void      1000 S    Thu Jan  1 00:00:00 1970 svl host-pty

@@ -66,4 +66,9 @@ PY
     add_finding INFO NET-NMAP "ss LISTEN som nmap ikke bekreftet på 127.0.0.1: $ss_only" \
       "typisk timing eller kun-LAN bind" "hunt_nmap.gnmap"
   fi
+  if [[ -f "$OUT/hunt_nmap_sv.txt" ]] && grep -qiE 'meterpreter|backdoor|trojan' "$OUT/hunt_nmap_sv.txt"; then
+    add_finding ALERT NET-NMAP-SVC "nmap -sV: tjenestenavn ser ut som bakdør" \
+      "$(grep -iE 'meterpreter|backdoor|trojan' "$OUT/hunt_nmap_sv.txt" | head -10)" \
+      "hunt_nmap_sv.txt"
+  fi
 }

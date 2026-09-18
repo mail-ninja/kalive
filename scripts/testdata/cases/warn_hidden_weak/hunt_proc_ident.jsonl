@@ -1,0 +1,1 @@
+{"pid": "4242", "comm": "sleep", "cmdline": "sleep 1", "exe": "/usr/bin/sleep", "ppid": "1", "uid": "1000", "cwd": "/home/void", "oom": "0", "maps_head": "", "tgid": "4242", "nstgid": "4242", "still_alive": true, "seen_by_ps": false, "seen_by_ps_eT": false, "class": "weak"}

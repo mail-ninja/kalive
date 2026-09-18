@@ -10,7 +10,7 @@ import sys
 import tomllib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 ROOT = Path(os.environ.get("KALIVED_ROOT", Path(__file__).resolve().parent.parent))
 OWNER = os.environ.get("KALIVED_OWNER") or os.environ.get("SUDO_USER") or os.environ.get("USER") or "void"
@@ -21,6 +21,7 @@ TOKEN_PATH = Path(os.environ.get("KALIVED_API_TOKEN", HOME / ".config/kalived/ap
 SCAN = ROOT / "scripts" / "kalived-scan.sh"
 UPDATE_DEFS = ROOT / "scripts" / "update-threat-defs.sh"
 PLAYBOOKS = ROOT / "playbooks"
+STATIC = Path(__file__).resolve().parent / "static"
 
 DEFAULTS = {
     "aide_init_policy": "allow_known_warn",
@@ -42,6 +43,15 @@ DEFAULTS = {
     "nmap_port_spec": "-",
     "helper_stale_check": True,
     "aide_watch_helper": True,
+    "proc_inventory": True,
+    "proc_hidden_check": True,
+    "proc_ioc_check": True,
+    "pcap_localhost": True,
+    "pcap_duration_s": 8,
+    "pcap_max_packets": 4000,
+    "nmap_svc_probe": True,
+    "ufw_digest": True,
+    "web_terminal": True,
 }
 ENUMS = {
     "aide_init_policy": {"clean_only", "allow_known_warn", "always_prompt"},
@@ -62,6 +72,7 @@ PLAYBOOK_ALLOW = {
 }
 PLAYBOOK_ARGS = {
     "docker-hygiene": {"--prune", "--no-stop", "--stop"},
+    "aide-init": {"--force", "--force-alert"},
 }
 
 
@@ -167,7 +178,40 @@ class Handler(BaseHTTPRequestHandler):
     server_version = "kalived-api/1"
 
     def log_message(self, fmt, *args):
-        sys.stderr.write("%s - %s\n" % (self.address_string(), fmt % args))
+        msg = fmt % args
+        # nmap -sV / TLS ClientHello against HTTP — not an attack, not operator-useful
+        if "Bad request syntax" in msg or "Bad HTTP" in msg or "code 400" in msg:
+            return
+        sys.stderr.write("%s - %s\n" % (self.address_string(), msg))
+
+    def handle_one_request(self):
+        try:
+            self.raw_requestline = self.rfile.readline(65537)
+        except (ConnectionResetError, BrokenPipeError, TimeoutError):
+            self.close_connection = True
+            return
+        if not self.raw_requestline:
+            self.close_connection = True
+            return
+        raw = self.raw_requestline
+        # TLS ClientHello (\x16\x03) or nmap version-probe garbage
+        if raw[:1] == b"\x16" or raw.startswith(b"random") or b"\x00" in raw[:12]:
+            self.close_connection = True
+            return
+        if len(raw) > 65536:
+            self.close_connection = True
+            return
+        if not self.parse_request():
+            return
+        mname = "do_" + self.command
+        if not hasattr(self, mname):
+            self.send_error(501, "Unsupported method (%r)" % self.command)
+            return
+        try:
+            getattr(self, mname)()
+            self.wfile.flush()
+        except (ConnectionResetError, BrokenPipeError):
+            self.close_connection = True
 
     def _send(self, code: int, obj, extra_headers=None):
         raw = json.dumps(obj, ensure_ascii=False, indent=2).encode("utf-8")
@@ -181,15 +225,32 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(raw)
 
+    def _send_file(self, path: Path, ctype: str):
+        if not path.is_file():
+            return self._send(404, {"error": "not found"})
+        raw = path.read_bytes()
+        self.send_response(200)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Length", str(len(raw)))
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("Cache-Control", "no-cache")
+        self.end_headers()
+        self.wfile.write(raw)
+
     def _auth(self) -> bool:
         p = urlparse(self.path).path.rstrip("/") or "/"
-        if p in ("/v1/health", "/", "/openapi.yaml", "/favicon.ico"):
+        if p in ("/v1/health", "/", "/ui", "/ui/", "/openapi.yaml", "/favicon.ico", "/v1/meta"):
+            return True
+        if p.startswith("/static/"):
             return True
         h = self.headers.get("Authorization", "")
         tok = ""
         if h.startswith("Bearer "):
             tok = h[7:].strip()
         tok = tok or self.headers.get("X-Kalived-Token", "").strip()
+        parsed = urlparse(self.path)
+        if parsed.path.rstrip("/") == "/v1/term/ws":
+            tok = tok or (parse_qs(parsed.query).get("token") or [""])[0]
         if not tok or not secrets.compare_digest(tok, TOKEN):
             self._send(401, {"error": "unauthorized"})
             return False
@@ -216,30 +277,57 @@ class Handler(BaseHTTPRequestHandler):
             self.send_response(204)
             self.end_headers()
             return
-        if path == "/":
+        if path in ("/", "/ui", "/ui/"):
+            return self._send_file(STATIC / "index.html", "text/html; charset=utf-8")
+        if path.startswith("/static/"):
+            rel = path[len("/static/") :]
+            target = (STATIC / rel).resolve()
+            try:
+                target.relative_to(STATIC.resolve())
+            except ValueError:
+                return self._send(404, {"error": "not found"})
+            if rel.endswith(".css"):
+                ctype = "text/css; charset=utf-8"
+            elif rel.endswith(".js"):
+                ctype = "text/javascript; charset=utf-8"
+            else:
+                ctype = "application/octet-stream"
+            return self._send_file(target, ctype)
+        if urlparse(self.path).path.rstrip("/") == "/v1/term/ws":
+            if not load_config().get("web_terminal", True):
+                return self._send(403, {"error": "web_terminal disabled"})
+            from pty_ws import handle_term_ws
+
+            self.close_connection = True
+            handle_term_ws(self, OWNER, str(HOME))
+            return
+        if path == "/v1/term":
+            if not load_config().get("web_terminal", True):
+                return self._send(403, {"error": "web_terminal disabled"})
+            return self._send(
+                200,
+                {
+                    "enabled": True,
+                    "root": os.geteuid() == 0,
+                    "uid": os.geteuid(),
+                    "ws": "/v1/term/ws",
+                },
+            )
+        if path == "/v1/meta":
             return self._send(
                 200,
                 {
                     "service": "kalived-api",
-                    "docs": "not FastAPI — no /docs UI. See /openapi.yaml and docs/SURFACE.md",
+                    "ui": "/",
+                    "docs": "openapi.yaml + docs/SURFACE.md",
                     "auth": "Authorization: Bearer $(cat ~/.config/kalived/api.token)",
-                    "health": "/v1/health",
-                    "routes": [
-                        "GET /v1/health",
-                        "GET /v1/config",
-                        "PUT /v1/config",
-                        "GET /v1/verdict/latest",
-                        "GET /v1/snapshots",
-                        "GET /v1/snapshots/{stamp}",
-                        "GET /v1/findings",
-                        "GET /v1/defs/feeds",
-                        "POST /v1/defs/update",
-                        "POST /v1/scan",
-                        "GET /v1/playbooks",
-                        "POST /v1/playbooks/{name}",
-                        "POST /v1/ai/advise",
-                    ],
                     "mutating": "POST scan/playbooks/defs require this process running as root",
+                    "playbook_args": {k: sorted(v) for k, v in PLAYBOOK_ARGS.items()},
+                    "enums": {k: sorted(v) for k, v in ENUMS.items()},
+                    "config_keys": sorted(DEFAULTS),
+                    "advisor_playbooks": sorted(
+                        p.stem for p in (ROOT / "prompts" / "playbooks").glob("*.md")
+                    ),
                 },
             )
         if path == "/openapi.yaml":
@@ -382,13 +470,20 @@ class Handler(BaseHTTPRequestHandler):
             cand = DATA / "logs" / "status" / str(body["stamp"])
             if (cand / "verdict.json").is_file():
                 snap = cand
-        if snap is None:
+        pb = str(body.get("playbook") or "").strip()
+        if snap is None and pb:
             snap = latest_snapshot()
-        if snap is None:
+        if pb and snap is None:
             return self._send(404, {"error": "no verdict to advise on"})
-        cmd = [sys.executable, str(ROOT / "scripts" / "kalived-advise.py"), "--snapshot", str(snap)]
+        cmd = [sys.executable, str(ROOT / "scripts" / "kalived-advise.py")]
+        if snap is not None:
+            cmd += ["--snapshot", str(snap)]
+        if pb:
+            cmd += ["--playbook", pb]
         if body.get("ask"):
             cmd += ["--ask", str(body["ask"])]
+        if not pb and not body.get("ask"):
+            return self._send(400, {"error": "ask or playbook required"})
         env = os.environ.copy()
         env["KALIVED_ROOT"] = str(ROOT)
         env["KALIVED_DATA"] = str(DATA)
@@ -401,7 +496,15 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(504, {"error": "advisor timeout"})
         if p.returncode != 0:
             return self._send(502, {"error": (p.stderr or p.stdout or "advise failed")[-1500:], "exit_code": p.returncode})
-        return self._send(200, {"advice": p.stdout, "snapshot": str(snap), "model": cfg.get("ai_model")})
+        return self._send(
+            200,
+            {
+                "advice": p.stdout,
+                "snapshot": str(snap) if snap else None,
+                "playbook": pb or "default",
+                "model": cfg.get("ai_model"),
+            },
+        )
 
     def _post_defs(self):
         if not self._need_root():

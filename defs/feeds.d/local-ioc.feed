@@ -1,0 +1,4 @@
+id=local-ioc
+type=local-pack
+enabled=1
+desc=Copy git defs/ioc + kali-allow into defs/cache (no network)

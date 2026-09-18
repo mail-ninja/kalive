@@ -1,0 +1,1 @@
+{"pid": "666", "comm": "kworker/0:1", "cmdline": "", "exe": "/tmp/.k", "ppid": "1", "uid": "0", "cwd": "/", "oom": "0", "maps_head": "", "tgid": "666", "nstgid": "666", "still_alive": true, "seen_by_ps": false, "seen_by_ps_eT": false, "class": "fakekth"}

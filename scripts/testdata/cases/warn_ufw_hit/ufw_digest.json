@@ -1,0 +1,14 @@
+{
+  "window_h": 24,
+  "lines": 80,
+  "block": 12,
+  "allow": 0,
+  "allow_dns_proton": 0,
+  "dropped_noise": 60,
+  "scans": [],
+  "floods": [],
+  "hits_listen": [
+    {"src": "198.51.100.9", "dpt": 8787, "in": "eth0", "action": "BLOCK"}
+  ],
+  "top_block_dpt": [8787]
+}
