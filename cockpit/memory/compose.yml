@@ -1,0 +1,29 @@
+# Memory backends — loopback only. Not the cockpit process.
+#   docker compose -f cockpit/memory/compose.yml up -d
+services:
+  qdrant:
+    image: qdrant/qdrant:v1.13.2
+    ports:
+      - "127.0.0.1:6333:6333"
+    volumes:
+      - qdrant-data:/qdrant/storage
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "127.0.0.1:6379:6379"
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: kalived
+      MINIO_ROOT_PASSWORD: kalived-minio
+    ports:
+      # 9000 tatt av agent-hub-minio (forrige prosjekt, 0.0.0.0)
+      - "127.0.0.1:9100:9000"
+      - "127.0.0.1:9101:9001"
+    volumes:
+      - minio-data:/data
+
+volumes:
+  qdrant-data:
+  minio-data:

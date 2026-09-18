@@ -12,6 +12,9 @@ check_docker_hygiene() {
       active="$(grep 'docker.socket:' "$units" | awk '{print $NF}' || true)"
     fi
     if [[ "$active" == "active" ]]; then
+      if [[ -f "$OUT/docker_ps.txt" ]] && grep -qE 'qdrant|redis|minio' "$OUT/docker_ps.txt"; then
+        return 0
+      fi
       if [[ -f "$OUT/docker_ps.txt" ]] && ! grep -qE '^[a-f0-9]{12}' "$OUT/docker_ps.txt"; then
         add_finding WARN PERS-DOCKER "docker.socket kjører med 0 containere (stop-idle er satt)" \
           "sudo systemctl disable --now docker.socket docker.service" "docker_socket.txt"

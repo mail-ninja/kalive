@@ -41,11 +41,17 @@ fi
 
 if [[ "$STOP" == "1" ]]; then
   running="$(docker ps -q 2>/dev/null || true)"
-  if [[ -n "$running" ]]; then
+  names="$(docker ps --format '{{.Names}}' 2>/dev/null || true)"
+  if echo "$names" | grep -qE 'qdrant|redis|minio'; then
+    echo "cockpit memory-stack kjører (qdrant/redis/minio) — hopper over docker-stop"
+    STOP=0
+  elif [[ -n "$running" ]]; then
     echo "Containere kjører — hopper over stop. Stopp dem selv først." >&2
     echo "$running"
     exit 1
   fi
+fi
+if [[ "$STOP" == "1" ]]; then
   echo "[*] stop+disable docker.socket + docker.service (0 containers)"
   systemctl disable --now docker.socket docker.service 2>/dev/null || true
   systemctl is-active docker docker.socket 2>&1 || true

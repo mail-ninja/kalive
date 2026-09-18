@@ -53,11 +53,7 @@ with open(src, encoding="utf-8", errors="replace") as f:
             continue
         if is_loopback(local):
             continue
-        alerts.append({
-            "id": "NET-LISTEN-EXT",
-            "title": f"TCP-lytter utenfor localhost: {local} ({proc_from(line)})",
-            "detail": line[:300],
-        })
+        alerts.append(f"{local} ({proc_from(line)})")
 
 with open(dst, "w", encoding="utf-8") as out:
     json.dump(alerts, out)
@@ -74,14 +70,10 @@ PY
   local n
   n="$("$py" -c "import json,sys; print(len(json.load(open(sys.argv[1]))))" "$tmp")"
   if [[ "$n" -gt 0 ]]; then
-    local i=0
-    while [[ "$i" -lt "$n" ]]; do
-      local title detail
-      title="$("$py" -c "import json,sys; print(json.load(open(sys.argv[1]))[int(sys.argv[2])]['title'])" "$tmp" "$i")"
-      detail="$("$py" -c "import json,sys; print(json.load(open(sys.argv[1]))[int(sys.argv[2])].get('detail',''))" "$tmp" "$i")"
-      add_finding ALERT NET-LISTEN-EXT "$title" "$detail" "ss_tulpn.txt"
-      i=$((i + 1))
-    done
+    local title detail
+    title="$("$py" -c "import json,sys; a=json.load(open(sys.argv[1])); print('%d TCP-lyttere utenfor localhost' % len(a))" "$tmp")"
+    detail="$("$py" -c "import json,sys; print('\n'.join(json.load(open(sys.argv[1]))))" "$tmp")"
+    add_finding ALERT NET-LISTEN-EXT "$title" "$detail" "ss_tulpn.txt"
   fi
   rm -f "$tmp"
   return 0

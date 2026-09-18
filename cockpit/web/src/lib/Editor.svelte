@@ -1,23 +1,51 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte'
+  import 'monaco-editor-css'
 
-  let el: HTMLDivElement
-  let editor: { dispose: () => void } | null = null
+  let host: HTMLDivElement
+  let editor: { dispose: () => void; layout: () => void } | null = null
+  let ro: ResizeObserver | null = null
 
   onMount(async () => {
     const monaco = await import('monaco-editor')
-    editor = monaco.editor.create(el, {
-      value: '# untitled\n// Monaco er wired. Theia er IDE-modus senere, ikke nå.\n',
+    editor = monaco.editor.create(host, {
+      value: '// cockpit editor — monaco\n',
       language: 'markdown',
       theme: 'vs-dark',
-      automaticLayout: true,
+      automaticLayout: false,
       minimap: { enabled: false },
       fontSize: 14,
-      fontFamily: 'ui-monospace, "Cascadia Code", Menlo, monospace',
+      fontFamily: 'ui-monospace, "Cascadia Code", Menlo, Consolas, monospace',
+      scrollBeyondLastLine: false,
+      padding: { top: 8 },
     })
+    ro = new ResizeObserver(() => editor?.layout())
+    ro.observe(host)
+    editor.layout()
   })
 
-  onDestroy(() => editor?.dispose())
+  onDestroy(() => {
+    ro?.disconnect()
+    editor?.dispose()
+  })
 </script>
 
-<div bind:this={el} class="h-full min-h-[16rem] w-full overflow-hidden rounded-lg"></div>
+<div class="editor-shell">
+  <div bind:this={host} class="editor-canvas"></div>
+</div>
+
+<style>
+  .editor-shell {
+    position: relative;
+    height: 100%;
+    min-height: 12rem;
+    width: 100%;
+    overflow: hidden;
+    border-radius: 0.5rem;
+    background: #1e1e1e;
+  }
+  .editor-canvas {
+    position: absolute;
+    inset: 0;
+  }
+</style>

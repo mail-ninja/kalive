@@ -74,29 +74,37 @@
 
     <section id="tab-advise" class="tab">
       <h2>Advisor</h2>
-      <p class="hint">Default er løs prat. <code>--playbook signal</code> er den stramme SOC-dommen. Ingen sudo.</p>
-      <label class="chk">playbook
+      <p class="hint">Hiroshima = rommet. <strong>signal</strong> = SOC. <strong>ops</strong> = terminal-sec (xterm).</p>
+      <label class="chk">agent
         <select id="ask-pb">
-          <option value="">(ingen — 32 IQ)</option>
-          <option value="signal">signal</option>
+          <option value="signal" selected>signal (SOC)</option>
+          <option value="">ops (terminal)</option>
         </select>
       </label>
-      <textarea id="ask" rows="3" placeholder="YO Gangster!"></textarea>
+      <textarea id="ask" rows="3" placeholder="Hva ser du i scannen?"></textarea>
+      <label class="chk loud"><input type="checkbox" id="signal-term"> Signal får skrive i xterm (passord skriver du der, ikke i chatten)</label>
       <div class="actions">
         <button type="button" id="btn-advise" class="primary">Hent råd</button>
       </div>
-      <article class="advice" id="advice"></article>
-
-      <div class="crt-wrap">
-        <div class="crt-top">
-          <span class="crt-led" id="term-led"></span>
-          <strong>xterm</strong>
-          <em id="term-who">loopback PTY</em>
-          <button type="button" id="btn-term" class="primary">Koble til</button>
+      <div class="advise-panes">
+        <div class="advise-top" id="advise-top">
+          <div id="chat-hist" class="chat-hist"></div>
+          <div id="term-cmds" class="pb-grid"></div>
         </div>
-        <div class="crt-bezel">
-          <div class="crt-scan" aria-hidden="true"></div>
-          <div id="term" class="crt-screen"></div>
+        <button type="button" class="gutter-h" id="advise-gutter" aria-label="resize"></button>
+        <div class="advise-bot" id="advise-bot">
+          <div class="crt-wrap">
+            <div class="crt-top">
+              <span class="crt-led" id="term-led"></span>
+              <strong>xterm</strong>
+              <em id="term-who">loopback PTY</em>
+              <button type="button" id="btn-term" class="primary">Koble til</button>
+            </div>
+            <div class="crt-bezel">
+              <div class="crt-scan" aria-hidden="true"></div>
+              <div id="term" class="crt-screen"></div>
+            </div>
+          </div>
         </div>
       </div>
     </section>

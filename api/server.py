@@ -474,7 +474,7 @@ class Handler(BaseHTTPRequestHandler):
         if snap is None and pb:
             snap = latest_snapshot()
         if pb and snap is None:
-            return self._send(404, {"error": "no verdict to advise on"})
+            return self._send(404, {"error": "no verdict to advise on — kjør scan først"})
         cmd = [sys.executable, str(ROOT / "scripts" / "kalived-advise.py")]
         if snap is not None:
             cmd += ["--snapshot", str(snap)]

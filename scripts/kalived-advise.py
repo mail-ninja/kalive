@@ -18,10 +18,25 @@ DEFAULT_MODEL = "grok-4.6"
 DEFAULT_BASE = "https://api.x.ai/v1"
 
 
+def _pb_dirs() -> list[Path]:
+    dirs = [PB_DIR]
+    data = Path(os.environ.get("KALIVED_DATA", ROOT))
+    extra = data / "prompts" / "playbooks"
+    if extra.resolve() not in {p.resolve() for p in dirs if p.exists()}:
+        dirs.append(extra)
+    home = os.environ.get("KALIVED_OWNER_HOME")
+    if home:
+        dirs.append(Path(home) / "kalived" / "prompts" / "playbooks")
+    return dirs
+
+
 def list_playbooks() -> list[str]:
-    if not PB_DIR.is_dir():
-        return []
-    return sorted(p.stem for p in PB_DIR.glob("*.md") if p.is_file())
+    names: set[str] = set()
+    for d in _pb_dirs():
+        if not d.is_dir():
+            continue
+        names.update(p.stem for p in d.glob("*.md") if p.is_file())
+    return sorted(names)
 
 
 def load_system(playbook: str | None) -> tuple[str, str]:
@@ -32,10 +47,15 @@ def load_system(playbook: str | None) -> tuple[str, str]:
     name = playbook.strip().lower()
     if not re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,40}", name):
         raise SystemExit("ugyldig playbook-navn")
-    path = PB_DIR / f"{name}.md"
-    if not path.is_file():
-        raise SystemExit(f"ukjent advisor-playbook: {name} (har: {', '.join(list_playbooks()) or 'ingen'})")
-    return name, path.read_text(encoding="utf-8")
+    aliases = [name]
+    if name in ("sec", "soc"):
+        aliases = ["signal", name]
+    for d in _pb_dirs():
+        for a in aliases:
+            path = d / f"{a}.md"
+            if path.is_file():
+                return a, path.read_text(encoding="utf-8")
+    raise SystemExit(f"ukjent advisor-playbook: {name} (har: {', '.join(list_playbooks()) or 'ingen'})")
 
 PLAYBOOKS = [
     "sudo kalived-ctl scan",
@@ -294,8 +314,12 @@ def ufw_digest_summary(snapshot: Path) -> dict:
 
 def redact(verdict: dict, snapshot: Path | None = None) -> dict:
     findings = []
+    info_n = 0
     for f in verdict.get("findings") or []:
         if not isinstance(f, dict):
+            continue
+        if f.get("severity") == "INFO":
+            info_n += 1
             continue
         findings.append(
             {
@@ -304,6 +328,7 @@ def redact(verdict: dict, snapshot: Path | None = None) -> dict:
                 "title": (f.get("title") or "")[:240],
             }
         )
+    findings = findings[:16]
     data_root = Path(os.environ.get("KALIVED_DATA", ROOT))
     defs = defs_summary(data_root)
     out = {
@@ -312,6 +337,7 @@ def redact(verdict: dict, snapshot: Path | None = None) -> dict:
         "stamp": verdict.get("stamp"),
         "sudo": verdict.get("sudo"),
         "findings": findings,
+        "info_count": info_n,
         "allowed_commands": PLAYBOOKS,
         "defs": defs,
         "suggested_commands": suggested_commands(verdict, defs),
@@ -324,16 +350,43 @@ def redact(verdict: dict, snapshot: Path | None = None) -> dict:
     return out
 
 
-def chat(system: str, user: str, model: str, base: str, key: str, temperature: float = 0.8) -> str:
+def thread_path(pb_name: str) -> Path:
+    home = os.environ.get("KALIVED_OWNER_HOME") or str(Path.home())
+    p = Path(home) / ".config/kalived/memory" / pb_name
+    p.mkdir(parents=True, exist_ok=True)
+    return p / "thread.json"
+
+
+def load_thread(path: Path) -> dict:
+    if not path.is_file():
+        return {"stamp": None, "messages": []}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {"stamp": None, "messages": []}
+    if not isinstance(data, dict):
+        return {"stamp": None, "messages": []}
+    data.setdefault("messages", [])
+    return data
+
+
+def save_thread(path: Path, data: dict) -> None:
+    msgs = data.get("messages") or []
+    data["messages"] = msgs[-24:]
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    try:
+        path.chmod(0o600)
+    except OSError:
+        pass
+
+
+def chat(system: str, messages: list, model: str, base: str, key: str, temperature: float = 0.8) -> str:
     url = base.rstrip("/") + "/chat/completions"
     body = json.dumps(
         {
             "model": model,
             "temperature": temperature,
-            "messages": [
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
+            "messages": [{"role": "system", "content": system}] + messages,
         }
     ).encode("utf-8")
     req = urllib.request.Request(
@@ -412,13 +465,20 @@ def main() -> int:
         verdict = json.loads(verd_path.read_text(encoding="utf-8"))
         payload = redact(verdict, snapshot)
 
+    stamp = (payload or {}).get("stamp") if payload else None
+    tpath = thread_path(pb_name)
+    thread = load_thread(tpath)
     if attach_scan:
         if payload is None:
             print("signal-playbook krever et snapshot", file=sys.stderr)
             return 1
-        user = "Siste scan (redacted JSON):\n" + json.dumps(payload, ensure_ascii=False, indent=2)
-        if extra:
-            user += "\n\nOperator spør:\n" + "\n".join(extra)
+        if thread.get("stamp") != stamp:
+            user = "Siste scan (redacted JSON):\n" + json.dumps(payload, ensure_ascii=False, indent=2)
+            if extra:
+                user += "\n\nOperator spør:\n" + "\n".join(extra)
+            thread["stamp"] = stamp
+        else:
+            user = "\n".join(extra) if extra else "Fortsett. Ikke gjenta hele diagnosen; vi har allerede denne scannen."
         temp = 0.2
     else:
         user = "\n".join(extra) if extra else "hei"
@@ -437,7 +497,15 @@ def main() -> int:
         return 2
     model = os.environ.get("XAI_MODEL") or os.environ.get("CFG_AI_MODEL") or DEFAULT_MODEL
     base = os.environ.get("XAI_BASE_URL") or DEFAULT_BASE
-    text = chat(system, user, model, base, key, temperature=temp).strip() + "\n"
+    history = [m for m in (thread.get("messages") or []) if isinstance(m, dict) and m.get("role") in ("user", "assistant")]
+    history.append({"role": "user", "content": user})
+    text = chat(system, history[-20:], model, base, key, temperature=temp).strip() + "\n"
+    history.append({"role": "assistant", "content": text})
+    thread["messages"] = history
+    try:
+        save_thread(tpath, thread)
+    except OSError:
+        pass
     print(text, end="")
     saved = None
     data_root = Path(os.environ.get("KALIVED_DATA", ROOT))

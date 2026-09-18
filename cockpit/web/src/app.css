@@ -22,3 +22,47 @@ body {
     radial-gradient(700px 480px at 95% 0%, rgba(232, 168, 92, 0.12), transparent 50%),
     var(--color-ink);
 }
+
+.chat-hist {
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: #5ee0b5 #05070d;
+}
+.chat-hist::-webkit-scrollbar {
+  width: 11px;
+}
+.chat-hist::-webkit-scrollbar-track {
+  background: #05070d;
+  border-radius: 999px;
+}
+.chat-hist::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #5ee0b5, #3b82f6);
+  border-radius: 999px;
+  border: 2px solid #05070d;
+}
+
+.bubble {
+  padding: 0.55rem 0.75rem;
+  border-radius: 0.7rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.bubble.you {
+  background: rgba(94, 224, 181, 0.1);
+  border: 1px solid rgba(94, 224, 181, 0.28);
+}
+.bubble.bot {
+  background: #080b14;
+  border: 1px solid rgba(244, 239, 228, 0.12);
+}
+.bubble.sys {
+  color: rgba(244, 239, 228, 0.45);
+  font-size: 0.78rem;
+}
+.bubble .who {
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(244, 239, 228, 0.45);
+  margin-bottom: 0.2rem;
+}

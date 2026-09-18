@@ -289,8 +289,11 @@
     };
     termWs.onmessage = (ev) => {
       if (!term) return;
-      if (typeof ev.data === "string") term.write(ev.data);
-      else term.write(new Uint8Array(ev.data));
+      let chunk = "";
+      if (typeof ev.data === "string") chunk = ev.data;
+      else chunk = new TextDecoder().decode(ev.data);
+      term.write(typeof ev.data === "string" ? ev.data : new Uint8Array(ev.data));
+      window.__termBuf = ((window.__termBuf || "") + chunk).slice(-8000);
     };
     termWs.onclose = () => {
       $("term-led").classList.remove("on", "root");
@@ -307,6 +310,31 @@
   }
 
   $("btn-term").onclick = connectTerm;
+
+  (function splitAdvise() {
+    const g = $("advise-gutter");
+    const panes = document.querySelector(".advise-panes");
+    const top = $("advise-top");
+    const bot = $("advise-bot");
+    if (!g || !panes || !top || !bot) return;
+    g.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      const rect = panes.getBoundingClientRect();
+      const move = (ev) => {
+        const y = ev.clientY - rect.top;
+        const pct = Math.min(82, Math.max(18, (y / rect.height) * 100));
+        top.style.flex = pct + " 1 0";
+        bot.style.flex = (100 - pct) + " 1 0";
+        if (typeof fitTerm === "function") fitTerm();
+      };
+      const up = () => {
+        window.removeEventListener("mousemove", move);
+        window.removeEventListener("mouseup", up);
+      };
+      window.addEventListener("mousemove", move);
+      window.addEventListener("mouseup", up);
+    });
+  })();
 
   $("btn-scan").onclick = async () => {
     $("btn-scan").disabled = true;
@@ -335,16 +363,97 @@
     }
   };
 
+  function extractCmds(text) {
+    const out = [];
+    const fences = text.matchAll(/```(?:bash|sh|zsh)?\n([\s\S]*?)```/g);
+    for (const m of fences) {
+      m[1].split("\n").forEach((line) => {
+        const s = line.trim();
+        if (s && !s.startsWith("#")) out.push(s);
+      });
+    }
+    const next = text.match(/sudo [^\n`]+/g) || [];
+    next.forEach((s) => {
+      const t = s.trim();
+      if (t && !out.includes(t)) out.push(t);
+    });
+    return out.slice(0, 8);
+  }
+
+  function sendToTerm(cmd) {
+    if (!termWs || termWs.readyState !== 1) {
+      $("term-who").textContent = "koble til xterm først";
+      return;
+    }
+    if (!$("signal-term").checked) {
+      $("term-who").textContent = "huk av «Signal får skrive i xterm»";
+      return;
+    }
+    termWs.send(cmd + "\n");
+  }
+
+  function renderTermCmds(advice) {
+    const box = $("term-cmds");
+    if (!box) return;
+    box.innerHTML = "";
+    const cmds = extractCmds(advice || "");
+    cmds.forEach((cmd) => {
+      const row = document.createElement("div");
+      row.className = "pb";
+      const left = document.createElement("code");
+      left.textContent = cmd;
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = "→ xterm";
+      btn.onclick = () => sendToTerm(cmd);
+      row.appendChild(left);
+      row.appendChild(btn);
+      box.appendChild(row);
+    });
+  }
+
+  function histEl() {
+    return $("chat-hist");
+  }
+  function addBubble(role, text) {
+    const box = histEl();
+    if (!box) return;
+    const div = document.createElement("div");
+    div.className = "bubble " + (role === "user" ? "user" : "bot");
+    const who = document.createElement("div");
+    who.className = "who";
+    who.textContent = role === "user" ? "du" : ($("ask-pb").value === "signal" ? "signal" : "ops");
+    const body = document.createElement("div");
+    body.textContent = text;
+    div.appendChild(who);
+    div.appendChild(body);
+    box.appendChild(div);
+    box.scrollTop = box.scrollHeight;
+    return body;
+  }
+
   $("btn-advise").onclick = async () => {
-    $("advice").textContent = "tenker…";
+    const shown = $("ask").value.trim() || "(scan)";
+    addBubble("user", shown);
+    const wait = addBubble("bot", "tenker…");
+    $("term-cmds").innerHTML = "";
     try {
+      let ask = $("ask").value;
+      const buf = window.__termBuf || "";
+      if (($("ask-pb").value || "signal") === "signal" && buf.trim()) {
+        ask = (ask ? ask + "\n\n" : "") + "Siste xterm-utskrift:\n```\n" + buf.slice(-2500) + "\n```";
+      }
       const r = await api("/v1/ai/advise", {
         method: "POST",
-        body: JSON.stringify({ ask: $("ask").value, playbook: $("ask-pb").value }),
+        body: JSON.stringify({ ask: ask, playbook: $("ask-pb").value || "signal" }),
       });
-      $("advice").textContent = r.advice || JSON.stringify(r);
+      const text = r.advice || JSON.stringify(r);
+      if (wait) wait.textContent = text;
+      renderTermCmds(text);
+      const box = histEl();
+      if (box) box.scrollTop = box.scrollHeight;
     } catch (e) {
-      $("advice").textContent = e.message;
+      if (wait) wait.textContent = e.message;
     }
   };
 

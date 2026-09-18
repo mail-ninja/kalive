@@ -417,3 +417,30 @@ Format: dato — hva — hvorfor — referanse (finding/rapport).
 
 ### 2026-09-18_0932 — auditd-mini.sh
 - auditd + /etc/audit/rules.d/99-kalived.rules (USB/execve kommentert). Gate: ikke ALERT.
+
+### 2026-09-18_1749 — ufw-logging-medium.sh
+- ufw logging medium (ikke deny-out). Gate: ikke ALERT. Rollback: ufw logging low
+
+### 2026-09-18_1753 — rkhunter-setup.sh
+- rkhunter+chkrootkit+debsums. --propupd. lsmod.expected freeze. Defs: defs/ + update-threat-defs.sh
+
+### 2026-09-18_1815 — install-kalived-helper.sh
+- scan-kopi til /usr/local/lib/kalived root:root (timer ExecStart). Ingen NOPASSWD mot home.
+
+### 2026-09-18_1819 — install-kalived-helper.sh
+- scan-kopi til /usr/local/lib/kalived root:root (timer ExecStart). Ingen NOPASSWD mot home.
+
+### 2026-09-18_1828 — install-kalived-helper.sh
+- scan-kopi til /usr/local/lib/kalived root:root (timer ExecStart). Ingen NOPASSWD mot home.
+
+### 2026-09-18_1829 — install-kalived-helper.sh
+- scan-kopi til /usr/local/lib/kalived root:root (timer ExecStart). Ingen NOPASSWD mot home.
+
+### 2026-09-18_1850 — install-kalived-helper.sh
+- scan-kopi til /usr/local/lib/kalived root:root (timer ExecStart). Ingen NOPASSWD mot home.
+
+### 2026-09-18_1922 — install-kalived-helper.sh
+- scan-kopi til /usr/local/lib/kalived root:root (timer ExecStart). Ingen NOPASSWD mot home.
+
+### 2026-09-18_1925 — install-kalived-helper.sh
+- scan-kopi til /usr/local/lib/kalived root:root (timer ExecStart). Ingen NOPASSWD mot home.

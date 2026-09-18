@@ -35,11 +35,40 @@ PROVIDERS = [
         ],
     },
     {
+        "id": "perplexity",
+        "label": "Perplexity",
+        "docs": "https://docs.perplexity.ai/guides/getting-started",
+        "keys": [
+            {"name": "PERPLEXITY_API_KEY", "secret": True, "label": "API-nøkkel"},
+            {
+                "name": "PERPLEXITY_BASE_URL",
+                "secret": False,
+                "label": "Base URL",
+                "placeholder": "https://api.perplexity.ai",
+            },
+        ],
+    },
+    {
+        "id": "huggingface",
+        "label": "Hugging Face",
+        "docs": "https://huggingface.co/docs/inference-providers/index",
+        "keys": [
+            {"name": "HF_TOKEN", "secret": True, "label": "HF token (Inference Providers)"},
+            {"name": "HUGGINGFACE_HUB_TOKEN", "secret": True, "label": "alias"},
+            {
+                "name": "HF_BASE_URL",
+                "secret": False,
+                "label": "Base URL",
+                "placeholder": "https://router.huggingface.co/v1",
+            },
+        ],
+    },
+    {
         "id": "github",
         "label": "GitHub",
         "docs": "https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens",
         "keys": [
-            {"name": "GITHUB_TOKEN", "secret": True, "label": "Token (repo)"},
+            {"name": "GITHUB_TOKEN", "secret": True, "label": "Token (repo / gh)"},
             {"name": "GH_TOKEN", "secret": True, "label": "gh CLI-alias"},
         ],
     },
@@ -60,6 +89,13 @@ PROVIDERS = [
 SECRET_KEYS = {k["name"] for p in PROVIDERS for k in p["keys"] if k["secret"]}
 KNOWN = {k["name"] for p in PROVIDERS for k in p["keys"]}
 KNOWN |= {"OPENAI_API_KEY", "ANTHROPIC_API_KEY"}
+
+
+def load_env() -> dict[str, str]:
+    p = env_path()
+    if not p.is_file():
+        return {}
+    return _parse(p.read_text(encoding="utf-8"))
 
 
 def env_path() -> Path:
