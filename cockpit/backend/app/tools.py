@@ -125,13 +125,186 @@ def hiroshima_job(args: dict) -> dict:
     return j
 
 
+@register(
+    ToolSpec(
+        name="canvas_read",
+        description="Les canvas (Monaco/iframe) som operator ser nå.",
+        mutating=False,
+        parameters={"type": "object", "properties": {}},
+    )
+)
+def canvas_read(_args: dict) -> dict:
+    from . import desk
+
+    s = desk.snapshot()
+    return {**s, "n": len(s.get("text") or "")}
+
+
+@register(
+    ToolSpec(
+        name="canvas_open",
+        description="Skriv fil til canvas. HTML-spill/app: path=*.html, language=html — da fyrer iframe automatisk. Ellers Monaco.",
+        mutating=False,
+        parameters={
+            "type": "object",
+            "properties": {
+                "path": {"type": "string"},
+                "language": {"type": "string"},
+                "text": {"type": "string"},
+                "mode": {"type": "string", "enum": ["monaco", "iframe"]},
+            },
+            "required": ["text"],
+        },
+    )
+)
+def canvas_open(args: dict) -> dict:
+    from . import desk
+
+    text = str(args.get("text") or "")
+    path = str(args.get("path") or "untitled.md")
+    language = str(args.get("language") or "markdown")
+    mode = str(args.get("mode") or "")
+    html = desk.looks_html(text, path, language)
+    if mode not in ("monaco", "iframe"):
+        mode = "iframe" if html else "monaco"
+    upd: dict = {"path": path, "language": language if not html else "html", "text": text, "mode": mode}
+    if html:
+        upd["preview"] = text
+        upd["mode"] = "iframe"
+    return desk.apply(upd)
+
+
+@register(
+    ToolSpec(
+        name="canvas_edit",
+        description="Erstatt tekst i åpen canvas (behold path/language).",
+        mutating=False,
+        parameters={"type": "object", "properties": {"text": {"type": "string"}}, "required": ["text"]},
+    )
+)
+def canvas_edit(args: dict) -> dict:
+    from . import desk
+
+    return desk.apply({"text": str(args.get("text") or ""), "mode": "monaco"})
+
+
+@register(
+    ToolSpec(
+        name="iframe_write",
+        description="SKRIV OG VIS i iframe. Påkrevd når operator sier spill/iframe/vis. html=komplett <!doctype html> med CSS+JS innebygd. Ikke Monaco. Ikke .py.",
+        mutating=False,
+        parameters={
+            "type": "object",
+            "properties": {"html": {"type": "string"}, "title": {"type": "string"}},
+            "required": ["html"],
+        },
+    )
+)
+def iframe_write(args: dict) -> dict:
+    from . import desk
+
+    html = str(args.get("html") or "")
+    if not html.strip():
+        return {"error": "html kreves"}
+    if not desk.looks_html(html, "index.html", "html"):
+        return {"error": "html må være et HTML-dokument (<!doctype html> eller <html>…)"}
+    title = str(args.get("title") or "index.html").strip() or "index.html"
+    if not title.endswith((".html", ".htm")):
+        title = title + ".html"
+    return desk.apply(
+        {"mode": "iframe", "preview": html, "text": html, "language": "html", "path": title}
+    )
+
+
+@register(
+    ToolSpec(
+        name="preview_set",
+        description="Fyr opp iframe. html=komplett HTML-dokument (spill/app) ELLER tom html for å spille det som ligger i canvas. url kun 127.0.0.1.",
+        mutating=False,
+        parameters={
+            "type": "object",
+            "properties": {"html": {"type": "string"}, "url": {"type": "string"}},
+        },
+    )
+)
+def preview_set(args: dict) -> dict:
+    from . import desk
+
+    url = str(args.get("url") or "").strip()
+    html = str(args.get("html") or "")
+    if url:
+        ok = url.startswith("http://127.0.0.1") or url.startswith("https://127.0.0.1") or url.startswith("http://localhost")
+        if not ok:
+            return {"error": "url må være loopback"}
+        return desk.apply({"mode": "iframe", "preview": url})
+    if not html:
+        snap = desk.snapshot()
+        html = snap.get("preview") or snap.get("text") or ""
+    if not html.strip():
+        return {"error": "tom canvas — skriv HTML først"}
+    if not desk.looks_html(html, "", "html"):
+        return {
+            "error": "canvas er ikke HTML (f.eks. .py-spec). Skriv en komplett <!doctype html>-fil og preview_set igjen.",
+            "path": desk.snapshot().get("path"),
+        }
+    return desk.apply({"mode": "iframe", "preview": html, "text": html, "language": "html", "path": "index.html"})
+
+
+@register(
+    ToolSpec(
+        name="term_send",
+        description="Send én linje til cockpit-xterm. Krever «agent får kjøre». Aldri passord. Dedikert term-agent.",
+        mutating=True,
+        parameters={"type": "object", "properties": {"line": {"type": "string"}}, "required": ["line"]},
+    )
+)
+def term_send(args: dict) -> dict:
+    line = str(args.get("line") or "").strip("\n")
+    if not line:
+        return {"error": "tom linje"}
+    low = line.lower()
+    if "sudo -S" in line or "| sudo" in low or ("echo " in low and "sudo" in low):
+        return {"error": "ikke sudo -S / pipe passord — skriv passord i xterm"}
+    if "\n" in line:
+        line = line.split("\n", 1)[0]
+    return {"pty_write": line + "\n", "note": "sendt til xterm"}
+
+
+@register(
+    ToolSpec(
+        name="ask_agent",
+        description="Crew: én underagent (forge|review|term). Spill/iframe → forge med beskjed iframe_write HTML. Oneshot.",
+        mutating=False,
+        parameters={
+            "type": "object",
+            "properties": {
+                "id": {"type": "string", "enum": ["forge", "review", "term"]},
+                "text": {"type": "string"},
+            },
+            "required": ["id", "text"],
+        },
+    )
+)
+def ask_agent(args: dict) -> dict:
+    aid = str(args.get("id") or "")
+    if aid not in ("forge", "review", "term"):
+        return {"error": "bare forge|review|term"}
+    text = str(args.get("text") or "").strip()
+    if not text:
+        return {"error": "tom oppgave"}
+    return {"dispatch": True, "agent": aid, "text": text[:4000]}
+
+
 def list_tools() -> list[dict]:
     return [spec.model_dump() for spec, _fn in TOOLS.values()]
 
 
-def openai_tools() -> list[dict]:
+def openai_tools(names: list[str] | None = None) -> list[dict]:
     out = []
+    allow = set(names) if names else None
     for spec, _fn in TOOLS.values():
+        if allow is not None and spec.name not in allow:
+            continue
         out.append(
             {
                 "type": "function",
@@ -145,7 +318,9 @@ def openai_tools() -> list[dict]:
     return out
 
 
-def call_tool(name: str, payload: dict, *, allow_mutate: bool = False) -> dict:
+def call_tool(name: str, payload: dict, *, allow_mutate: bool = False, allow: list[str] | None = None) -> dict:
+    if allow is not None and name not in allow:
+        return {"error": f"tool {name} ikke for denne agenten"}
     if name not in TOOLS:
         return {"error": f"unknown tool: {name}"}
     spec, fn = TOOLS[name]

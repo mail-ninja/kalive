@@ -10,6 +10,7 @@ import httpx
 
 from .agents import Agent
 from .catalog import get_provider
+from .agents import get_agent
 from .hiroshima import MAX_ROUNDS
 from .secrets_store import load_env
 from .tools import call_tool, openai_tools
@@ -18,13 +19,20 @@ _REPO = Path(__file__).resolve().parents[3]
 
 
 def _system_prompt(agent: Agent) -> str:
-    extra = (
-        "\n\nDu er i cockpit-Hiroshima. Tools: hiroshima_verdict, hiroshima_scan, hiroshima_run, hiroshima_job, ping. "
-        f"Maks {MAX_ROUNDS} runder. Jobber er ONESHOT: start → vent ferdig → STOPP. "
-        "Ikke start ny scan når den er done. Ikke loop. Rutinescan er cron (kalived-scan.timer), ikke deg. "
-        "Etter hiroshima_scan: poll hiroshima_job til status=done/timeout, deretter svar operator og slutt. "
-        "Passord skrives aldri i chat — bare i xterm. Scan/defs krever «agent får kjøre»."
-    )
+    if agent.desk == "code" or agent.id in ("forge", "review", "term", "crew", "swarm"):
+        extra = (
+            "\n\nDu er i cockpit-Arbeid (kode). "
+            "Hvis operator sier iframe, spill, vis, play: kall iframe_write med komplett HTML. "
+            "Da vises det i iframe med en gang. Monaco/.py/python snake.py er FEIL for spill. "
+            "Terminal eies av term. Crew: ask_agent forge «iframe_write HTML-spill». "
+            f"Maks {MAX_ROUNDS} runder. Oneshot. Rutine er cron. Passord bare i xterm."
+        )
+    else:
+        extra = (
+            "\n\nDu er i cockpit. SOC-tools: hiroshima_verdict/scan/run/job. "
+            f"Maks {MAX_ROUNDS} runder. Jobber ONESHOT. Rutinescan er cron. "
+            "Passord skrives aldri i chat. Scan krever «agent får kjøre»."
+        )
     if agent.playbook:
         p = _REPO / "prompts" / "playbooks" / f"{agent.playbook}.md"
         if p.is_file():
@@ -78,6 +86,7 @@ async def run_turn(
     model: str | None = None,
     allow_mutate: bool = False,
     use_tools: bool = True,
+    _depth: int = 0,
 ) -> AsyncIterator[dict[str, Any]]:
     key, url, model_id = _endpoint(agent, provider, model)
     pid = (provider or agent.provider or "xai").lower()
@@ -87,7 +96,8 @@ async def run_turn(
         {"role": "system", "content": _system_prompt(agent)},
         {"role": "user", "content": user_text},
     ]
-    tools = openai_tools() if use_tools else []
+    names = list(agent.tools) if agent.tools else None
+    tools = openai_tools(names) if use_tools else []
     async with httpx.AsyncClient(timeout=120.0) as client:
         for rnd in range(MAX_ROUNDS):
             last = rnd == MAX_ROUNDS - 1 or not tools
@@ -137,7 +147,7 @@ async def run_turn(
                 if not isinstance(args, dict):
                     args = {}
                 yield {"type": "tool", "name": name, "args": args, "round": rnd + 1}
-                result = call_tool(name, args, allow_mutate=allow_mutate)
+                result = call_tool(name, args, allow_mutate=allow_mutate, allow=names)
                 yield {"type": "tool_result", "name": name, "result": result, "round": rnd + 1}
                 messages.append(
                     {
@@ -155,4 +165,24 @@ async def run_turn(
                         }
                     )
                     tools = []
+                if isinstance(result, dict) and result.get("dispatch") and _depth < 1:
+                    sub = get_agent(str(result.get("agent") or ""))
+                    task = str(result.get("text") or "")
+                    if sub and sub.id != agent.id and task:
+                        yield {"type": "log", "text": f"{agent.id} → {sub.id}"}
+                        bits: list[str] = []
+                        async for ev in run_turn(
+                            sub,
+                            task,
+                            provider=provider,
+                            model=model,
+                            allow_mutate=allow_mutate,
+                            use_tools=True,
+                            _depth=_depth + 1,
+                        ):
+                            yield ev
+                            if ev.get("type") == "token":
+                                bits.append(str(ev.get("text") or ""))
+                        result = {"ok": True, "agent": sub.id, "excerpt": "".join(bits)[:1500]}
+                        messages[-1]["content"] = json.dumps(result, ensure_ascii=False)[:8000]
         yield {"type": "token", "text": "(nådde max runder uten svar)"}

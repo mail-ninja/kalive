@@ -5,6 +5,7 @@
   import Settings from './lib/Settings.svelte'
   import Split from './lib/Split.svelte'
   import Term from './lib/Term.svelte'
+  import { applyToolResult, getCanvas, setCanvas, subscribeCanvas } from './lib/desk'
   import { connect, send, type Frame } from './lib/ws'
 
   type Hist = { role: 'you' | 'bot' | 'sys'; text: string }
@@ -20,15 +21,17 @@
   let stream = $state('')
   let tools = $state<string[]>([])
   let health = $state('…')
-  let agents = $state<{ id: string; name: string; description: string; provider: string; model: string }[]>([])
+  let agents = $state<{ id: string; name: string; description: string; provider: string; model: string; desk?: string }[]>([])
   let providers = $state<{ id: string; label: string; models: string[] }[]>([])
-  let agentId = $state('dummy')
+  let agentId = $state('crew')
   let providerId = $state('xai')
   let modelId = $state('grok-4.6')
   let splitH = $state(42)
   let splitV = $state(62)
   let allowMutate = $state(false)
+  let canvasUi = $state(getCanvas())
   let models = $derived(providers.find((p) => p.id === providerId)?.models ?? [])
+  let team = $derived(agents.filter((a) => a.desk === 'code' || a.id === 'crew' || a.id === 'forge'))
 
   function setHiroshimaW(w: number) {
     hiroshimaW = Math.min(100, Math.max(12, w))
@@ -79,7 +82,8 @@
     }
     if (f.ch === 'tools' && f.type === 'result') {
       const r = f.payload.result as Record<string, unknown> | undefined
-      const bit = r && (r.verdict || r.error || r.pong)
+      applyToolResult(r)
+      const bit = r && (r.verdict || r.error || r.pong || r.path || r.agent || r.note)
       hist = [
         ...hist,
         {
@@ -123,6 +127,9 @@
       .catch(() => {
         health = 'backend nede — kjør cockpit/scripts/dev.sh'
       })
+    const offCanvas = subscribeCanvas((c) => {
+      canvasUi = c
+    })
     fetch('/v1/agents')
       .then((r) => r.json())
       .then((j) => {
@@ -142,6 +149,7 @@
     boot()
     return () => {
       stop = true
+      offCanvas()
       ws?.close()
     }
   })
@@ -149,6 +157,8 @@
   function say() {
     const t = draft.trim()
     if (!t || !ws) return
+    const c = getCanvas()
+    send(ws, 'editor', 'save', { path: c.path, language: c.language, text: c.text })
     hist = [...hist, { role: 'you', text: t }]
     send(ws, 'chat', 'user', {
       text: t,
@@ -196,7 +206,7 @@
         onchange={() => ws && send(ws, 'agents', 'select', { id: agentId })}
       >
         {#each agents as a}
-          <option value={a.id}>{a.name}</option>
+          <option value={a.id}>{a.name}{a.desk === 'soc' ? ' · soc' : a.desk === 'code' ? ' · kode' : ''}</option>
         {/each}
       </select>
     </label>
@@ -250,6 +260,21 @@
               <p class="mb-2 text-xs text-paper/50">{cur.description}</p>
             {/if}
           {/if}
+          {#if team.length}
+            <div class="mb-2 flex flex-wrap gap-1">
+              {#each team as a}
+                <button
+                  type="button"
+                  class="rounded-full border border-white/15 px-2 py-0.5 text-xs"
+                  class:bg-paper={agentId === a.id}
+                  class:text-ink={agentId === a.id}
+                  onclick={() => {
+                    agentId = a.id
+                    ws && send(ws, 'agents', 'select', { id: a.id })
+                  }}>{a.name}</button>
+              {/each}
+            </div>
+          {/if}
           <div class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-white/10 bg-black/40">
             <div class="flex items-center justify-between border-b border-white/10 px-3 py-1.5 text-xs text-paper/50">
               <span>historikk</span>
@@ -290,7 +315,37 @@
         <Split direction="vertical" bind:value={splitV}>
           {#snippet a()}
             <div class="flex h-full min-h-0 flex-col p-2">
-              <h2 class="mb-1 font-serif text-lg">monaco</h2>
+              <div class="mb-1 flex items-center gap-2">
+                <h2 class="font-serif text-lg">canvas</h2>
+                <button
+                  class="rounded-full border border-white/15 px-2 py-0.5 text-xs"
+                  class:bg-paper={canvasUi.mode === 'monaco'}
+                  class:text-ink={canvasUi.mode === 'monaco'}
+                  onclick={() => setCanvas({ mode: 'monaco' })}
+                >monaco</button>
+                <button
+                  class="rounded-full border border-white/15 px-2 py-0.5 text-xs"
+                  class:bg-paper={canvasUi.mode === 'iframe'}
+                  class:text-ink={canvasUi.mode === 'iframe'}
+                  onclick={() => setCanvas({ mode: 'iframe' })}
+                >iframe</button>
+                <button
+                  type="button"
+                  class="rounded-full bg-clean px-2 py-0.5 text-xs text-ink"
+                  onclick={async () => {
+                    const c = getCanvas()
+                    if (ws) send(ws, 'editor', 'save', { path: c.path, language: c.language, text: c.text })
+                    const r = await fetch('/v1/desk/play', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ text: c.text, path: c.path, language: c.language }),
+                    })
+                    const j = await r.json()
+                    applyToolResult(j)
+                  }}
+                >spill</button>
+                <span class="text-xs text-paper/40">{canvasUi.path}</span>
+              </div>
               <div class="min-h-0 flex-1">
                 <Editor />
               </div>

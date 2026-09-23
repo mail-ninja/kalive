@@ -144,6 +144,7 @@ cockpit/
 2. **Hiroshima native** — egen PTY + `/v1/hiroshima/*` på :8788. Ingen iframe. :8787 urørt.
 3. **Agent-loop** — tool-calls, maks 8 runder, confirm-gate «agent får kjøre».
 4. **Ikke strangle** — 8787 SOC-API forblir stdlib.
+5. **Kode-arbeid** — crew/forge/review/term. Canvas = Monaco *eller* iframe. Dedikert term-agent. **Ikke LangChain, ikke Semantic Kernel** — WS-loop + Redis er orkestreringen.
 
 ## Hva vi bevisst ikke rører
 

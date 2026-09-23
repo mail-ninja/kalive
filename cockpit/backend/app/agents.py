@@ -16,9 +16,16 @@ class Agent(BaseModel):
     provider: str = "xai"  # xai | inception
     model: str = ""
     playbook: str | None = None  # prompts/playbooks/<id>.md
+    desk: str = "any"  # soc | code | any
     tools: list[str] = Field(default_factory=list)
     builtin: bool = False
 
+
+SOC_TOOLS = ["ping", "hiroshima_verdict", "hiroshima_scan", "hiroshima_run", "hiroshima_job"]
+CODE_TOOLS = ["iframe_write", "preview_set", "canvas_open", "canvas_edit", "canvas_read", "ping", "term_send"]
+CREW_TOOLS = ["ping", "ask_agent", "iframe_write", "canvas_read"]
+TERM_TOOLS = ["ping", "term_send"]
+REVIEW_TOOLS = ["ping", "canvas_read"]
 
 BUILTINS = [
     Agent(
@@ -28,7 +35,8 @@ BUILTINS = [
         provider="xai",
         model="grok-4.6",
         playbook=None,
-        tools=["ping"],
+        desk="any",
+        tools=TERM_TOOLS,
         builtin=True,
     ),
     Agent(
@@ -38,17 +46,63 @@ BUILTINS = [
         provider="xai",
         model="grok-4.6",
         playbook="signal",
-        tools=["ping"],
+        desk="soc",
+        tools=SOC_TOOLS,
+        builtin=True,
+    ),
+    Agent(
+        id="forge",
+        name="forge",
+        description="Kode. Spill/app → iframe_write. Annet → Monaco.",
+        provider="xai",
+        model="grok-4.6",
+        playbook="forge",
+        desk="code",
+        tools=CODE_TOOLS,
+        builtin=True,
+    ),
+    Agent(
+        id="review",
+        name="review",
+        description="Les canvas. Funn, ikke rewrite.",
+        provider="xai",
+        model="grok-4.6",
+        playbook="review",
+        desk="code",
+        tools=REVIEW_TOOLS,
+        builtin=True,
+    ),
+    Agent(
+        id="term",
+        name="term",
+        description="Dedikert xterm-agent. Passord der, ikke i chat.",
+        provider="xai",
+        model="grok-4.6",
+        playbook="term",
+        desk="code",
+        tools=TERM_TOOLS,
+        builtin=True,
+    ),
+    Agent(
+        id="crew",
+        name="crew",
+        description="Kodeteam-dirigent. ask_agent → forge/review/term. Ikke LangChain.",
+        provider="xai",
+        model="grok-4.6",
+        playbook="crew",
+        desk="code",
+        tools=CREW_TOOLS,
         builtin=True,
     ),
     Agent(
         id="swarm",
         name="sverm",
-        description="Flere agenter i parallell (stub til loop er wired).",
+        description="Alias for crew (gammel stub).",
         provider="xai",
         model="grok-4.6",
-        playbook=None,
-        tools=["ping"],
+        playbook="crew",
+        desk="code",
+        tools=CREW_TOOLS,
         builtin=True,
     ),
     Agent(
@@ -58,7 +112,8 @@ BUILTINS = [
         provider="inception",
         model="mercury-2.5",
         playbook=None,
-        tools=["ping"],
+        desk="any",
+        tools=CODE_TOOLS,
         builtin=True,
     ),
 ]

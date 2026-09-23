@@ -3,6 +3,7 @@
   import { Terminal } from '@xterm/xterm'
   import { FitAddon } from '@xterm/addon-fit'
   import '@xterm/xterm/css/xterm.css'
+  import { onPtyWrite } from './desk'
 
   let host: HTMLDivElement
   let term: Terminal | null = null
@@ -68,8 +69,14 @@
       }
     })
     ro.observe(host)
+    const offPty = onPtyWrite((s) => {
+      if (sock?.readyState === WebSocket.OPEN) sock.send(s)
+    })
     connect()
-    return () => ro.disconnect()
+    return () => {
+      offPty()
+      ro.disconnect()
+    }
   })
 
   onDestroy(() => {

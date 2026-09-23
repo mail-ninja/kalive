@@ -24,7 +24,7 @@ async def handle_socket(ws: WebSocket) -> None:
     await ws.send_json(_msg("log", "line", {"text": "cockpit ws up"}))
     await ws.send_json(_msg("tools", "list", {"tools": list_tools()}))
     await ws.send_json(
-        _msg("agents", "list", {"agents": list_public(), "providers": catalog_public(), "selected": "dummy"})
+        _msg("agents", "list", {"agents": list_public(), "providers": catalog_public(), "selected": "crew"})
     )
     try:
         while True:
@@ -73,6 +73,8 @@ async def handle_socket(ws: WebSocket) -> None:
                             await ws.send_json(
                                 _msg("tools", "result", {"name": ev.get("name"), "result": ev.get("result"), "round": ev.get("round"), "agent": ag.id}, mid)
                             )
+                        elif kind == "log":
+                            await ws.send_json(_msg("log", "line", {"text": ev.get("text") or "", "agent": ag.id}, mid))
                     await ws.send_json(_msg("chat", "done", {"agent": ag.id}, mid))
                     remember_engram(
                         ag.id,
@@ -92,6 +94,17 @@ async def handle_socket(ws: WebSocket) -> None:
                 allow = bool(payload.get("allow_mutate"))
                 result = call_tool(name, args if isinstance(args, dict) else {}, allow_mutate=allow)
                 await ws.send_json(_msg("tools", "result", result, mid))
+            elif ch == "editor" and typ == "save":
+                from . import desk
+
+                snap = desk.apply(
+                    {
+                        "path": str(payload.get("path") or "untitled.md"),
+                        "language": str(payload.get("language") or "markdown"),
+                        "text": str(payload.get("text") or ""),
+                    }
+                )
+                await ws.send_json(_msg("editor", "saved", {"path": snap["path"], "n": len(snap["text"])}, mid))
             elif ch == "editor" and typ == "open":
                 await ws.send_json(
                     _msg(
