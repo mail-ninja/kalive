@@ -145,6 +145,7 @@ cockpit/
 3. **Agent-loop** — tool-calls, maks 8 runder, confirm-gate «agent får kjøre».
 4. **Ikke strangle** — 8787 SOC-API forblir stdlib.
 5. **Kode-arbeid** — crew/forge/review/term. Canvas = Monaco *eller* iframe. Dedikert term-agent. **Ikke LangChain, ikke Semantic Kernel** — WS-loop + Redis er orkestreringen.
+6. **Tre flater** — ikke i denne fila som ferdig design. Forslag og rekkefølge: [../docs/NEXT.md](../docs/NEXT.md) (cli + filtre + preview). Ikke start uten at operator har sett den.
 
 ## Hva vi bevisst ikke rører
 

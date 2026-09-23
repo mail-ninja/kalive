@@ -1,9 +1,10 @@
-# kalived — operatorflate (kontrakt for CLI og senere GUI)
+# kalived — operatorflate (scan/CLI/:8787)
 
-Skrevet 2026-09-17 etter fase 8 CLEAN (`logs/status/2026-09-17_180808`).
-Dette er **det som finnes**. Planlagte GUI/API-endepunkter er merket *planlagt*.
+Kontrakt for **scan, findings, config og den gamle API-en**. Overordnet produkt og cockpit: [README.md](../README.md), [COCKPIT.md](COCKPIT.md), neste steg [NEXT.md](NEXT.md).
 
-GUI skal være en **klient** av denne kontrakten, ikke et nytt deteksjonslag.
+Skrevet 2026-09-17 etter fase 8 CLEAN; GUI-avsnitt oppdatert 2026-09-23.
+
+Cockpit (`:5173` / `:8788`) er en **klient** av `verdict.json` og `kalived-ctl`. Den er ikke et nytt deteksjonslag. `:8787` er urørt stdlib-API.
 
 ---
 
@@ -273,9 +274,11 @@ Fixtures: `alert_listen_ncat`, `alert_uid0`, `alert_ufw_8000`, `alert_preload`, 
 
 ---
 
-## 11. GUI (finnes)
+## 11. GUI
 
-Tynn HTML på `http://127.0.0.1:8787/` servert av `kalived-api`. Samme `config.toml` og `verdict.json`. Ingen nye detektorer.
+**Primær:** cockpit `http://127.0.0.1:5173` → FastAPI `:8788`. Hiroshima-skuffen leser siste scan fra disk og kan starte `kalived-ctl scan`. Se [COCKPIT.md](COCKPIT.md).
+
+**Gammel SOC-GUI (finnes, urørt):** tynn HTML på `http://127.0.0.1:8787/` servert av `kalived-api`. Samme `config.toml` og `verdict.json`. Ingen nye detektorer.
 
 ```bash
 sudo kalived-ctl api
@@ -283,6 +286,6 @@ sudo kalived-ctl api
 # token: cat ~/.config/kalived/api.token
 ```
 
-Faner: Status (verdict + scan), Innstillinger (PUT config), Playbooks (confirm-gate), Råd (`POST /v1/ai/advise` med valgfri `playbook`). Mutasjon krever API som root.
+Faner der: Status, Innstillinger, Playbooks, Råd. Mutasjon krever API som root.
 
-Advisor: default `prompts/advisor.md` er personlighet. Signal/støy-dommen er `prompts/playbooks/signal.md` via `--playbook signal` / `{playbook:"signal"}`. Etter live scan kalles signal automatisk.
+Advisor: `prompts/advisor.md` er ops-personlighet. Signal er `prompts/playbooks/signal.md`. Cockpit-agenter: `crew`/`forge`/`review`/`term` + `signal`.
