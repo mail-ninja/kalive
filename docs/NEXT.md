@@ -107,3 +107,5 @@ Etter (1) sitter du i noe som ligner denne sesjonen, inne i kalived. Da er det l
 4. `build` som eget navn, eller skal `forge` ta repo-tools?
 
 Anbefaling herfra: **(2) cli erstatter venstre chat når du er i Arbeid** (orchestratoren *er* samtalen). Hiroshima beholder sin egen chat/verdict. Workspace default `~/kalived`. `build` som eget id. Preview meta nei i v1.
+
+Etter 2026-09-24-kritikken: se [REVIEW.md](REVIEW.md). Kort: agentkonsoll = venstre; `build` eier repo-loopen; policy-gate er kode; Groq Whisper og Jev etter at én loop er i bruk.
