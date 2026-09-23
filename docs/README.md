@@ -6,6 +6,7 @@ Kalived er to rom: **Arbeid** (kodemiljø) og **Hiroshima** (lokal SOC). Overord
 |-----|---------|
 | [NEXT.md](NEXT.md) | **Neste steg** — forslag før vi koder mer. Rådfør her. |
 | [REVIEW.md](REVIEW.md) | Svar på arkitekturkritikken (2026-09-24): inn/ut og kompromiss |
+| [PORT-A.md](PORT-A.md) | **Operativ byggespesifikasjon** — det som kodes nå |
 | [COCKPIT.md](COCKPIT.md) | Hva som faktisk kjører på `:5173` / `:8788` i dag |
 | [SURFACE.md](SURFACE.md) | Scan-kontrakt, CLI-flagg, finding-IDs, `:8787`-ruter |
 | [../cockpit/PLAN.md](../cockpit/PLAN.md) | Teknisk cockpit-plan (Svelte, minne-lag, WS) |

@@ -1,6 +1,7 @@
 """Stream chat from env keys. Tool loop for Hiroshima commands. Never log secrets."""
 from __future__ import annotations
 
+import asyncio
 import json
 from collections.abc import AsyncIterator
 from pathlib import Path
@@ -11,7 +12,7 @@ import httpx
 from .agents import Agent
 from .catalog import get_provider
 from .agents import get_agent
-from .hiroshima import MAX_ROUNDS
+from .hiroshima import MAX_ROUNDS as HIRO_ROUNDS
 from .secrets_store import load_env
 from .tools import call_tool, openai_tools
 
@@ -22,15 +23,15 @@ def _system_prompt(agent: Agent) -> str:
     if agent.desk == "code" or agent.id in ("forge", "review", "term", "crew", "swarm"):
         extra = (
             "\n\nDu er i cockpit-Arbeid (kode). "
-            "Hvis operator sier iframe, spill, vis, play: kall iframe_write med komplett HTML. "
-            "Da vises det i iframe med en gang. Monaco/.py/python snake.py er FEIL for spill. "
-            "Terminal eies av term. Crew: ask_agent forge «iframe_write HTML-spill». "
-            f"Maks {MAX_ROUNDS} runder. Oneshot. Rutine er cron. Passord bare i xterm."
+            "Workspace er filer på disk. build bruker repo_glob/grep/read/edit. "
+            "Ingen bash — operator kjører build i PTY. "
+            "Preview = HTML på disk eller loopback. "
+            f"Maks {16} runder. Oneshot. Stopp når ferdig. Passord bare i xterm."
         )
     else:
         extra = (
             "\n\nDu er i cockpit. SOC-tools: hiroshima_verdict/scan/run/job. "
-            f"Maks {MAX_ROUNDS} runder. Jobber ONESHOT. Rutinescan er cron. "
+            f"Maks {HIRO_ROUNDS} runder. Jobber ONESHOT. Rutinescan er cron. "
             "Passord skrives aldri i chat. Scan krever «agent får kjøre»."
         )
     if agent.playbook:
@@ -86,6 +87,7 @@ async def run_turn(
     model: str | None = None,
     allow_mutate: bool = False,
     use_tools: bool = True,
+    cancel: asyncio.Event | None = None,
     _depth: int = 0,
 ) -> AsyncIterator[dict[str, Any]]:
     key, url, model_id = _endpoint(agent, provider, model)
@@ -98,9 +100,13 @@ async def run_turn(
     ]
     names = list(agent.tools) if agent.tools else None
     tools = openai_tools(names) if use_tools else []
+    max_r = 16 if (agent.desk == "code" or agent.id == "build") else HIRO_ROUNDS
     async with httpx.AsyncClient(timeout=120.0) as client:
-        for rnd in range(MAX_ROUNDS):
-            last = rnd == MAX_ROUNDS - 1 or not tools
+        for rnd in range(max_r):
+            if cancel is not None and cancel.is_set():
+                yield {"type": "stopped", "text": "stoppet av operator"}
+                return
+            last = rnd == max_r - 1 or not tools
             body: dict[str, Any] = {"model": model_id, "messages": messages, "stream": last}
             if tools and not last:
                 body["tools"] = tools
@@ -111,6 +117,9 @@ async def run_turn(
                         err = (await resp.aread()).decode("utf-8", "replace")[:400]
                         raise RuntimeError(f"{pid} HTTP {resp.status_code}: {err}")
                     async for line in resp.aiter_lines():
+                        if cancel is not None and cancel.is_set():
+                            yield {"type": "stopped", "text": "stoppet av operator"}
+                            return
                         if not line.startswith("data:"):
                             continue
                         data = line[5:].strip()
@@ -178,6 +187,7 @@ async def run_turn(
                             model=model,
                             allow_mutate=allow_mutate,
                             use_tools=True,
+                            cancel=cancel,
                             _depth=_depth + 1,
                         ):
                             yield ev

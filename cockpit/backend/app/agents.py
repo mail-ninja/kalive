@@ -23,9 +23,10 @@ class Agent(BaseModel):
 
 SOC_TOOLS = ["ping", "hiroshima_verdict", "hiroshima_scan", "hiroshima_run", "hiroshima_job"]
 CODE_TOOLS = ["iframe_write", "preview_set", "canvas_open", "canvas_edit", "canvas_read", "ping", "term_send"]
-CREW_TOOLS = ["ping", "ask_agent", "iframe_write", "canvas_read"]
+BUILD_TOOLS = ["repo_glob", "repo_grep", "repo_read", "repo_edit", "ping"]
+CREW_TOOLS = ["ping", "ask_agent", "repo_read"]
 TERM_TOOLS = ["ping", "term_send"]
-REVIEW_TOOLS = ["ping", "canvas_read"]
+REVIEW_TOOLS = ["ping", "repo_read", "repo_grep"]
 
 BUILTINS = [
     Agent(
@@ -48,6 +49,17 @@ BUILTINS = [
         playbook="signal",
         desk="soc",
         tools=SOC_TOOLS,
+        builtin=True,
+    ),
+    Agent(
+        id="build",
+        name="build",
+        description="Repo-loop. Leser og patcher filer på disk i workspace.",
+        provider="xai",
+        model="grok-4.6",
+        playbook="build",
+        desk="code",
+        tools=BUILD_TOOLS,
         builtin=True,
     ),
     Agent(

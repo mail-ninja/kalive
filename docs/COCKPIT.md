@@ -21,7 +21,8 @@ Minne følger `agent_id`. Provider er munnstykke.
 
 | id | desk | Rolle |
 |----|------|--------|
-| `crew` | code | dirigent, `ask_agent` → forge/review/term |
+| `build` | code | repo-loop på disk (`repo_glob/grep/read/edit`) |
+| `crew` | code | dirigent, `ask_agent` → build/forge/review/term |
 | `forge` | code | skriver canvas; spill/app → `iframe_write` |
 | `review` | code | leser canvas |
 | `term` | code | eier xterm (`term_send` bak «agent får kjøre») |

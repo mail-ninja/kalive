@@ -1,6 +1,7 @@
 """WebSocket multiplex — in from day 1. See cockpit/PLAN.md."""
 from __future__ import annotations
 
+import asyncio
 import json
 import uuid
 from typing import Any
@@ -24,8 +25,9 @@ async def handle_socket(ws: WebSocket) -> None:
     await ws.send_json(_msg("log", "line", {"text": "cockpit ws up"}))
     await ws.send_json(_msg("tools", "list", {"tools": list_tools()}))
     await ws.send_json(
-        _msg("agents", "list", {"agents": list_public(), "providers": catalog_public(), "selected": "crew"})
+        _msg("agents", "list", {"agents": list_public(), "providers": catalog_public(), "selected": "build"})
     )
+    stop = asyncio.Event()
     try:
         while True:
             raw = await ws.receive_text()
@@ -46,13 +48,17 @@ async def handle_socket(ws: WebSocket) -> None:
                     continue
                 memory_bind(ag.id)
                 await ws.send_json(_msg("agents", "selected", ag.model_dump(), mid))
+            elif ch == "run" and typ == "stop":
+                stop.set()
+                await ws.send_json(_msg("run", "stopped", {"keep": "logs+diff"}, mid))
             elif ch == "chat" and typ == "user":
                 text = str(payload.get("text") or "")
-                aid = str(payload.get("agent") or "dummy")
-                ag = get_agent(aid) or get_agent("dummy")
+                aid = str(payload.get("agent") or "build")
+                ag = get_agent(aid) or get_agent("build") or get_agent("dummy")
                 assert ag is not None
                 memory_bind(ag.id)
                 allow = bool(payload.get("allow_mutate"))
+                stop.clear()
                 try:
                     async for ev in run_turn(
                         ag,
@@ -61,6 +67,7 @@ async def handle_socket(ws: WebSocket) -> None:
                         model=str(payload.get("model") or "") or None,
                         allow_mutate=allow,
                         use_tools=True,
+                        cancel=stop,
                     ):
                         kind = ev.get("type")
                         if kind == "token":
@@ -75,7 +82,10 @@ async def handle_socket(ws: WebSocket) -> None:
                             )
                         elif kind == "log":
                             await ws.send_json(_msg("log", "line", {"text": ev.get("text") or "", "agent": ag.id}, mid))
-                    await ws.send_json(_msg("chat", "done", {"agent": ag.id}, mid))
+                        elif kind == "stopped":
+                            await ws.send_json(_msg("run", "stopped", {"text": ev.get("text") or ""}, mid))
+                    if not stop.is_set():
+                        await ws.send_json(_msg("chat", "done", {"agent": ag.id}, mid))
                     remember_engram(
                         ag.id,
                         "chat",

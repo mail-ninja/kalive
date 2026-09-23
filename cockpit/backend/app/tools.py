@@ -272,13 +272,103 @@ def term_send(args: dict) -> dict:
 
 @register(
     ToolSpec(
+        name="repo_glob",
+        description="Finn filer i workspace (relativ glob, f.eks. **/*.py). Hopper over node_modules/.venv/logs.",
+        mutating=False,
+        parameters={"type": "object", "properties": {"pattern": {"type": "string"}}, "required": ["pattern"]},
+    )
+)
+def repo_glob(args: dict) -> dict:
+    from . import workspace as w
+
+    try:
+        hits = w.glob(str(args.get("pattern") or "**/*"))
+    except Exception as e:
+        return {"error": str(e)[:240]}
+    return {"root": str(w.root()), "hits": hits, "n": len(hits)}
+
+
+@register(
+    ToolSpec(
+        name="repo_grep",
+        description="Regex-søk i workspace. glob valgfri.",
+        mutating=False,
+        parameters={
+            "type": "object",
+            "properties": {"query": {"type": "string"}, "glob": {"type": "string"}},
+            "required": ["query"],
+        },
+    )
+)
+def repo_grep(args: dict) -> dict:
+    from . import workspace as w
+
+    try:
+        hits = w.grep(str(args.get("query") or ""), str(args.get("glob") or "**/*"))
+    except Exception as e:
+        return {"error": str(e)[:240]}
+    return {"hits": hits, "n": len(hits)}
+
+
+@register(
+    ToolSpec(
+        name="repo_read",
+        description="Les én fil relativ til workspace. Ikke secrets, ikke utenfor rot.",
+        mutating=False,
+        parameters={"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]},
+    )
+)
+def repo_read(args: dict) -> dict:
+    from . import workspace as w
+
+    try:
+        return w.read(str(args.get("path") or ""))
+    except Exception as e:
+        return {"error": str(e)[:240]}
+
+
+@register(
+    ToolSpec(
+        name="repo_edit",
+        description="Patch én fil på disk. old_string+new_string (unik) eller text=hele fila. Krever «agent får kjøre». Ingen bash.",
+        mutating=True,
+        parameters={
+            "type": "object",
+            "properties": {
+                "path": {"type": "string"},
+                "old_string": {"type": "string"},
+                "new_string": {"type": "string"},
+                "text": {"type": "string"},
+            },
+            "required": ["path"],
+        },
+    )
+)
+def repo_edit(args: dict) -> dict:
+    from . import workspace as w
+
+    path = str(args.get("path") or "")
+    try:
+        if args.get("text") is not None and not args.get("old_string"):
+            return w.write(path, str(args.get("text") or ""))
+        old = str(args.get("old_string") or "")
+        new = str(args.get("new_string") or "")
+        if not old:
+            return {"error": "trenger old_string+new_string eller text"}
+        return w.edit(path, old, new)
+    except Exception as e:
+        return {"error": str(e)[:240]}
+
+
+@register(
+    ToolSpec(
         name="ask_agent",
         description="Crew: én underagent (forge|review|term). Spill/iframe → forge med beskjed iframe_write HTML. Oneshot.",
         mutating=False,
         parameters={
             "type": "object",
             "properties": {
-                "id": {"type": "string", "enum": ["forge", "review", "term"]},
+                "id": {"type": "string", "enum": ["build", "forge", "review", "term"]},
                 "text": {"type": "string"},
             },
             "required": ["id", "text"],
@@ -287,8 +377,8 @@ def term_send(args: dict) -> dict:
 )
 def ask_agent(args: dict) -> dict:
     aid = str(args.get("id") or "")
-    if aid not in ("forge", "review", "term"):
-        return {"error": "bare forge|review|term"}
+    if aid not in ("build", "forge", "review", "term"):
+        return {"error": "bare build|forge|review|term"}
     text = str(args.get("text") or "").strip()
     if not text:
         return {"error": "tom oppgave"}

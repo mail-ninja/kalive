@@ -3,6 +3,8 @@
   import 'monaco-editor-css'
   import { getCanvas, setCanvas, subscribeCanvas, type Canvas } from './desk'
 
+  let { diskPath = '' }: { diskPath?: string } = $props()
+
   let host: HTMLDivElement
   let editor: {
     dispose: () => void
@@ -21,6 +23,31 @@
   export function getValue() {
     return editor?.getValue() ?? canvas.text
   }
+
+  async function loadDisk(p: string) {
+    if (!p) return
+    const r = await fetch('/v1/workspace/file?path=' + encodeURIComponent(p))
+    const j = await r.json()
+    if (!r.ok || j.error || j.dir) return
+    skip = true
+    setCanvas({
+      path: j.path,
+      language: j.language || 'plaintext',
+      text: j.text || '',
+      mode: 'monaco',
+    })
+    if (editor && j.text != null) editor.setValue(j.text)
+    skip = false
+  }
+
+  let loaded = ''
+  $effect(() => {
+    const p = diskPath
+    if (p && p !== loaded) {
+      loaded = p
+      loadDisk(p)
+    }
+  })
 
   onMount(async () => {
     const monaco = await import('monaco-editor')
@@ -76,7 +103,9 @@
       <iframe
         title="preview"
         class="preview"
-        src={"/v1/desk/preview?r=" + (canvas.rev ?? 0)}
+        src={diskPath && (diskPath.endsWith('.html') || diskPath.endsWith('.htm'))
+          ? '/v1/workspace/raw?path=' + encodeURIComponent(diskPath) + '&r=' + (canvas.rev ?? 0)
+          : '/v1/desk/preview?r=' + (canvas.rev ?? 0)}
       ></iframe>
     {/if}
   </div>

@@ -5,10 +5,11 @@
   import Settings from './lib/Settings.svelte'
   import Split from './lib/Split.svelte'
   import Term from './lib/Term.svelte'
+  import Tree from './lib/Tree.svelte'
   import { applyToolResult, getCanvas, setCanvas, subscribeCanvas } from './lib/desk'
   import { connect, send, type Frame } from './lib/ws'
 
-  type Hist = { role: 'you' | 'bot' | 'sys'; text: string }
+  type Hist = { role: 'you' | 'bot' | 'sys' | 'tool'; text: string; name?: string; diff?: string; path?: string }
 
   let ws: WebSocket | null = null
   let hiroshima = $state(false)
@@ -23,15 +24,21 @@
   let health = $state('…')
   let agents = $state<{ id: string; name: string; description: string; provider: string; model: string; desk?: string }[]>([])
   let providers = $state<{ id: string; label: string; models: string[] }[]>([])
-  let agentId = $state('crew')
+  let agentId = $state('build')
   let providerId = $state('xai')
   let modelId = $state('grok-4.6')
-  let splitH = $state(42)
-  let splitV = $state(62)
+  let splitH = $state(36)
+  let splitV = $state(94)
+  let splitTree = $state(22)
   let allowMutate = $state(false)
   let canvasUi = $state(getCanvas())
+  let details = $state(false)
+  let ptyOpen = $state(false)
+  let running = $state(false)
+  let diskPath = $state('README.md')
+  let wsName = $state('kalived')
   let models = $derived(providers.find((p) => p.id === providerId)?.models ?? [])
-  let team = $derived(agents.filter((a) => a.desk === 'code' || a.id === 'crew' || a.id === 'forge'))
+  let team = $derived(agents.filter((a) => ['build', 'review', 'forge', 'term', 'crew'].includes(a.id)))
 
   function setHiroshimaW(w: number) {
     hiroshimaW = Math.min(100, Math.max(12, w))
@@ -68,9 +75,16 @@
     if (f.ch === 'chat' && f.type === 'done') {
       hist = [...hist, { role: 'bot', text: stream }]
       stream = ''
+      running = false
     }
     if (f.ch === 'chat' && f.type === 'error') {
       hist = [...hist, { role: 'sys', text: 'error: ' + String(f.payload.error ?? 'ukjent') }]
+      stream = ''
+      running = false
+    }
+    if (f.ch === 'run' && f.type === 'stopped') {
+      running = false
+      hist = [...hist, { role: 'sys', text: 'stoppet — logger og diff beholdt' }]
       stream = ''
     }
     if (f.ch === 'tools' && f.type === 'list') {
@@ -78,17 +92,22 @@
       tools = (list ?? []).map((t) => t.name)
     }
     if (f.ch === 'tools' && f.type === 'call') {
-      hist = [...hist, { role: 'sys', text: `runde ${f.payload.round ?? '?'} → ${f.payload.name}` }]
+      hist = [...hist, { role: 'tool', name: String(f.payload.name || ''), text: `runde ${f.payload.round ?? '?'}` }]
     }
     if (f.ch === 'tools' && f.type === 'result') {
       const r = f.payload.result as Record<string, unknown> | undefined
       applyToolResult(r)
-      const bit = r && (r.verdict || r.error || r.pong || r.path || r.agent || r.note)
+      if (typeof r?.path === 'string' && r.wrote) diskPath = r.path
+      const diff = typeof r?.diff === 'string' ? r.diff : ''
+      const bit = r && (r.error || r.path || r.n || r.agent)
       hist = [
         ...hist,
         {
-          role: 'sys',
-          text: `${f.payload.name}: ${typeof bit === 'object' ? JSON.stringify(bit) : String(bit ?? JSON.stringify(r ?? {}).slice(0, 240))}`,
+          role: 'tool',
+          name: String(f.payload.name || ''),
+          path: typeof r?.path === 'string' ? r.path : undefined,
+          diff,
+          text: String(bit ?? JSON.stringify(r ?? {}).slice(0, 280)),
         },
       ]
     }
@@ -130,6 +149,12 @@
     const offCanvas = subscribeCanvas((c) => {
       canvasUi = c
     })
+    fetch('/v1/workspace')
+      .then((r) => r.json())
+      .then((j) => {
+        if (j.name) wsName = j.name
+      })
+      .catch(() => {})
     fetch('/v1/agents')
       .then((r) => r.json())
       .then((j) => {
@@ -154,11 +179,30 @@
     }
   })
 
+  function stopAll() {
+    if (ws) send(ws, 'run', 'stop', {})
+    running = false
+  }
+
+  async function saveDisk() {
+    const text = getCanvas().text
+    if (!diskPath) return
+    await fetch('/v1/workspace/file', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: diskPath, text }),
+    })
+  }
+
+  async function openDisk(p: string) {
+    diskPath = p
+    setCanvas({ path: p, mode: 'monaco' })
+  }
+
   function say() {
     const t = draft.trim()
     if (!t || !ws) return
-    const c = getCanvas()
-    send(ws, 'editor', 'save', { path: c.path, language: c.language, text: c.text })
+    running = true
     hist = [...hist, { role: 'you', text: t }]
     send(ws, 'chat', 'user', {
       text: t,
@@ -174,43 +218,9 @@
 <div class="flex h-full min-h-screen flex-col">
   <header class="flex flex-wrap items-center gap-3 border-b border-white/10 px-4 py-3">
     <div class="font-serif text-xl tracking-wide">cockpit</div>
-    <span class="text-xs text-clean/80">{health}</span>
-    <label class="flex items-center gap-1 text-xs text-paper/60">
-      provider
-      <select
-        class="rounded-full border border-white/15 bg-ink px-2 py-1 text-sm text-paper"
-        bind:value={providerId}
-        onchange={() => {
-          const m = providers.find((p) => p.id === providerId)?.models
-          if (m?.length && !m.includes(modelId)) modelId = m[0]
-        }}
-      >
-        {#each providers as p}
-          <option value={p.id}>{p.label}</option>
-        {/each}
-      </select>
-    </label>
-    <label class="flex items-center gap-1 text-xs text-paper/60">
-      modell
-      <select class="rounded-full border border-white/15 bg-ink px-2 py-1 text-sm text-paper" bind:value={modelId}>
-        {#each models as m}
-          <option value={m}>{m}</option>
-        {/each}
-      </select>
-    </label>
-    <label class="flex items-center gap-1 text-xs text-paper/60">
-      type
-      <select
-        class="rounded-full border border-white/15 bg-ink px-2 py-1 text-sm text-paper"
-        bind:value={agentId}
-        onchange={() => ws && send(ws, 'agents', 'select', { id: agentId })}
-      >
-        {#each agents as a}
-          <option value={a.id}>{a.name}{a.desk === 'soc' ? ' · soc' : a.desk === 'code' ? ' · kode' : ''}</option>
-        {/each}
-      </select>
-    </label>
-    <div class="ml-auto flex gap-2">
+    <span class="text-xs text-clean/80">{wsName}</span>
+    <span class="text-xs text-paper/40">{health}</span>
+    <div class="ml-auto flex flex-wrap items-center gap-2">
       <button
         class="rounded-full border border-white/15 px-3 py-1 text-sm hover:bg-white/10"
         class:bg-paper={tab === 'work'}
@@ -227,16 +237,20 @@
       >
         Settings
       </button>
-      <button
-        class="rounded-full border border-white/15 px-3 py-1 text-sm hover:bg-white/10"
-        onclick={() => ws && send(ws, 'tools', 'call', { name: 'ping', args: { n: 1 } })}
-      >
-        ping {tools.join(',')}
+      <button type="button" class="text-xs text-paper/50 underline" onclick={() => (details = !details)}>
+        kjøredetaljer
       </button>
       <label class="flex items-center gap-1 text-xs text-paper/60">
         <input type="checkbox" bind:checked={allowMutate} />
         agent får kjøre
       </label>
+      <button
+        type="button"
+        class="rounded-full border border-alert/50 px-3 py-1 text-sm text-alert"
+        onclick={stopAll}
+      >
+        Stopp all agentaktivitet
+      </button>
       <button
         class="rounded-full bg-alert px-3 py-1 text-sm font-semibold text-ink"
         onclick={() => (hiroshima = !hiroshima)}
@@ -245,6 +259,45 @@
       </button>
     </div>
   </header>
+  {#if details}
+    <div class="flex flex-wrap items-center gap-3 border-b border-white/10 px-4 py-2 text-xs">
+      <label class="flex items-center gap-1 text-paper/60">
+        provider
+        <select
+          class="rounded-full border border-white/15 bg-ink px-2 py-1 text-paper"
+          bind:value={providerId}
+          onchange={() => {
+            const m = providers.find((p) => p.id === providerId)?.models
+            if (m?.length && !m.includes(modelId)) modelId = m[0]
+          }}
+        >
+          {#each providers as p}
+            <option value={p.id}>{p.label}</option>
+          {/each}
+        </select>
+      </label>
+      <label class="flex items-center gap-1 text-paper/60">
+        modell
+        <select class="rounded-full border border-white/15 bg-ink px-2 py-1 text-paper" bind:value={modelId}>
+          {#each models as m}
+            <option value={m}>{m}</option>
+          {/each}
+        </select>
+      </label>
+      <label class="flex items-center gap-1 text-paper/60">
+        agent
+        <select
+          class="rounded-full border border-white/15 bg-ink px-2 py-1 text-paper"
+          bind:value={agentId}
+          onchange={() => ws && send(ws, 'agents', 'select', { id: agentId })}
+        >
+          {#each agents as a}
+            <option value={a.id}>{a.name}</option>
+          {/each}
+        </select>
+      </label>
+    </div>
+  {/if}
 
   {#if tab === 'settings'}
     <Settings />
@@ -253,7 +306,7 @@
     <Split direction="horizontal" bind:value={splitH}>
       {#snippet a()}
         <section class="flex h-full min-h-0 flex-col p-2">
-          <h2 class="mb-1 font-serif text-lg">chat</h2>
+          <h2 class="mb-1 font-serif text-lg">agentkonsoll</h2>
           {#if agents.length}
             {@const cur = agents.find((x) => x.id === agentId)}
             {#if cur}
@@ -277,15 +330,25 @@
           {/if}
           <div class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-white/10 bg-black/40">
             <div class="flex items-center justify-between border-b border-white/10 px-3 py-1.5 text-xs text-paper/50">
-              <span>historikk</span>
-              <span>{hist.length} meldinger</span>
+              <span>{running ? 'kjører…' : 'klar'}</span>
+              <span>{hist.length}</span>
             </div>
             <div bind:this={histEl} class="chat-hist min-h-0 flex-1 space-y-2 overflow-y-scroll p-3 text-sm">
               {#each hist as m}
-                <div class="bubble {m.role}">
-                  <div class="who">{m.role === 'you' ? 'du' : m.role === 'bot' ? agentId : 'sys'}</div>
-                  {m.text}
-                </div>
+                {#if m.role === 'tool'}
+                  <div class="bubble sys">
+                    <div class="who">{m.name || 'tool'}{#if m.path} · {m.path}{/if}</div>
+                    <div>{m.text}</div>
+                    {#if m.diff}
+                      <pre class="mt-1 max-h-40 overflow-auto text-[0.7rem] text-clean/80">{m.diff}</pre>
+                    {/if}
+                  </div>
+                {:else}
+                  <div class="bubble {m.role}">
+                    <div class="who">{m.role === 'you' ? 'du' : m.role === 'bot' ? agentId : 'sys'}</div>
+                    {m.text}
+                  </div>
+                {/if}
               {/each}
               {#if stream}
                 <div class="bubble bot">
@@ -305,7 +368,7 @@
             <input
               class="flex-1 rounded-lg border border-white/15 bg-ink px-3 py-2"
               bind:value={draft}
-              placeholder="si noe — {providerId}/{modelId}/{agentId}"
+              placeholder="oppgave til {agentId}"
             />
             <button class="rounded-lg bg-paper px-3 py-2 text-ink">send</button>
           </form>
@@ -315,49 +378,63 @@
         <Split direction="vertical" bind:value={splitV}>
           {#snippet a()}
             <div class="flex h-full min-h-0 flex-col p-2">
-              <div class="mb-1 flex items-center gap-2">
-                <h2 class="font-serif text-lg">canvas</h2>
+              <div class="mb-1 flex flex-wrap items-center gap-2">
+                <h2 class="font-serif text-lg">workspace</h2>
                 <button
                   class="rounded-full border border-white/15 px-2 py-0.5 text-xs"
                   class:bg-paper={canvasUi.mode === 'monaco'}
                   class:text-ink={canvasUi.mode === 'monaco'}
                   onclick={() => setCanvas({ mode: 'monaco' })}
-                >monaco</button>
+                >kode</button>
                 <button
                   class="rounded-full border border-white/15 px-2 py-0.5 text-xs"
                   class:bg-paper={canvasUi.mode === 'iframe'}
                   class:text-ink={canvasUi.mode === 'iframe'}
                   onclick={() => setCanvas({ mode: 'iframe' })}
-                >iframe</button>
+                >preview</button>
+                <button type="button" class="rounded-full border border-white/15 px-2 py-0.5 text-xs" onclick={saveDisk}
+                  >lagre</button>
                 <button
                   type="button"
                   class="rounded-full bg-clean px-2 py-0.5 text-xs text-ink"
-                  onclick={async () => {
-                    const c = getCanvas()
-                    if (ws) send(ws, 'editor', 'save', { path: c.path, language: c.language, text: c.text })
-                    const r = await fetch('/v1/desk/play', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ text: c.text, path: c.path, language: c.language }),
-                    })
-                    const j = await r.json()
-                    applyToolResult(j)
+                  onclick={() => {
+                    setCanvas({ mode: 'iframe', path: diskPath, rev: (getCanvas().rev || 0) + 1 })
+                  }}>preview fil</button>
+                <button
+                  type="button"
+                  class="rounded-full border border-white/15 px-2 py-0.5 text-xs"
+                  onclick={() => {
+                    ptyOpen = !ptyOpen
+                    splitV = ptyOpen ? 70 : 94
                   }}
-                >spill</button>
-                <span class="text-xs text-paper/40">{canvasUi.path}</span>
+                >{ptyOpen ? 'skjul PTY' : 'PTY (ikke agent)'}</button>
+                <span class="text-xs text-paper/40">{diskPath}</span>
               </div>
               <div class="min-h-0 flex-1">
-                <Editor />
+                <Split direction="horizontal" bind:value={splitTree}>
+                  {#snippet a()}
+                    <Tree bind:current={diskPath} onopen={openDisk} />
+                  {/snippet}
+                  {#snippet b()}
+                    <Editor diskPath={diskPath} />
+                  {/snippet}
+                </Split>
               </div>
             </div>
           {/snippet}
           {#snippet b()}
-            <div class="flex h-full min-h-0 flex-col p-2">
-              <h2 class="mb-1 font-serif text-lg">terminal</h2>
-              <div class="min-h-0 flex-1">
-                <Term />
+            {#if ptyOpen}
+              <div class="flex h-full min-h-0 flex-col p-2">
+                <h2 class="mb-1 font-serif text-lg">PTY <span class="text-xs font-sans text-paper/40">ikke agent</span></h2>
+                <div class="min-h-0 flex-1">
+                  <Term />
+                </div>
               </div>
-            </div>
+            {:else}
+              <div class="flex h-full items-center justify-center text-xs text-paper/40">
+                <button type="button" class="underline" onclick={() => (ptyOpen = true)}>åpne PTY (passord her)</button>
+              </div>
+            {/if}
           {/snippet}
         </Split>
       {/snippet}
