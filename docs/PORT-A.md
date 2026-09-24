@@ -14,4 +14,5 @@ Preview: statiske filer og allerede kjørende loopback. Build/dev-server kjører
 
 ## Etter A
 
-Bruk det på kalived selv før Port B.
+Levert 2026-09-24 (konsoll, `build`, disk, tre, stopp, `up.sh`, minne-gate v0).
+**Neste:** [NOW.md](NOW.md) — Port B `repo_bash`. Ikke mer Port A-detaljer.
