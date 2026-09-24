@@ -118,8 +118,34 @@ async def handle_socket(ws: WebSocket) -> None:
                         },
                     )
                 except WebSocketDisconnect:
+                    try:
+                        remember_engram(
+                            ag.id,
+                            "chat",
+                            {
+                                "user": text[:2000],
+                                "assistant": "".join(excerpt)[:3000],
+                                "tools": tools_used[:20],
+                                "note": "ws-disconnect mid-turn",
+                            },
+                        )
+                    except Exception:
+                        pass
                     return
                 except Exception as e:
+                    try:
+                        remember_engram(
+                            ag.id,
+                            "chat",
+                            {
+                                "user": text[:2000],
+                                "assistant": "".join(excerpt)[:3000],
+                                "tools": tools_used[:20],
+                                "error": str(e)[:300],
+                            },
+                        )
+                    except Exception:
+                        pass
                     try:
                         await ws.send_json(_msg("chat", "error", {"error": str(e), "agent": ag.id}, mid))
                     except Exception:

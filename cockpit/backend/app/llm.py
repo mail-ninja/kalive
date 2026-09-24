@@ -27,7 +27,8 @@ def _system_prompt(agent: Agent) -> str:
             "Workspace er filer på disk. build bruker repo_glob/grep/read/edit. "
             "Ingen bash — operator kjører build i PTY. "
             "Preview = HTML på disk eller loopback. "
-            f"Maks {16} runder. Oneshot. Stopp når ferdig. Passord bare i xterm."
+            "Forklaring: les README.md og docs/COCKPIT.md, så SVAR. Ikke les hele docs/. "
+            "Maks 8 tool-runder, deretter svar uten flere kall. Oneshot. Passord bare i xterm."
         )
     else:
         extra = (
@@ -115,12 +116,15 @@ async def run_turn(
     ]
     names = list(agent.tools) if agent.tools else None
     tools = openai_tools(names) if use_tools else []
-    max_r = 16 if (agent.desk == "code" or agent.id == "build") else HIRO_ROUNDS
+    tool_cap = 8 if (agent.desk == "code" or agent.id == "build") else HIRO_ROUNDS
+    max_r = tool_cap + 1
     async with httpx.AsyncClient(timeout=120.0) as client:
         for rnd in range(max_r):
             if cancel is not None and cancel.is_set():
                 yield {"type": "stopped", "text": "stoppet av operator"}
                 return
+            if rnd >= tool_cap:
+                tools = []
             last = rnd == max_r - 1 or not tools
             body: dict[str, Any] = {"model": model_id, "messages": messages, "stream": last}
             if tools and not last:
@@ -158,6 +162,8 @@ async def run_turn(
             if not calls:
                 if text:
                     yield {"type": "token", "text": str(text)}
+                elif rnd >= tool_cap - 1:
+                    yield {"type": "token", "text": "(tool-tak nådd — svar ut fra det som er lest)"}
                 return
             messages.append({"role": "assistant", "content": text or "", "tool_calls": calls})
             for tc in calls:
