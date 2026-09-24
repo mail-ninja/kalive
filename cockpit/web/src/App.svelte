@@ -37,6 +37,10 @@
   let running = $state(false)
   let diskPath = $state('README.md')
   let wsName = $state('kalived')
+  let filMenu = $state(false)
+  let saveAs = $state(false)
+  let saveAsPath = $state('')
+  let saveNote = $state('')
   let models = $derived(providers.find((p) => p.id === providerId)?.models ?? [])
   let team = $derived(agents.filter((a) => ['build', 'review', 'forge', 'term', 'crew'].includes(a.id)))
 
@@ -152,6 +156,13 @@
     const offCanvas = subscribeCanvas((c) => {
       canvasUi = c
     })
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault()
+        saveDisk()
+      }
+    }
+    window.addEventListener('keydown', onKey)
     fetch('/v1/workspace')
       .then((r) => r.json())
       .then((j) => {
@@ -178,6 +189,7 @@
     return () => {
       stop = true
       offCanvas()
+      window.removeEventListener('keydown', onKey)
       ws?.close()
     }
   })
@@ -200,11 +212,32 @@
       ]
       return
     }
-    await fetch('/v1/workspace/file', {
+    const r = await fetch('/v1/workspace/file', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ path: diskPath, text: c.text }),
     })
+    saveNote = r.ok ? 'lagret ' + diskPath : 'lagre feilet'
+    window.setTimeout(() => {
+      if (saveNote.startsWith('lagret')) saveNote = ''
+    }, 2000)
+  }
+
+  async function saveDiskAs() {
+    const dest = saveAsPath.trim().replace(/^\/+/, '')
+    if (!dest || dest.includes('..')) return
+    const c = getCanvas()
+    const r = await fetch('/v1/workspace/file', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: dest, text: c.text }),
+    })
+    if (r.ok) {
+      diskPath = dest
+      setCanvas({ path: dest })
+      saveAs = false
+      saveNote = 'lagret som ' + dest
+    } else saveNote = 'lagre som feilet'
   }
 
   async function openDisk(p: string) {
@@ -405,8 +438,48 @@
                   class:text-ink={canvasUi.mode === 'iframe'}
                   onclick={() => setCanvas({ mode: 'iframe' })}
                 >preview</button>
-                <button type="button" class="rounded-full border border-white/15 px-2 py-0.5 text-xs" onclick={saveDisk}
-                  >lagre</button>
+                <div class="relative">
+                  <button
+                    type="button"
+                    class="rounded-full border border-white/15 px-2 py-0.5 text-xs"
+                    onclick={() => (filMenu = !filMenu)}
+                  >fil</button>
+                  {#if filMenu}
+                    <div class="absolute left-0 z-20 mt-1 min-w-[10rem] rounded-md border border-white/15 bg-ink py-1 text-xs shadow-lg">
+                      <button
+                        type="button"
+                        class="block w-full px-3 py-1 text-left hover:bg-white/10"
+                        onclick={() => {
+                          filMenu = false
+                          saveDisk()
+                        }}>lagre <span class="text-paper/40">Ctrl+S</span></button>
+                      <button
+                        type="button"
+                        class="block w-full px-3 py-1 text-left hover:bg-white/10"
+                        onclick={() => {
+                          filMenu = false
+                          saveAsPath = diskPath
+                          saveAs = true
+                        }}>lagre som…</button>
+                    </div>
+                  {/if}
+                </div>
+                {#if saveAs}
+                  <form
+                    class="flex items-center gap-1"
+                    onsubmit={(e) => {
+                      e.preventDefault()
+                      saveDiskAs()
+                    }}
+                  >
+                    <input class="w-48 rounded border border-white/15 bg-ink px-2 py-0.5 text-xs" bind:value={saveAsPath} />
+                    <button type="submit" class="text-xs text-clean">ok</button>
+                    <button type="button" class="text-xs text-paper/50" onclick={() => (saveAs = false)}>avbryt</button>
+                  </form>
+                {/if}
+                {#if saveNote}
+                  <span class="text-xs text-clean/80">{saveNote}</span>
+                {/if}
                 <button
                   type="button"
                   class="rounded-full bg-clean px-2 py-0.5 text-xs text-ink"

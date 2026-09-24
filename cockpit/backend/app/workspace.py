@@ -76,33 +76,28 @@ def language_of(path: str) -> str:
     }.get(ext, "plaintext")
 
 
-def tree(max_depth: int = 3, max_nodes: int = 400) -> list[dict]:
-    base = root()
+def listdir(rel: str = "") -> list[dict]:
+    """One directory. Client expands folders. No dump of reports/*."""
+    d = safe(rel) if rel else root()
+    if not d.is_dir():
+        raise ValueError("ikke mappe")
     out: list[dict] = []
-
-    def walk(d: Path, depth: int) -> None:
-        if len(out) >= max_nodes or depth > max_depth:
-            return
+    try:
+        kids = sorted(d.iterdir(), key=lambda x: (not x.is_dir(), x.name.lower()))
+    except OSError:
+        return out
+    for c in kids:
+        if c.name in SKIP:
+            continue
+        if c.name.startswith(".") and c.name not in {".gitignore", ".env.example"}:
+            continue
+        if c.suffix in {".pyc", ".pyo"}:
+            continue
         try:
-            kids = sorted(d.iterdir(), key=lambda x: (not x.is_dir(), x.name.lower()))
-        except OSError:
-            return
-        for c in kids:
-            if c.name.startswith(".") and c.name not in {".gitignore", ".env.example"}:
-                if c.name == ".git":
-                    continue
-            if c.name in SKIP:
-                continue
-            try:
-                r = rel_of(c)
-            except ValueError:
-                continue
-            item = {"path": r, "name": c.name, "dir": c.is_dir()}
-            out.append(item)
-            if c.is_dir() and depth < max_depth:
-                walk(c, depth + 1)
-
-    walk(base, 1)
+            r = rel_of(c)
+        except ValueError:
+            continue
+        out.append({"path": r, "name": c.name, "dir": c.is_dir()})
     return out
 
 
@@ -219,9 +214,15 @@ def info():
 
 
 @router.get("/tree")
-def tree_http(depth: int = 3):
-    depth = max(1, min(depth, 5))
-    return {"root": str(root()), "nodes": tree(max_depth=depth)}
+def tree_http(path: str = ""):
+    try:
+        entries = listdir(path)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e)) from e
+    r = root()
+    return {"root": str(r), "path": path, "entries": entries}
 
 
 @router.get("/file")
