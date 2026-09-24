@@ -188,12 +188,22 @@
   }
 
   async function saveDisk() {
-    const text = getCanvas().text
+    const c = getCanvas()
     if (!diskPath) return
+    if (c.path && c.path !== diskPath) {
+      hist = [
+        ...hist,
+        {
+          role: 'sys',
+          text: `lagre avvist: buffer er ${c.path}, valgt fil er ${diskPath} — åpne fila på nytt`,
+        },
+      ]
+      return
+    }
     await fetch('/v1/workspace/file', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ path: diskPath, text }),
+      body: JSON.stringify({ path: diskPath, text: c.text }),
     })
   }
 

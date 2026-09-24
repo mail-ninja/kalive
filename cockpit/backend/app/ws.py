@@ -96,8 +96,13 @@ async def handle_socket(ws: WebSocket) -> None:
                             "allow_mutate": allow,
                         },
                     )
+                except WebSocketDisconnect:
+                    return
                 except Exception as e:
-                    await ws.send_json(_msg("chat", "error", {"error": str(e), "agent": ag.id}, mid))
+                    try:
+                        await ws.send_json(_msg("chat", "error", {"error": str(e), "agent": ag.id}, mid))
+                    except Exception:
+                        return
             elif ch == "tools" and typ == "call":
                 name = str(payload.get("name") or "")
                 args = payload.get("args") or {}
