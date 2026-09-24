@@ -106,8 +106,16 @@ def tree(max_depth: int = 3, max_nodes: int = 400) -> list[dict]:
     return out
 
 
+def expand_glob(pattern: str) -> str:
+    """`agents.py` → `**/agents.py`. Pathlib glob is not recursive without **."""
+    pattern = (pattern or "").strip() or "**/*"
+    if "**" not in pattern and "/" not in pattern and not pattern.startswith("."):
+        return "**/" + pattern
+    return pattern
+
+
 def glob(pattern: str, limit: int = 80) -> list[str]:
-    pattern = pattern.strip() or "**/*"
+    pattern = expand_glob(pattern)
     base = root()
     hits: list[str] = []
     for p in base.glob(pattern):
@@ -130,7 +138,7 @@ def grep(query: str, glob_pat: str = "**/*", limit: int = MAX_MATCH) -> list[dic
         raise ValueError(f"regex: {e}") from e
     hits: list[dict] = []
     base = root()
-    for p in base.glob(glob_pat or "**/*"):
+    for p in base.glob(expand_glob(glob_pat or "**/*")):
         if not p.is_file() or skipped(p):
             continue
         if p.stat().st_size > MAX_READ:

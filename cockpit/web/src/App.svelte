@@ -73,7 +73,10 @@
       stream += String(f.payload.text ?? '')
     }
     if (f.ch === 'chat' && f.type === 'done') {
-      hist = [...hist, { role: 'bot', text: stream }]
+      hist = [
+        ...hist,
+        { role: 'bot', name: String(f.payload.agent ?? agentId), text: stream },
+      ]
       stream = ''
       running = false
     }
@@ -345,7 +348,7 @@
                   </div>
                 {:else}
                   <div class="bubble {m.role}">
-                    <div class="who">{m.role === 'you' ? 'du' : m.role === 'bot' ? agentId : 'sys'}</div>
+                    <div class="who">{m.role === 'you' ? 'du' : m.role === 'bot' ? (m.name || agentId) : 'sys'}</div>
                     {m.text}
                   </div>
                 {/if}
