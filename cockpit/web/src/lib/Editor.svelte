@@ -70,6 +70,7 @@
     unsub = subscribeCanvas((c) => {
       canvas = c
       if (!editor || c.mode !== 'monaco') return
+      if (diskPath && c.path && c.path !== diskPath) return
       skip = true
       const cur = editor.getValue()
       if (c.text !== cur) editor.setValue(c.text)

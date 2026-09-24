@@ -50,6 +50,9 @@ export function ptyWrite(s: string) {
 export function applyToolResult(r: Record<string, unknown> | undefined) {
   if (!r) return
   if (typeof r.pty_write === 'string') ptyWrite(r.pty_write)
+  // repo_read/grep must not clobber the open Monaco buffer.
+  const canvasish = r.mode === 'iframe' || r.mode === 'monaco' || typeof r.preview === 'string'
+  if (!canvasish) return
   const mode = r.mode === 'iframe' || r.mode === 'monaco' ? r.mode : undefined
   const patch: Partial<Canvas> = {}
   if (typeof r.path === 'string') patch.path = r.path

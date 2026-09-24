@@ -104,7 +104,10 @@
     if (f.ch === 'tools' && f.type === 'result') {
       const r = f.payload.result as Record<string, unknown> | undefined
       applyToolResult(r)
-      if (typeof r?.path === 'string' && r.wrote) diskPath = r.path
+      if (r?.wrote === true && typeof r.path === 'string') {
+        diskPath = r.path
+        setCanvas({ path: r.path, mode: 'monaco' })
+      }
       const diff = typeof r?.diff === 'string' ? r.diff : ''
       const bit = r && (r.error || r.path || r.n || r.agent)
       hist = [
