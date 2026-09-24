@@ -40,9 +40,7 @@
     {#each files as f}
       <button
         type="button"
-        class="block w-full truncate px-2 py-0.5 text-left hover:bg-white/10"
-        class:bg-white/10={current === f.path}
-        class:text-clean={current === f.path}
+        class="block w-full truncate px-2 py-0.5 text-left hover:bg-white/10 {current === f.path ? 'bg-paper/10 text-clean' : ''}"
         onclick={() => onopen(f.path)}
       >
         {f.path}

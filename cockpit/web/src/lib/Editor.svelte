@@ -20,10 +20,6 @@
   let skip = false
   let canvas = $state<Canvas>(getCanvas())
 
-  export function getValue() {
-    return editor?.getValue() ?? canvas.text
-  }
-
   async function loadDisk(p: string) {
     if (!p) return
     const r = await fetch('/v1/workspace/file?path=' + encodeURIComponent(p))
