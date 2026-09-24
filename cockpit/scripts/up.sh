@@ -67,9 +67,22 @@ echo "API         http://127.0.0.1:8788/v1/health"
 echo "Hiroshima   skuff i UI (ikke :8787)"
 echo "8787        valgfri: sudo kalived-ctl api"
 echo "workspace   $ROOT"
-if have http://127.0.0.1:6333/readyz 2>/dev/null || have http://127.0.0.1:6333/; then
+qdrant_ok=0
+for _ in 1 2 3 4 5 6 7 8 9 10 12 15; do
+  if have http://127.0.0.1:6333/readyz || have http://127.0.0.1:6333/healthz; then
+    qdrant_ok=1
+    break
+  fi
+  sleep 0.4
+done
+if [[ "$qdrant_ok" == 1 ]]; then
   ok "qdrant :6333"
 else
   warn "qdrant nede"
+fi
+if have http://127.0.0.1:9100/minio/health/live; then
+  ok "minio :9100"
+else
+  warn "minio nede"
 fi
 echo "DONE"

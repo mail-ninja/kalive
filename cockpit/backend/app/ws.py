@@ -59,6 +59,8 @@ async def handle_socket(ws: WebSocket) -> None:
                 memory_bind(ag.id)
                 allow = bool(payload.get("allow_mutate"))
                 stop.clear()
+                excerpt: list[str] = []
+                tools_used: list[str] = []
                 try:
                     async for ev in run_turn(
                         ag,
@@ -71,12 +73,29 @@ async def handle_socket(ws: WebSocket) -> None:
                     ):
                         kind = ev.get("type")
                         if kind == "token":
+                            excerpt.append(str(ev.get("text") or ""))
                             await ws.send_json(_msg("chat", "token", {"text": ev.get("text") or "", "agent": ag.id}, mid))
                         elif kind == "tool":
+                            tools_used.append(str(ev.get("name") or ""))
                             await ws.send_json(
                                 _msg("tools", "call", {"name": ev.get("name"), "args": ev.get("args"), "round": ev.get("round"), "agent": ag.id}, mid)
                             )
                         elif kind == "tool_result":
+                            name = str(ev.get("name") or "")
+                            result = ev.get("result") if isinstance(ev.get("result"), dict) else {}
+                            try:
+                                remember_engram(
+                                    ag.id,
+                                    "tool",
+                                    {
+                                        "name": name,
+                                        "path": result.get("path") if isinstance(result, dict) else None,
+                                        "text": json.dumps(result, ensure_ascii=False)[:1500],
+                                        "user": text[:400],
+                                    },
+                                )
+                            except Exception:
+                                pass
                             await ws.send_json(
                                 _msg("tools", "result", {"name": ev.get("name"), "result": ev.get("result"), "round": ev.get("round"), "agent": ag.id}, mid)
                             )
@@ -91,6 +110,8 @@ async def handle_socket(ws: WebSocket) -> None:
                         "chat",
                         {
                             "user": text[:2000],
+                            "assistant": "".join(excerpt)[:3000],
+                            "tools": tools_used[:20],
                             "provider": str(payload.get("provider") or ag.provider),
                             "model": str(payload.get("model") or ag.model),
                             "allow_mutate": allow,

@@ -187,6 +187,112 @@ def remember_meta(agent_id: str, kind: str, payload: dict, memory_id: str | None
     return {"id": eid, "memory_id": mid, "agent_id": agent_id, "kind": kind, "path": str(db)}
 
 
+def _payload_text(payload: dict) -> str:
+    bits = []
+    for k in ("user", "assistant", "text", "path", "name", "excerpt"):
+        v = payload.get(k)
+        if v:
+            bits.append(str(v))
+    if not bits:
+        bits.append(json.dumps(payload, ensure_ascii=False)[:800])
+    return " ".join(bits)
+
+
+def cheap_vec(text: str) -> list[float]:
+    """Deterministic 8-d stand-in until a real embedder. Same text → same vector."""
+    import hashlib
+
+    h = hashlib.sha256((text or "").encode("utf-8", errors="replace")).digest()
+    return [b / 255.0 for b in h[:8]]
+
+
+_STOP = {
+    "the",
+    "and",
+    "for",
+    "not",
+    "med",
+    "som",
+    "det",
+    "den",
+    "til",
+    "en",
+    "er",
+    "på",
+    "av",
+    "og",
+    "i",
+    "jeg",
+    "du",
+}
+
+
+def recall(agent_id: str, query: str, limit: int = 6) -> list[dict]:
+    """Keyword sqlite + cheap qdrant. Workspace on disk still wins over this."""
+    check_agent(agent_id)
+    q = (query or "").strip()
+    if not q:
+        return list_episodes(agent_id, limit=min(limit, 4))
+    tokens = [t for t in re.findall(r"[a-zA-Z0-9_./-]{3,}", q.lower()) if t not in _STOP]
+    scored: dict[str, tuple[float, dict]] = {}
+    for e in list_episodes(agent_id, limit=80):
+        blob = json.dumps(e.get("payload") or {}, ensure_ascii=False).lower()
+        score = float(sum(1 for t in tokens if t in blob)) if tokens else 0.2
+        mid = str(e.get("memory_id") or e.get("id"))
+        scored[mid] = (score, e)
+    try:
+        vs = vector_search(agent_id, cheap_vec(q), limit=8)
+        for i, h in enumerate(vs.get("hits") or []):
+            pay = h.get("payload") or {}
+            mid = str(pay.get("memory_id") or h.get("id") or "")
+            if not mid:
+                continue
+            bonus = 1.5 - i * 0.1
+            if mid in scored:
+                s, e = scored[mid]
+                scored[mid] = (s + bonus, e)
+            else:
+                try:
+                    scored[mid] = (bonus, get_engram(agent_id, mid))
+                except KeyError:
+                    pass
+    except Exception:
+        pass
+    ranked = sorted(scored.values(), key=lambda x: -x[0])
+    out = []
+    for score, e in ranked:
+        if score <= 0:
+            continue
+        item = dict(e)
+        item["score"] = round(score, 2)
+        out.append(item)
+        if len(out) >= limit:
+            break
+    if not out:
+        return list_episodes(agent_id, limit=min(limit, 3))
+    return out
+
+
+def format_recall(hits: list[dict], budget: int = 1600) -> str:
+    if not hits:
+        return ""
+    lines = ["## Minne (tidligere episoder — workspace på disk vinner ved konflikt)"]
+    used = 0
+    for h in hits:
+        p = h.get("payload") or {}
+        user = str(p.get("user") or "")[:220]
+        asst = str(p.get("assistant") or p.get("excerpt") or p.get("text") or "")[:220]
+        kind = h.get("kind") or p.get("kind") or "?"
+        line = f"- [{kind}] {user}"
+        if asst:
+            line += f" → {asst}"
+        if used + len(line) > budget:
+            break
+        lines.append(line)
+        used += len(line)
+    return "\n".join(lines) if len(lines) > 1 else ""
+
+
 def remember_engram(
     agent_id: str,
     kind: str,
@@ -213,12 +319,24 @@ def remember_engram(
         wrote.append("graph")
     except Exception as e:
         skipped.append({"graph": str(e)[:200]})
-    if vector:
-        try:
-            vector_upsert(agent_id, mid, vector, {"kind": kind, "memory_id": mid, "agent_id": agent_id})
-            wrote.append("vector")
-        except Exception as e:
-            skipped.append({"vector": str(e)[:200]})
+    try:
+        vec = vector or cheap_vec(_payload_text(body))
+        vector_upsert(
+            agent_id,
+            mid,
+            vec,
+            {"kind": kind, "memory_id": mid, "agent_id": agent_id, "text": _payload_text(body)[:400]},
+        )
+        wrote.append("vector")
+    except Exception as e:
+        skipped.append({"vector": str(e)[:200]})
+    try:
+        raw = json.dumps(body, ensure_ascii=False).encode("utf-8")
+        if len(raw) <= 80_000:
+            blob_put(agent_id, f"engrams/{mid}.json", raw, "application/json")
+            wrote.append("blob")
+    except Exception as e:
+        skipped.append({"blob": str(e)[:200]})
     try:
         bus_publish(agent_id, json.dumps({"memory_id": mid, "kind": kind, "agent_id": agent_id}))
         wrote.append("bus")

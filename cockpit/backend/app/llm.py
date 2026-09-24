@@ -13,6 +13,7 @@ from .agents import Agent
 from .catalog import get_provider
 from .agents import get_agent
 from .hiroshima import MAX_ROUNDS as HIRO_ROUNDS
+from .memory import format_recall, recall
 from .secrets_store import load_env
 from .tools import call_tool, openai_tools
 
@@ -94,8 +95,22 @@ async def run_turn(
     pid = (provider or agent.provider or "xai").lower()
     if not key:
         raise RuntimeError(f"ingen nøkkel for provider={pid} — lim inn i Settings")
+    hits: list[dict] = []
+    mem_block = ""
+    if _depth == 0:
+        try:
+            hits = recall(agent.id, user_text, limit=6)
+            mem_block = format_recall(hits)
+        except Exception:
+            hits = []
+            mem_block = ""
+    if mem_block:
+        yield {"type": "log", "text": f"minne-gate: {len(hits)} treff"}
+    sys_content = _system_prompt(agent)
+    if mem_block:
+        sys_content = sys_content + "\n\n" + mem_block
     messages: list[dict[str, Any]] = [
-        {"role": "system", "content": _system_prompt(agent)},
+        {"role": "system", "content": sys_content},
         {"role": "user", "content": user_text},
     ]
     names = list(agent.tools) if agent.tools else None
