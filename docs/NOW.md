@@ -26,7 +26,6 @@ Port C (sandbox-VM, NIM, tale, mobil) er destinasjon. Ikke neste.
 
 ## Når du er tilbake
 
-Én setning: **«Kjør Port B: repo_bash.»**  
-Ikke «fiks treet» / «fiks minnet mer» / «nytt team».
+Spes: [PORT-B.md](PORT-B.md). Si **GO** når den er ok.
 
-Planfiler: [PORT-A.md](PORT-A.md) (levert), [REVIEW.md](REVIEW.md) (destinasjon), [NEXT.md](NEXT.md) (tre flater).
+Planfiler: [PORT-A.md](PORT-A.md) (levert), [PORT-B.md](PORT-B.md) (neste), [REVIEW.md](REVIEW.md) (destinasjon).
