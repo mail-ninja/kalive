@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import difflib
+import fcntl
 import os
 import re
 import shlex
@@ -241,11 +242,35 @@ def _kill_pg(pid: int) -> None:
             pass
 
 
+def _nb(fd) -> None:
+    if fd is None:
+        return
+    fl = fcntl.fcntl(fd.fileno(), fcntl.F_GETFL)
+    fcntl.fcntl(fd.fileno(), fcntl.F_SETFL, fl | os.O_NONBLOCK)
+
+
+def _read_nb(stream) -> bytes:
+    if stream is None:
+        return b""
+    try:
+        return stream.read(8192) or b""
+    except (OSError, ValueError):
+        return b""
+
+
+def _redact(s: str) -> str:
+    for secret in ("sk-", "API_KEY=", "BEGIN PRIVATE"):
+        if secret in s:
+            s = s.replace(secret, "«redact»")
+    return s
+
+
 def bash(
     argv: list[str] | None = None,
     line: str | None = None,
     timeout_s: float = 120,
     cancel=None,
+    on_chunk=None,
 ) -> dict:
     """Run one command in workspace. Mutating. No sudo, no git push."""
     if argv and isinstance(argv, list) and any(str(a) for a in argv):
@@ -273,13 +298,34 @@ def bash(
             stderr=subprocess.PIPE,
             start_new_session=True,
             env=env,
+            bufsize=0,
         )
     except FileNotFoundError:
         return {"error": f"ikke funnet: {cmd[0]}", "argv": cmd, "cwd": cwd}
+    _nb(proc.stdout)
+    _nb(proc.stderr)
+    if on_chunk:
+        on_chunk("meta", f"$ {' '.join(cmd)}  pid={proc.pid}\n")
     t0 = time.time()
     timed = False
     cancelled = False
+    out_b: list[bytes] = []
+    err_b: list[bytes] = []
+
+    def drain() -> None:
+        chunk = _read_nb(proc.stdout)
+        if chunk:
+            out_b.append(chunk)
+            if on_chunk:
+                on_chunk("stdout", _redact(chunk.decode("utf-8", errors="replace")))
+        chunk = _read_nb(proc.stderr)
+        if chunk:
+            err_b.append(chunk)
+            if on_chunk:
+                on_chunk("stderr", _redact(chunk.decode("utf-8", errors="replace")))
+
     while proc.poll() is None:
+        drain()
         if cancel is not None and getattr(cancel, "is_set", lambda: False)():
             _kill_pg(proc.pid)
             cancelled = True
@@ -288,26 +334,33 @@ def bash(
             _kill_pg(proc.pid)
             timed = True
             break
-        time.sleep(0.15)
+        time.sleep(0.08)
+    drain()
     try:
-        out, err = proc.communicate(timeout=2)
+        rest_out, rest_err = proc.communicate(timeout=2)
     except subprocess.TimeoutExpired:
         _kill_pg(proc.pid)
-        out, err = proc.communicate(timeout=2)
-    def tail(b: bytes | None) -> str:
-        s = (b or b"").decode("utf-8", errors="replace")
+        rest_out, rest_err = proc.communicate(timeout=2)
+    if rest_out:
+        out_b.append(rest_out)
+        if on_chunk:
+            on_chunk("stdout", _redact(rest_out.decode("utf-8", errors="replace")))
+    if rest_err:
+        err_b.append(rest_err)
+        if on_chunk:
+            on_chunk("stderr", _redact(rest_err.decode("utf-8", errors="replace")))
+
+    def tail(parts: list[bytes]) -> str:
+        s = b"".join(parts).decode("utf-8", errors="replace")
         if len(s) > _TAIL:
             return s[-_TAIL:]
-        return s
-    stdout, stderr = tail(out), tail(err)
-    for secret in ("sk-", "API_KEY=", "BEGIN PRIVATE"):
-        if secret in stdout:
-            stdout = stdout.replace(secret, "«redact»")
-        if secret in stderr:
-            stderr = stderr.replace(secret, "«redact»")
+        return _redact(s)
+
+    stdout, stderr = tail(out_b), tail(err_b)
     return {
         "argv": cmd,
         "cwd": cwd,
+        "pid": proc.pid,
         "exit_code": proc.returncode,
         "timeout": timed,
         "cancelled": cancelled,

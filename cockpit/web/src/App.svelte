@@ -35,6 +35,8 @@
   let details = $state(false)
   let ptyOpen = $state(false)
   let running = $state(false)
+  let liveOut = $state('')
+  let liveCmd = $state('')
   let diskPath = $state('README.md')
   let wsName = $state('kalived')
   let filMenu = $state(false)
@@ -88,9 +90,11 @@
       hist = [...hist, { role: 'sys', text: 'error: ' + String(f.payload.error ?? 'ukjent') }]
       stream = ''
       running = false
+      liveCmd = ''
     }
     if (f.ch === 'run' && f.type === 'stopped') {
       running = false
+      liveCmd = ''
       hist = [...hist, { role: 'sys', text: 'stoppet — logger og diff beholdt' }]
       stream = ''
     }
@@ -99,7 +103,14 @@
       tools = (list ?? []).map((t) => t.name)
     }
     if (f.ch === 'tools' && f.type === 'call') {
+      liveOut = ''
+      const a = f.payload.args as { argv?: string[]; line?: string } | undefined
+      liveCmd = Array.isArray(a?.argv) ? a.argv.join(' ') : String(a?.line || f.payload.name || '')
       hist = [...hist, { role: 'tool', name: String(f.payload.name || ''), text: `runde ${f.payload.round ?? '?'}` }]
+    }
+    if (f.ch === 'tools' && f.type === 'out') {
+      liveOut += String(f.payload.text ?? '')
+      if (liveOut.length > 80_000) liveOut = liveOut.slice(-60_000)
     }
     if (f.ch === 'tools' && f.type === 'result') {
       const r = f.payload.result as Record<string, unknown> | undefined
@@ -385,9 +396,12 @@
           {/if}
           <div class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-white/10 bg-black/40">
             <div class="flex items-center justify-between border-b border-white/10 px-3 py-1.5 text-xs text-paper/50">
-              <span>{running ? 'kjører…' : 'klar'}</span>
+              <span class="truncate">{running ? (liveCmd ? 'kjører: ' + liveCmd : 'kjører…') : 'klar'}</span>
               <span>{hist.length}</span>
             </div>
+            {#if running && (liveOut || liveCmd)}
+              <pre class="max-h-40 overflow-auto border-b border-white/10 bg-black/50 p-2 font-mono text-[0.7rem] text-clean/90">{liveOut || '… venter på output'}</pre>
+            {/if}
             <div bind:this={histEl} class="chat-hist min-h-0 flex-1 space-y-2 overflow-y-scroll p-3 text-sm">
               {#each hist as m}
                 {#if m.role === 'tool'}

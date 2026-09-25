@@ -80,6 +80,20 @@ async def handle_socket(ws: WebSocket) -> None:
                             await ws.send_json(
                                 _msg("tools", "call", {"name": ev.get("name"), "args": ev.get("args"), "round": ev.get("round"), "agent": ag.id}, mid)
                             )
+                        elif kind == "tool_out":
+                            await ws.send_json(
+                                _msg(
+                                    "tools",
+                                    "out",
+                                    {
+                                        "text": ev.get("text") or "",
+                                        "stream": ev.get("stream") or "stdout",
+                                        "name": ev.get("name"),
+                                        "round": ev.get("round"),
+                                    },
+                                    mid,
+                                )
+                            )
                         elif kind == "tool_result":
                             name = str(ev.get("name") or "")
                             result = ev.get("result") if isinstance(ev.get("result"), dict) else {}

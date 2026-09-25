@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import queue
 from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any
@@ -177,9 +178,51 @@ async def run_turn(
                 if not isinstance(args, dict):
                     args = {}
                 yield {"type": "tool", "name": name, "args": args, "round": rnd + 1}
-                result = await asyncio.to_thread(
-                    call_tool, name, args, allow_mutate=allow_mutate, allow=names, cancel=cancel
-                )
+                if name == "repo_bash":
+                    q: queue.Queue = queue.Queue()
+
+                    def on_chunk(tag: str, s: str) -> None:
+                        q.put(("out", tag, s))
+
+                    def run() -> None:
+                        try:
+                            r = call_tool(
+                                name,
+                                args,
+                                allow_mutate=allow_mutate,
+                                allow=names,
+                                cancel=cancel,
+                                on_chunk=on_chunk,
+                            )
+                            q.put(("done", "", r))
+                        except Exception as e:
+                            q.put(("done", "", {"error": str(e)[:400]}))
+
+                    fut = asyncio.get_running_loop().run_in_executor(None, run)
+                    result = {}
+                    while True:
+                        try:
+                            kind, tag, payload = await asyncio.to_thread(q.get, True, 0.15)
+                        except queue.Empty:
+                            if fut.done() and q.empty():
+                                break
+                            continue
+                        if kind == "out":
+                            yield {
+                                "type": "tool_out",
+                                "name": name,
+                                "stream": tag,
+                                "text": payload,
+                                "round": rnd + 1,
+                            }
+                        else:
+                            result = payload if isinstance(payload, dict) else {"error": str(payload)}
+                            break
+                    await fut
+                else:
+                    result = await asyncio.to_thread(
+                        call_tool, name, args, allow_mutate=allow_mutate, allow=names, cancel=cancel
+                    )
                 yield {"type": "tool_result", "name": name, "result": result, "round": rnd + 1}
                 messages.append(
                     {

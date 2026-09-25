@@ -379,6 +379,7 @@ def repo_bash(args: dict) -> dict:
     from . import workspace as w
 
     cancel = args.pop("_cancel", None)
+    on_chunk = args.pop("_on_chunk", None)
     argv = args.get("argv")
     if argv is not None and not isinstance(argv, list):
         argv = None
@@ -388,6 +389,7 @@ def repo_bash(args: dict) -> dict:
             line=str(args["line"]) if args.get("line") else None,
             timeout_s=float(args.get("timeout_s") or 120),
             cancel=cancel,
+            on_chunk=on_chunk,
         )
     except Exception as e:
         return {"error": str(e)[:240]}
@@ -448,6 +450,7 @@ def call_tool(
     allow_mutate: bool = False,
     allow: list[str] | None = None,
     cancel=None,
+    on_chunk=None,
 ) -> dict:
     if allow is not None and name not in allow:
         return {"error": f"tool {name} ikke for denne agenten"}
@@ -459,6 +462,8 @@ def call_tool(
     args = dict(payload) if isinstance(payload, dict) else {}
     if cancel is not None:
         args["_cancel"] = cancel
+    if on_chunk is not None:
+        args["_on_chunk"] = on_chunk
     try:
         return fn(args)
     except Exception as e:
