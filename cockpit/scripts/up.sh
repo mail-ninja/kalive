@@ -40,8 +40,13 @@ export PYTHONPATH="$HERE/backend${PYTHONPATH:+:$PYTHONPATH}"
 if have http://127.0.0.1:8788/v1/health; then
   ok "FastAPI :8788 allerede oppe"
 else
+  # --reload dreper in-flight agent-runder når noen lagrer .py. KALIVED_RELOAD=1 for dev.
+  RELOAD=()
+  if [[ "${KALIVED_RELOAD:-}" == 1 ]]; then
+    RELOAD=(--reload --reload-dir "$HERE/backend")
+  fi
   nohup "$VENV/bin/uvicorn" app.main:app --host 127.0.0.1 --port 8788 \
-    --reload --reload-dir "$HERE/backend" >"$LOG/uvicorn.log" 2>&1 &
+    "${RELOAD[@]}" >"$LOG/uvicorn.log" 2>&1 &
   echo $! >"$LOG/uvicorn.pid"
   for _ in 1 2 3 4 5 6 7 8 9 10; do
     have http://127.0.0.1:8788/v1/health && break

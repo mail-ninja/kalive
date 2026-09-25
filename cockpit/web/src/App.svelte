@@ -11,7 +11,7 @@
 
   type Hist = { role: 'you' | 'bot' | 'sys' | 'tool'; text: string; name?: string; diff?: string; path?: string }
 
-  let ws: WebSocket | null = null
+  let wsReady = $state(false)
   let hiroshima = $state(false)
   let hiroshimaW = $state(Number(localStorage.getItem('kalived.hiroshimaW') || 92) || 92)
   let hiroDragging = $state(false)
@@ -196,27 +196,29 @@
         if (Array.isArray(j.providers) && j.providers.length) providers = j.providers
       })
       .catch(() => {})
-    let stop = false
-    const boot = () => {
-      if (stop) return
-      const s = connect(onFrame)
-      ws = s
-      s.addEventListener('close', () => {
-        if (!stop) setTimeout(boot, 1500)
-      })
-    }
-    boot()
+    const unsub = connect(onFrame, (s) => {
+      wsReady = s === 'open'
+      if (s === 'open') hist = [...hist, { role: 'sys', text: 'cockpit ws up' }]
+      if (s === 'close' && running) {
+        hist = [
+          ...hist,
+          { role: 'sys', text: 'ws kuttet under runden — loopen ble avbrutt. Send på nytt.' },
+        ]
+        running = false
+        liveCmd = ''
+      }
+    })
     return () => {
-      stop = true
+      unsub()
       offCanvas()
       window.removeEventListener('keydown', onKey)
-      ws?.close()
     }
   })
 
   function stopAll() {
-    if (ws) send(ws, 'run', 'stop', {})
+    send('run', 'stop', {})
     running = false
+    liveCmd = ''
   }
 
   async function saveDisk() {
@@ -267,10 +269,10 @@
 
   function say() {
     const t = draft.trim()
-    if (!t || !ws) return
+    if (!t) return
     running = true
     hist = [...hist, { role: 'you', text: t }]
-    send(ws, 'chat', 'user', {
+    send('chat', 'user', {
       text: t,
       agent: agentId,
       provider: providerId,
@@ -355,7 +357,7 @@
         <select
           class="rounded-full border border-white/15 bg-ink px-2 py-1 text-paper"
           bind:value={agentId}
-          onchange={() => ws && send(ws, 'agents', 'select', { id: agentId })}
+          onchange={() => send('agents', 'select', { id: agentId })}
         >
           {#each agents as a}
             <option value={a.id}>{a.name}</option>
@@ -389,7 +391,7 @@
                   class:text-ink={agentId === a.id}
                   onclick={() => {
                     agentId = a.id
-                    ws && send(ws, 'agents', 'select', { id: a.id })
+                    send('agents', 'select', { id: a.id })
                   }}>{a.name}</button>
               {/each}
             </div>
