@@ -14,7 +14,7 @@ Agentkonsoll, `build`, filer på disk, mappetre, Fil/Ctrl+S, stopp, `up.sh`, min
 
 ## Neste hopp (det som gjør det til et kodesystem)
 
-**Port B, én ting:** `repo_bash` — cwd=`~/kalived`, timeout, ingen `sudo -S`, haken på. Da kan `build` kjøre test, `up.sh`, linter. Uten det er vi en editor med prat. Med det er vi Grok Build på din maskin.
+**Port B, én ting:** `repo_bash` — cwd=`~/kalived`, timeout 120s (maks 600), ingen sudo/git push, haken på. **I treet.** `build` kan kjøre test og linter. Dev-server og passord = PTY.
 
 Rett etter, samme uke, ikke samme PR:
 

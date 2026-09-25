@@ -109,7 +109,13 @@
         setCanvas({ path: r.path, mode: 'monaco' })
       }
       const diff = typeof r?.diff === 'string' ? r.diff : ''
-      const bit = r && (r.error || r.path || r.n || r.agent)
+      let text = ''
+      if (r && 'exit_code' in r) {
+        text = `exit ${r.exit_code}${r.timeout ? ' timeout' : ''}${r.cancelled ? ' stoppet' : ''}\n${String(r.stdout_tail || r.stderr_tail || '').slice(-1200)}`
+      } else {
+        const bit = r && (r.error || r.path || r.n || r.agent)
+        text = String(bit ?? JSON.stringify(r ?? {}).slice(0, 280))
+      }
       hist = [
         ...hist,
         {
@@ -117,7 +123,7 @@
           name: String(f.payload.name || ''),
           path: typeof r?.path === 'string' ? r.path : undefined,
           diff,
-          text: String(bit ?? JSON.stringify(r ?? {}).slice(0, 280)),
+          text,
         },
       ]
     }

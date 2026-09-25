@@ -116,7 +116,7 @@ async def run_turn(
     ]
     names = list(agent.tools) if agent.tools else None
     tools = openai_tools(names) if use_tools else []
-    tool_cap = 8 if (agent.desk == "code" or agent.id == "build") else HIRO_ROUNDS
+    tool_cap = 16 if (agent.desk == "code" or agent.id == "build") else HIRO_ROUNDS
     max_r = tool_cap + 1
     async with httpx.AsyncClient(timeout=120.0) as client:
         for rnd in range(max_r):
@@ -177,7 +177,9 @@ async def run_turn(
                 if not isinstance(args, dict):
                     args = {}
                 yield {"type": "tool", "name": name, "args": args, "round": rnd + 1}
-                result = call_tool(name, args, allow_mutate=allow_mutate, allow=names)
+                result = await asyncio.to_thread(
+                    call_tool, name, args, allow_mutate=allow_mutate, allow=names, cancel=cancel
+                )
                 yield {"type": "tool_result", "name": name, "result": result, "round": rnd + 1}
                 messages.append(
                     {

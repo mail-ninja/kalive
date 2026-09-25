@@ -1,9 +1,13 @@
-"""Workspace on disk. Default ~/kalived. Never $HOME as root. No repo_bash."""
+"""Workspace on disk. Default ~/kalived. Never $HOME as root."""
 from __future__ import annotations
 
 import difflib
 import os
 import re
+import shlex
+import signal
+import subprocess
+import time
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
@@ -205,6 +209,112 @@ def edit(rel: str, old: str, new: str) -> dict:
         return {"error": "old_string treffer mer enn én gang — gjør den unik", "path": rel_of(p)}
     updated = text.replace(old, new, 1)
     return write(rel_of(p), updated)
+
+
+_DENY = re.compile(
+    r"(^|[\s;|&])(sudo|pkexec|doas)(\s|$)"
+    r"|sudo\s+-S"
+    r"|git\s+push"
+    r"|chmod\s+-R\s+777\s+/"
+    r"|rm\s+-rf\s+/"
+    r"|curl\s+[^\n]*\|\s*(ba)?sh",
+    re.I,
+)
+_TAIL = 200_000
+
+
+def _kill_pg(pid: int) -> None:
+    try:
+        os.killpg(pid, signal.SIGTERM)
+    except OSError:
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except OSError:
+            pass
+    time.sleep(0.4)
+    try:
+        os.killpg(pid, signal.SIGKILL)
+    except OSError:
+        try:
+            os.kill(pid, signal.SIGKILL)
+        except OSError:
+            pass
+
+
+def bash(
+    argv: list[str] | None = None,
+    line: str | None = None,
+    timeout_s: float = 120,
+    cancel=None,
+) -> dict:
+    """Run one command in workspace. Mutating. No sudo, no git push."""
+    if argv and isinstance(argv, list) and any(str(a) for a in argv):
+        cmd = [str(a) for a in argv if str(a) != ""]
+    elif line and str(line).strip():
+        try:
+            cmd = shlex.split(str(line).strip(), posix=True)
+        except ValueError as e:
+            return {"error": f"kan ikke parse linje: {e}"}
+    else:
+        return {"error": "trenger argv eller line"}
+    if not cmd:
+        return {"error": "tom kommando"}
+    blob = " ".join(cmd)
+    if _DENY.search(blob):
+        return {"error": "nekta: sudo/git push/destruktiv root — PTY til passord, du eier remote", "argv": cmd}
+    timeout_s = max(1.0, min(float(timeout_s or 120), 600.0))
+    cwd = str(root())
+    env = {**os.environ, "NO_COLOR": "1", "PYTHONUNBUFFERED": "1"}
+    try:
+        proc = subprocess.Popen(
+            cmd,
+            cwd=cwd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            start_new_session=True,
+            env=env,
+        )
+    except FileNotFoundError:
+        return {"error": f"ikke funnet: {cmd[0]}", "argv": cmd, "cwd": cwd}
+    t0 = time.time()
+    timed = False
+    cancelled = False
+    while proc.poll() is None:
+        if cancel is not None and getattr(cancel, "is_set", lambda: False)():
+            _kill_pg(proc.pid)
+            cancelled = True
+            break
+        if time.time() - t0 > timeout_s:
+            _kill_pg(proc.pid)
+            timed = True
+            break
+        time.sleep(0.15)
+    try:
+        out, err = proc.communicate(timeout=2)
+    except subprocess.TimeoutExpired:
+        _kill_pg(proc.pid)
+        out, err = proc.communicate(timeout=2)
+    def tail(b: bytes | None) -> str:
+        s = (b or b"").decode("utf-8", errors="replace")
+        if len(s) > _TAIL:
+            return s[-_TAIL:]
+        return s
+    stdout, stderr = tail(out), tail(err)
+    for secret in ("sk-", "API_KEY=", "BEGIN PRIVATE"):
+        if secret in stdout:
+            stdout = stdout.replace(secret, "«redact»")
+        if secret in stderr:
+            stderr = stderr.replace(secret, "«redact»")
+    return {
+        "argv": cmd,
+        "cwd": cwd,
+        "exit_code": proc.returncode,
+        "timeout": timed,
+        "cancelled": cancelled,
+        "stdout_tail": stdout,
+        "stderr_tail": stderr,
+        "elapsed_s": round(time.time() - t0, 2),
+    }
 
 
 @router.get("")

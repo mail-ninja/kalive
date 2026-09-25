@@ -362,6 +362,39 @@ def repo_edit(args: dict) -> dict:
 
 @register(
     ToolSpec(
+        name="repo_bash",
+        description="Kjør én kommando i workspace (cwd ~/kalived). argv[] eller line. Timeout default 120s. Krever «agent får kjøre». Ikke sudo, ikke git push. Passord i PTY.",
+        mutating=True,
+        parameters={
+            "type": "object",
+            "properties": {
+                "argv": {"type": "array", "items": {"type": "string"}},
+                "line": {"type": "string"},
+                "timeout_s": {"type": "number"},
+            },
+        },
+    )
+)
+def repo_bash(args: dict) -> dict:
+    from . import workspace as w
+
+    cancel = args.pop("_cancel", None)
+    argv = args.get("argv")
+    if argv is not None and not isinstance(argv, list):
+        argv = None
+    try:
+        return w.bash(
+            argv=argv,
+            line=str(args["line"]) if args.get("line") else None,
+            timeout_s=float(args.get("timeout_s") or 120),
+            cancel=cancel,
+        )
+    except Exception as e:
+        return {"error": str(e)[:240]}
+
+
+@register(
+    ToolSpec(
         name="ask_agent",
         description="Crew: én underagent (forge|review|term). Spill/iframe → forge med beskjed iframe_write HTML. Oneshot.",
         mutating=False,
@@ -408,7 +441,14 @@ def openai_tools(names: list[str] | None = None) -> list[dict]:
     return out
 
 
-def call_tool(name: str, payload: dict, *, allow_mutate: bool = False, allow: list[str] | None = None) -> dict:
+def call_tool(
+    name: str,
+    payload: dict,
+    *,
+    allow_mutate: bool = False,
+    allow: list[str] | None = None,
+    cancel=None,
+) -> dict:
     if allow is not None and name not in allow:
         return {"error": f"tool {name} ikke for denne agenten"}
     if name not in TOOLS:
@@ -416,7 +456,9 @@ def call_tool(name: str, payload: dict, *, allow_mutate: bool = False, allow: li
     spec, fn = TOOLS[name]
     if spec.mutating and not allow_mutate:
         return {"error": "mutating: huk av «agent får kjøre» i cockpit"}
-    args = payload if isinstance(payload, dict) else {}
+    args = dict(payload) if isinstance(payload, dict) else {}
+    if cancel is not None:
+        args["_cancel"] = cancel
     try:
         return fn(args)
     except Exception as e:

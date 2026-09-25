@@ -20,7 +20,7 @@ Da kan loopen bli: plan → les → edit → **test/linter/`up.sh`-sjekk** → s
 | Groq, Whisper, nye providers | Adapter etter at bash er kjedelig |
 | Jev | Ingen routing-baseline ennå |
 | FindingV2 / scan-kjerne | Egne PR-er |
-| `git commit` / `git push` fra agent | Du eier remote |
+| `git push` fra agent | Du eier remote. `git commit` er lov hvis du ba om det. |
 | Vilkårlig `$HOME` | Bare workspace |
 | Flere agenter | `build` får tool-et. `crew` kan `ask_agent` build |
 
@@ -31,7 +31,7 @@ Samme hake som `repo_edit`. I tillegg **kode** som nekter, uansett hake:
 1. cwd låst til `workspace.root()` — ingen `cd ..` ut.
 2. Ingen shell-metachar som vi ikke vil ha: kjør **liste argv** (`["python3","-m","pytest",…]`) eller én linje som parses trygt. Anbefaling: **`argv: string[]`** primært, `line` kun hvis den ikke inneholder `sudo`, `| sudo`, `$(`, backticks mot root.
 3. Blokker: `sudo`, `pkexec`, `chmod 777`, `rm -rf /`, skriving under `~/.config/kalived`, `curl|sh`, `dd if=`.
-4. Timeout default **30 s**, maks **120 s**. Ved timeout: SIGTERM prosessgruppe, så SIGKILL. Returner `status=timeout` + logg-hale.
+4. Timeout default **120 s**, maks **600 s**. Ved timeout: SIGTERM prosessgruppe, så SIGKILL. Returner `timeout` + logg-hale. Langlivet dev-server hører fortsatt hjemme i PTY/`up.sh`.
 5. stdout/stderr cap ~**32 KiB** hver (hale hvis lengre).
 6. `start_new_session=True` så vi kan drepe gruppa. Ikke `0.0.0.0`-bind i *våre* scripts; vi nekter ikke `npm` som allerede lytter loopback.
 7. Stopp-knappen avbryter ventingen (cancel) og dreper pgid hvis jobb kjører.

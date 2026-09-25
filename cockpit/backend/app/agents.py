@@ -23,7 +23,7 @@ class Agent(BaseModel):
 
 SOC_TOOLS = ["ping", "hiroshima_verdict", "hiroshima_scan", "hiroshima_run", "hiroshima_job"]
 CODE_TOOLS = ["iframe_write", "preview_set", "canvas_open", "canvas_edit", "canvas_read", "ping", "term_send"]
-BUILD_TOOLS = ["repo_glob", "repo_grep", "repo_read", "repo_edit", "ping"]
+BUILD_TOOLS = ["repo_glob", "repo_grep", "repo_read", "repo_edit", "repo_bash", "ping"]
 CREW_TOOLS = ["ping", "ask_agent", "repo_read"]
 TERM_TOOLS = ["ping", "term_send"]
 REVIEW_TOOLS = ["ping", "repo_read", "repo_grep"]
