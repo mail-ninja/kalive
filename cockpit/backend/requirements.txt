@@ -7,3 +7,4 @@ redis>=5
 minio>=7
 kuzu>=0.7
 python-multipart>=0.0.9
+fastembed>=0.4

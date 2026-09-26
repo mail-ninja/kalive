@@ -128,6 +128,7 @@ def status() -> dict:
             "sqlite": True,
         },
         "agents": [layers(a.id) for a in all_agents()],
+        "embedder": __import__("app.embedder", fromlist=["status"]).status(),
     }
 
 
@@ -199,11 +200,10 @@ def _payload_text(payload: dict) -> str:
 
 
 def cheap_vec(text: str) -> list[float]:
-    """Deterministic 8-d stand-in until a real embedder. Same text → same vector."""
-    import hashlib
+    """384-d embedding. Local MiniLM via fastembed; hash fallback."""
+    from .embedder import embed_one
 
-    h = hashlib.sha256((text or "").encode("utf-8", errors="replace")).digest()
-    return [b / 255.0 for b in h[:8]]
+    return embed_one(text)
 
 
 _STOP = {
@@ -461,32 +461,75 @@ def _cell(x):
         return str(x)
 
 
+def _vector_dim() -> int:
+    from .embedder import dim
+
+    return dim()
+
+
+_reindexing: set[str] = set()
+
+
 def _qdrant_ensure(agent_id: str) -> str:
     if not _port_up(6333):
         raise RuntimeError("qdrant :6333 nede — docker compose -f cockpit/memory/compose.yml up -d")
     coll = layers(agent_id)["vector"]["collection"]
-    r = httpx.put(
-        f"{QDRANT}/collections/{coll}",
-        json={"vectors": {"size": 8, "distance": "Cosine"}},
-        timeout=5.0,
-    )
-    if r.status_code not in (200, 409):
-        # 200 ok, some versions 4xx if exists
+    want = _vector_dim()
+    g = httpx.get(f"{QDRANT}/collections/{coll}", timeout=5.0)
+    recreate = True
+    if g.status_code == 200:
+        try:
+            size = g.json()["result"]["config"]["params"]["vectors"]["size"]
+        except (KeyError, TypeError):
+            size = None
+        if size == want:
+            recreate = False
+        else:
+            httpx.delete(f"{QDRANT}/collections/{coll}", timeout=10.0)
+    if recreate:
+        r = httpx.put(
+            f"{QDRANT}/collections/{coll}",
+            json={"vectors": {"size": want, "distance": "Cosine"}},
+            timeout=5.0,
+        )
         if r.status_code >= 400 and "already" not in r.text.lower():
-            # try get
-            g = httpx.get(f"{QDRANT}/collections/{coll}", timeout=5.0)
-            if g.status_code >= 400:
-                raise RuntimeError(r.text[:300])
+            raise RuntimeError(r.text[:300])
+        if agent_id not in _reindexing:
+            _reindexing.add(agent_id)
+            try:
+                reindex_vectors(agent_id)
+            except Exception:
+                pass
+            finally:
+                _reindexing.discard(agent_id)
     return coll
+
+
+def reindex_vectors(agent_id: str) -> dict:
+    """Re-embed sqlite episodes into Qdrant after dim change."""
+    n = 0
+    for e in list_episodes(agent_id, limit=200):
+        p = e.get("payload") or {}
+        mid = str(p.get("memory_id") or e.get("memory_id") or "")
+        if not mid:
+            continue
+        try:
+            vector_upsert(
+                agent_id,
+                mid,
+                cheap_vec(_payload_text(p)),
+                {"kind": e.get("kind"), "memory_id": mid, "agent_id": agent_id, "text": _payload_text(p)[:400]},
+            )
+            n += 1
+        except Exception:
+            continue
+    return {"agent_id": agent_id, "reindexed": n}
 
 
 def vector_upsert(agent_id: str, point_id: str, vector: list[float], payload: dict) -> dict:
     coll = _qdrant_ensure(agent_id)
-    if len(vector) != 8:
-        # pad/truncate to schema size until real embeddings
-        v = (list(vector) + [0.0] * 8)[:8]
-    else:
-        v = vector
+    want = _vector_dim()
+    v = (list(vector) + [0.0] * want)[:want]
     r = httpx.put(
         f"{QDRANT}/collections/{coll}/points?wait=true",
         json={"points": [{"id": point_id if _uuidish(point_id) else None, "vector": v, "payload": payload}]},
@@ -509,7 +552,8 @@ def vector_upsert(agent_id: str, point_id: str, vector: list[float], payload: di
 
 def vector_search(agent_id: str, vector: list[float], limit: int = 8) -> dict:
     coll = _qdrant_ensure(agent_id)
-    v = (list(vector) + [0.0] * 8)[:8]
+    want = _vector_dim()
+    v = (list(vector) + [0.0] * want)[:want]
     r = httpx.post(
         f"{QDRANT}/collections/{coll}/points/search",
         json={"vector": v, "limit": max(1, min(limit, 32)), "with_payload": True},

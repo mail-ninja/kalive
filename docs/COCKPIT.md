@@ -53,7 +53,7 @@ Scan-jobber overlever WS-kutt. Når prosessen er død: `done` + stopp. Rutine = 
 
 ## Minne-lag
 
-Før hver oppgave (`run_turn`) henter **minne-gaten** relevante episoder (sqlite-nøkkelord + Qdrant 8-d stand-in). Etter svaret skrives én engram-UUID til alle lag som er oppe. Workspace på disk vinner ved konflikt. Tune embedder senere.
+Før hver oppgave (`run_turn`) henter **minne-gaten** relevante episoder (sqlite-nøkkelord + Qdrant). Embedder: lokal **paraphrase-multilingual-MiniLM-L12-v2** (384-d, norsk+engelsk, fastembed/ONNX). Etter svaret skrives én engram-UUID til alle lag som er oppe. Workspace på disk vinner ved konflikt.
 
 Alle agenter bruker alle lag. Namespace `kalived:{agent_id}:`.
 
