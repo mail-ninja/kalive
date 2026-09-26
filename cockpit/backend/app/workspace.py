@@ -197,6 +197,10 @@ def write(rel: str, text: str) -> dict:
     return {"path": rel_of(p), "n": len(text), "diff": diff[:12000], "wrote": True}
 
 
+def _headings(s: str) -> list[str]:
+    return [ln.rstrip() for ln in s.splitlines() if ln.startswith("#")]
+
+
 def edit(rel: str, old: str, new: str) -> dict:
     p = safe(rel)
     if not p.is_file():
@@ -204,11 +208,33 @@ def edit(rel: str, old: str, new: str) -> dict:
     if skipped(p):
         raise ValueError("hoppet over")
     text = p.read_text(encoding="utf-8")
+    old, new = old.replace("\r\n", "\n"), new.replace("\r\n", "\n")
+    if "\n" not in old and len(old) < 80:
+        return {
+            "error": "old_string for kort — ta med omliggende linjer (inkl. overskrift) så innsettinga treffer seksjonen, ikke slutten av fila",
+            "path": rel_of(p),
+        }
     if old not in text:
         return {"error": "old_string ikke funnet", "path": rel_of(p)}
     if text.count(old) > 1:
-        return {"error": "old_string treffer mer enn én gang — gjør den unik", "path": rel_of(p)}
+        return {"error": "old_string treffer mer enn én gang — gjør den unik med mer kontekst", "path": rel_of(p)}
+    # appending a brand-new markdown heading at EOF is how we got a second «Etter A»
+    stripped = text.rstrip()
+    if stripped.endswith(old.rstrip()) and new.startswith(old):
+        rest = new[len(old) :].lstrip("\n")
+        if rest.startswith("#"):
+            return {
+                "error": "ikke lim ny overskrift på slutten av fila — utvid eksisterende seksjon; old_string skal inneholde overskriften du redigerer under",
+                "path": rel_of(p),
+            }
     updated = text.replace(old, new, 1)
+    before, after = _headings(text), _headings(updated)
+    extra = [h for h in after if after.count(h) > before.count(h) and before.count(h) >= 1]
+    if extra:
+        return {
+            "error": "edit ville duplisert overskrift: " + ", ".join(extra[:5]) + " — rediger inni den eksisterende seksjonen",
+            "path": rel_of(p),
+        }
     return write(rel_of(p), updated)
 
 

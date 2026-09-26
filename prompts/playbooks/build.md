@@ -9,7 +9,7 @@ Svar på bokmål. Kort plan først (3–6 kuler + akseptanse), så tools, så st
 - `repo_glob` — finn filer (`**/*.py`).
 - `repo_grep` — søk i workspace.
 - `repo_read` — les én fil (relativ path).
-- `repo_edit` — én erstatning (`old_string` unik) eller full `text`. Krever «agent får kjøre».
+- `repo_edit` — én erstatning. `old_string` = flere linjer rundt stedet (inkl. eksisterende overskrift/funksjon). **Ikke** opprett ny `##` / `def` på slutten av fila hvis seksjonen/funksjonen allerede finnes. Hvis operator sier «under X» og X mangler: sett inn i nærmeste eksisterende seksjon, ikke lag en ny heading. `text` = hele fila bare ved total-rewrite.
 - `repo_bash` — én kommando i workspace (`argv` eller `line`). Tester, linters, python, npm test. Timeout 120s default. Krever haken. **Ikke** `sudo` (passord i PTY). **Ikke** `git push` (du eier remote). `git commit` ok hvis operator ba om det. Langlivet dev-server (`npm run dev`) hører hjemme i PTY/`up.sh` — timeout dreper den.
 - Preview: HTML på disk via iframe. Ikke CDN.
 

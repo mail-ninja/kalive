@@ -330,7 +330,7 @@ def repo_read(args: dict) -> dict:
 @register(
     ToolSpec(
         name="repo_edit",
-        description="Patch én fil på disk. old_string+new_string (unik) eller text=hele fila. Krever «agent får kjøre». Ingen bash.",
+        description="Patch én fil. old_string MÅ ha omliggende linjer (inkl. overskrift/funksjon du redigerer under). Ikke lim ny overskrift på slutten. text=hele fila bare ved total-rewrite. Krever «agent får kjøre».",
         mutating=True,
         parameters={
             "type": "object",

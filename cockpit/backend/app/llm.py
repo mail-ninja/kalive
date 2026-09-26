@@ -26,6 +26,7 @@ def _system_prompt(agent: Agent) -> str:
         extra = (
             "\n\nDu er i cockpit-Arbeid (kode). "
             "Workspace er filer på disk. build bruker repo_glob/grep/read/edit. "
+            "repo_edit: old_string med omliggende linjer. Aldri duplikat-overskrift på EOF. "
             "Ingen bash — operator kjører build i PTY. "
             "Preview = HTML på disk eller loopback. "
             "Forklaring: les README.md og docs/COCKPIT.md, så SVAR. Ikke les hele docs/. "
