@@ -227,49 +227,55 @@ _STOP = {
 }
 
 
-def recall(agent_id: str, query: str, limit: int = 6) -> list[dict]:
-    """Keyword sqlite + cheap qdrant. Workspace on disk still wins over this."""
+def recall(agent_id: str, query: str, limit: int = 4) -> list[dict]:
+    """Only *relevant* hits. `limit` is a ceiling, not a quota. Empty is allowed."""
     check_agent(agent_id)
     q = (query or "").strip()
     if not q:
-        return list_episodes(agent_id, limit=min(limit, 4))
+        return []
     tokens = [t for t in re.findall(r"[a-zA-Z0-9_./-]{3,}", q.lower()) if t not in _STOP]
     scored: dict[str, tuple[float, dict]] = {}
     for e in list_episodes(agent_id, limit=80):
         blob = json.dumps(e.get("payload") or {}, ensure_ascii=False).lower()
-        score = float(sum(1 for t in tokens if t in blob)) if tokens else 0.2
+        kw = float(sum(1 for t in tokens if t in blob)) if tokens else 0.0
+        if kw < 1:
+            continue
         mid = str(e.get("memory_id") or e.get("id"))
-        scored[mid] = (score, e)
+        scored[mid] = (kw, e)
     try:
         vs = vector_search(agent_id, cheap_vec(q), limit=8)
-        for i, h in enumerate(vs.get("hits") or []):
+        for h in vs.get("hits") or []:
+            sim = float(h.get("score") or 0)
+            if sim < 0.42:
+                continue
             pay = h.get("payload") or {}
             mid = str(pay.get("memory_id") or h.get("id") or "")
             if not mid:
                 continue
-            bonus = 1.5 - i * 0.1
             if mid in scored:
                 s, e = scored[mid]
-                scored[mid] = (s + bonus, e)
-            else:
+                scored[mid] = (s + sim, e)
+            elif sim >= 0.55:
                 try:
-                    scored[mid] = (bonus, get_engram(agent_id, mid))
+                    scored[mid] = (sim, get_engram(agent_id, mid))
                 except KeyError:
                     pass
     except Exception:
         pass
     ranked = sorted(scored.values(), key=lambda x: -x[0])
+    if not ranked:
+        return []
+    top = ranked[0][0]
+    cutoff = max(2.0, top * 0.55)
     out = []
     for score, e in ranked:
-        if score <= 0:
-            continue
+        if score < cutoff:
+            break
         item = dict(e)
         item["score"] = round(score, 2)
         out.append(item)
-        if len(out) >= limit:
+        if len(out) >= min(limit, 4):
             break
-    if not out:
-        return list_episodes(agent_id, limit=min(limit, 3))
     return out
 
 

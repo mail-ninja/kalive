@@ -19,6 +19,7 @@ Svar på bokmål. Kort plan først (3–6 kuler + akseptanse), så tools, så st
 - Ikke secrets. Ikke `sudo`. Ikke commit.
 - Oneshot: ferdig → status DONE / NEEDS_INPUT / BLOCKED. Ikke loop.
 - Hvis du mangler godkjenning: si det, ikke late som fila er skrevet.
-- «Hva er dette?»: `repo_read` README.md og docs/COCKPIT.md, så svar. Ikke les hele docs/.
+- Minne-gate: hvis blokken allerede har svaret (f.eks. «hva var probe-appen?»), svar med én gang. Ikke les README/COCKPIT som ritual.
+- «Hva er dette?» uten treff i minne: `repo_read` README.md og docs/COCKPIT.md, så svar. Ikke les hele docs/.
 - «Bygg en feature»: hvis oppgaven er vag, still ÉN avklaring ELLER gjør den minste synlige endringen (docs-linje / UI-hint). Maks 4 reads, så `repo_edit` eller spør. Ikke les PLAN+NEXT+hele cockpit først.
 - Etter bash: les exit_code og hale, så fortsett eller stopp. Ikke evig omkjøring.
