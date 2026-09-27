@@ -46,39 +46,19 @@ def decide(state: Any, questions: dict[str, dict]) -> dict:
     return {"source": "rules", "answers": rules}
 
 
-def _jev_http(state: Any, questions: dict[str, dict], key: str) -> dict[str, dict] | None:
-    env = load_env()
-    base = (env.get("AI_GATEWAY_BASE_URL") or "https://ai-gateway.vercel.sh/typesafe").rstrip("/")
-    qs: dict[str, dict] = {}
-    for qid, spec in questions.items():
-        item: dict[str, Any] = {
-            "type": spec.get("type") or "noul",
-            "instructions": spec.get("instructions") or qid,
-        }
-        if spec.get("criteria"):
-            item["criteria"] = spec["criteria"]
-        qs[qid] = item
-    body = {
-        "model": "typesafe-ai/jev",
-        "state": state if isinstance(state, str) else json.dumps(state, ensure_ascii=False),
-        "questions": qs,
-    }
-    r = httpx.post(
-        base + "/v1/systemone",
-        headers={"Authorization": "Bearer " + key, "Content-Type": "application/json"},
-        json=body,
-        timeout=4.0,
-    )
-    r.raise_for_status()
-    data = r.json()
+def _parse_jev_answers(data: dict) -> dict[str, dict] | None:
     raw = data.get("answers") or (data.get("result") or {}).get("answers") or {}
+    meta = ((data.get("providerMetadata") or {}).get("typesafe") or {}).get("confidence") or {}
     if not isinstance(raw, dict) or not raw:
         return None
     out: dict[str, dict] = {}
     for qid, ans in raw.items():
         if not isinstance(ans, dict):
             continue
-        d: dict[str, Any] = {"source": "jev", "confidence": float(ans.get("confidence") or 0.5)}
+        conf = ans.get("confidence")
+        if conf is None and isinstance(meta, dict):
+            conf = meta.get(qid) or meta.get("destination")
+        d: dict[str, Any] = {"source": "jev", "confidence": float(conf or 0.5)}
         if ans.get("noul") is not None:
             d["noul"] = float(ans["noul"])
         elif ans.get("probability") is not None:
@@ -93,6 +73,52 @@ def _jev_http(state: Any, questions: dict[str, dict], key: str) -> dict[str, dic
             d["score"] = float(ans["score"])
         out[qid] = d
     return out or None
+
+
+def _jev_http(state: Any, questions: dict[str, dict], key: str) -> dict[str, dict] | None:
+    """Vercel labs sample uses /v1/evaluate; TypeSafe SDK uses /typesafe/v1/systemone."""
+    env = load_env()
+    headers = {"Authorization": "Bearer " + key, "Content-Type": "application/json"}
+    st = state if isinstance(state, str) else json.dumps(state, ensure_ascii=False)
+    qs_eval: dict[str, dict] = {}
+    qs_one: dict[str, dict] = {}
+    for qid, spec in questions.items():
+        typ = spec.get("type") or "noul"
+        instr = spec.get("instructions") or qid
+        crit = spec.get("criteria")
+        one: dict[str, Any] = {"type": typ, "instructions": instr}
+        ev: dict[str, Any] = {"type": "boolean" if typ == "noul" else typ, "instructions": instr}
+        if crit:
+            one["criteria"] = crit
+            ev["criteria"] = crit
+        qs_one[qid] = one
+        qs_eval[qid] = ev
+    attempts = [
+        (
+            "https://ai-gateway.vercel.sh/v1/evaluate",
+            {"model": "typesafe-ai/jev", "state": state if not isinstance(state, str) else st, "questions": qs_eval},
+        ),
+        (
+            (env.get("AI_GATEWAY_BASE_URL") or "https://ai-gateway.vercel.sh/typesafe").rstrip("/") + "/v1/systemone",
+            {"model": "typesafe-ai/jev", "state": st, "questions": qs_one},
+        ),
+    ]
+    last_err = None
+    for url, body in attempts:
+        try:
+            r = httpx.post(url, headers=headers, json=body, timeout=8.0)
+            if r.status_code >= 400:
+                last_err = r.status_code
+                continue
+            parsed = _parse_jev_answers(r.json() if r.content else {})
+            if parsed:
+                return parsed
+        except Exception as e:
+            last_err = e
+            continue
+    if last_err:
+        raise RuntimeError(str(last_err)[:120])
+    return None
 
 
 def _rule_one(state: Any, qid: str, spec: dict) -> dict:
