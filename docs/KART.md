@@ -130,4 +130,4 @@ Når 2 er grønt i UI: Hiroshima-protokoll (Jev-port, tshark-evidens, Mercury-kl
 
 1. Verifiser minne etter korte engrams: «hva var probe-appen?» skal treffe `_probe.html`, ikke en vegg av NOW.md.
 2. Auto-preview når `repo_edit` skriver `.html`.
-3. Hiroshima-protokoll — når du forklarer den.
+3. Jev: se [JEV.md](JEV.md). Anbefaling: `decide()`-adapter nå; live TypeSafe når nøkkel finnes. Hiroshima bruker samme adapter.
