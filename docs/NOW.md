@@ -28,4 +28,4 @@ Port C (sandbox-VM, NIM, tale, mobil) er destinasjon. Ikke neste.
 
 Spes: [PORT-B.md](PORT-B.md). Si **GO** når den er ok.
 
-Planfiler: [PORT-A.md](PORT-A.md) (levert), [PORT-B.md](PORT-B.md) (neste), [REVIEW.md](REVIEW.md) (destinasjon).
+Planfiler: [PORT-A.md](PORT-A.md), [PORT-B.md](PORT-B.md), [KART.md](KART.md) (måling 26.sep), [REVIEW.md](REVIEW.md).

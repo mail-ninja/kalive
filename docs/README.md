@@ -6,7 +6,8 @@ Kalived er to rom: **Arbeid** (kodemiljø) og **Hiroshima** (lokal SOC). Overord
 |-----|---------|
 | [NEXT.md](NEXT.md) | **Neste steg** — forslag før vi koder mer. Rådfør her. |
 | [REVIEW.md](REVIEW.md) | Svar på arkitekturkritikken (2026-09-24): inn/ut og kompromiss |
-| [NOW.md](NOW.md) | Hvor vi er — Port A levert |
+| [KART.md](KART.md) | **2026-09-26** minne + kode-UI: bygd, test, ønsket slutt, hull |
+| [NOW.md](NOW.md) | Hvor vi er — Port A/B levert |
 | [PORT-A.md](PORT-A.md) | Port A (levert) |
 | [PORT-B.md](PORT-B.md) | Port B — `repo_bash` (i treet) |
 | [COCKPIT.md](COCKPIT.md) | Hva som faktisk kjører på `:5173` / `:8788` i dag |
