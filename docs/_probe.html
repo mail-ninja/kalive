@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="nb">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>kalived probe</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0f1419;
+      --panel: #1a2332;
+      --ink: #e8eef6;
+      --muted: #8b9bb4;
+      --accent: #3d9cf0;
+      --accent-press: #2a7fc9;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font: 16px/1.45 system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      display: grid;
+      place-items: center;
+    }
+    main {
+      background: var(--panel);
+      border-radius: 12px;
+      padding: 1.5rem 1.75rem;
+      min-width: 16rem;
+      text-align: center;
+    }
+    h1 { font-size: 1.1rem; margin: 0 0 0.35rem; font-weight: 600; }
+    p { margin: 0 0 1rem; color: var(--muted); font-size: 0.9rem; }
+    #count {
+      font-variant-numeric: tabular-nums;
+      font-size: 2.25rem;
+      font-weight: 700;
+      margin: 0 0 1rem;
+    }
+    button {
+      appearance: none;
+      border: 0;
+      border-radius: 8px;
+      background: var(--accent);
+      color: #fff;
+      font: inherit;
+      font-weight: 600;
+      padding: 0.55rem 1.1rem;
+      cursor: pointer;
+    }
+    button:hover { background: var(--accent-press); }
+    button:active { transform: translateY(1px); }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Probe</h1>
+    <p>Klikk for å telle.</p>
+    <p id="count" aria-live="polite">0</p>
+    <button type="button" id="btn">Klikk</button>
+  </main>
+  <script>
+    let n = 0;
+    const el = document.getElementById("count");
+    document.getElementById("btn").addEventListener("click", () => {
+      n += 1;
+      el.textContent = String(n);
+    });
+  </script>
+</body>
+</html>

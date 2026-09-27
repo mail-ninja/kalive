@@ -16,6 +16,26 @@ from .memory import remember_engram
 from .tools import call_tool, list_tools
 
 
+def _tool_engram(name: str, result: dict) -> str:
+    """Short memory — not the whole file body."""
+    if not isinstance(result, dict):
+        return str(result)[:400]
+    if result.get("error"):
+        return f"{name} error: {result.get('error')}"[:400]
+    if name == "repo_read":
+        return f"read {result.get('path')} n={result.get('n')}"
+    if name == "repo_glob":
+        hits = result.get("hits") or []
+        return f"glob n={result.get('n')} " + ",".join(str(x) for x in hits[:8])
+    if name == "repo_grep":
+        return f"grep n={result.get('n')}"
+    if name == "repo_edit":
+        return f"edit {result.get('path')} " + str(result.get("diff") or "")[:400]
+    if name == "repo_bash":
+        return f"exit {result.get('exit_code')} {str(result.get('stdout_tail') or '')[:240]}"
+    return json.dumps({k: result[k] for k in result if k != "text"}, ensure_ascii=False)[:500]
+
+
 def _msg(ch: str, typ: str, payload: Any, id_: str | None = None) -> dict:
     return {"v": 1, "ch": ch, "id": id_ or str(uuid.uuid4()), "type": typ, "payload": payload}
 
@@ -104,7 +124,7 @@ async def handle_socket(ws: WebSocket) -> None:
                                     {
                                         "name": name,
                                         "path": result.get("path") if isinstance(result, dict) else None,
-                                        "text": json.dumps(result, ensure_ascii=False)[:1500],
+                                        "text": _tool_engram(name, result),
                                         "user": text[:400],
                                     },
                                 )

@@ -44,7 +44,7 @@
   let saveAsPath = $state('')
   let saveNote = $state('')
   let models = $derived(providers.find((p) => p.id === providerId)?.models ?? [])
-  let team = $derived(agents.filter((a) => ['build', 'review', 'forge', 'term', 'crew'].includes(a.id)))
+  let team = $derived(agents.filter((a) => a.id === 'build'))
 
   function setHiroshimaW(w: number) {
     hiroshimaW = Math.min(100, Math.max(12, w))

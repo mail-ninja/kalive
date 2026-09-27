@@ -33,7 +33,7 @@ Minne følger `agent_id`. Provider er munnstykke.
 
 Tool-loop: OpenAI-kompatible function calls mot SpaceXAI (`grok-4.6`) eller det du har i Settings. Maks runder, oneshot. Mutasjon krever haken. Passord aldri i chat.
 
-Spill i iframe: `iframe_write` med komplett HTML, eller **spill**-knappen (`POST /v1/desk/play` → `GET /v1/desk/preview`). Canvas er **ikke** disk; `python snake.py` i PTY finner ikke Monaco-bufferen.
+Spill i iframe: HTML **på disk** via `GET /v1/workspace/raw?path=…` (f.eks. `docs/_probe.html`), eller `iframe_write` / `POST /v1/desk/play`. Live stdout under `repo_bash` i agentkonsollen.
 
 ## HTTP på :8788 (utvalg)
 
@@ -53,7 +53,7 @@ Scan-jobber overlever WS-kutt. Når prosessen er død: `done` + stopp. Rutine = 
 
 ## Minne-lag
 
-Før hver oppgave (`run_turn`) henter **minne-gaten** relevante episoder (sqlite-nøkkelord + Qdrant). Embedder: lokal **paraphrase-multilingual-MiniLM-L12-v2** (384-d, norsk+engelsk, fastembed/ONNX). Etter svaret skrives én engram-UUID til alle lag som er oppe. Workspace på disk vinner ved konflikt.
+Før hver oppgave (`run_turn`) henter **minne-gaten** relevante episoder (sqlite-nøkkelord + Qdrant). Embedder: lokal **paraphrase-multilingual-MiniLM-L12-v2** (384-d, norsk+engelsk, fastembed/ONNX). Tool-engrams er korte (path/exit, ikke hele fila). Workspace på disk vinner ved konflikt.
 
 Alle agenter bruker alle lag. Namespace `kalived:{agent_id}:`.
 

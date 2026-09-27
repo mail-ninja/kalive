@@ -82,12 +82,12 @@ Hiroshima  skuff, verdict fra disk
 | Skriv filer | `repo_edit` / `text=` på disk | Feil seksjon uten kontekst — *guard* inne, trenger UI-bevis |
 | Ny fil | `repo_edit` med `text=` på ny path | Ingen «ny fil»-knapp; agent må treffe path |
 | Kjør | `repo_bash` cwd workspace, 120 s | Ingen langlivet `npm run dev` (timeout). Preview av *ny* Vite-app krever PTY/`up.sh` |
-| Se | iframe = HTML på disk eller loopback som *allerede kjører* | Ikke auto-åpne ny port; ikke hot-preview av vilkårlig app |
+| Se | iframe = HTML på disk (`/v1/workspace/raw`) | Auto-hopp til preview etter `repo_edit` av `.html` (delvis: operator trykker preview) |
 | Test | `python3 -m pytest` hvis det finnes | Ingen standard app-mal |
-| Husk | engram etterpå | Støyete tool-payloads |
-| Team | 5 chiper | **build er loopen.** crew/forge/review/term er skisse |
+| Husk | korte tool-engrams (etter 2026-09-27) | Gamle episoder er fortsatt støyete |
+| Team | **build** synlig; resten i kjøredetaljer | crew/forge/review/term finnes, ikke i chip-rad |
 
-**Ikke i boks ennå:** én sittning der du sier «lag en teller i HTML», ser den i preview, og kan iterate uten å kjempe mot glob/WS/hake. Forge+`iframe_write` er nærmest for *statisk* HTML. En ekte Svelte-app er PTY + eksisterende :5173.
+**Happy path 2026-09-27:** «lag en teller i HTML» → `docs/_probe.html` på disk + iframe. Klikk 0→3 verifisert i headless Chromium. Statisk HTML er i boks. Ekte Svelte-app er fortsatt PTY + `:5173`.
 
 ### Test 2026-09-26 (API, samme tools som UI)
 
@@ -97,17 +97,19 @@ Hiroshima  skuff, verdict fra disk
 | C2 | `repo_edit` uten hake | avvist |
 | C3 | `repo_bash` `print("kart-test")` | exit 0 |
 | C4 | `sudo` / `git push` | nektet |
-| C5 | UI «liten app» E2E i nettleser | **manuelt — du** (nedenfor) |
+| C5 | UI «liten app» E2E | **PASS 2026-09-27** — se under |
 
-### Manuell UI-sjekkliste (lim inn, huk haken)
+### Manuell UI 2026-09-27 (alle tre: PASS)
 
-1. Hard-refresh 5173. Confirm live-panel ved:  
-   `Kjør python3 -c "import time\nfor i in range(5):\n print(i, flush=True)\n time.sleep(0.3)" med repo_bash`
-2. Edit på rett sted:  
-   `I docs/NOW.md, under overskriften «Neste hopp», legg til linjen «Kart 2026-09-26: minne+UI målt.» Bruk repo_edit med overskriften i old_string. Ikke ny ## på slutten.`
-3. Mini-app (forge eller build):  
-   `Skriv docs/_probe.html som komplett HTML «probe» med en knapp som teller klikk, vis i iframe.`  
-   Forvent: fil på disk *og* preview. (I dag kan forge `iframe_write` bare buffer — **det er et hull** hvis fila ikke lander i workspace.)
+Kilde: `build` sqlite episoder 55–63 + disk + Chromium mot `GET /v1/workspace/raw?path=docs/_probe.html`.
+
+| # | Prompt | Hva som skjedde | Disk / UI |
+|---|---|---|---|
+| U1 | `repo_bash` teller 0–4 med `sleep 0.3` | 1 tool, exit 0, stdout `0\n1\n2\n3\n4\n`, 1,53 s, pid 539960. Live-vindu. Ingen timeout. | PASS |
+| U2 | Sett linje under «Neste hopp» i `docs/NOW.md` | `repo_read` + `repo_edit`. Diff: én linje **inni** seksjonen, ingen ny `##`. | `Kart 2026-09-26: minne+UI målt.` under Neste hopp. PASS |
+| U3 | `docs/_probe.html` klikk-teller, vis iframe | glob (én tom, én docs/*) + `repo_edit` ny fil 73 linjer / 1793 B. DONE uten WS-kutt. | Fil på disk. Preview: Probe / Klikk / 0. Headless klikk 0→3. PASS |
+
+Hull som **ikke** slo ut: haken var på; edit traff seksjon; HTML landet i workspace (ikke bare canvas-buffer). Én tom glob i U3 — støy, ikke stopp.
 
 ---
 
@@ -115,17 +117,17 @@ Hiroshima  skuff, verdict fra disk
 
 Minimum, UFO-ærlig:
 
-1. **Én happy path:** oppgave → færre enn 6 tools → fil på disk på rett sted → bash-test grønn eller HTML i preview → DONE uten WS-kutt.
-2. **Minne som hjelper:** neste spørsmål treffer forrige feature, ikke 4× `repo_read`-JSON.
-3. **Én synlig agent i Arbeid** (`build`). Resten i kjøredetaljer.
-4. **Dokumenterte nei:** ingen sudo, ingen push, ingen 0.0.0.0.
+1. **Én happy path:** oppgave → færre enn 6 tools → fil på disk på rett sted → bash-test grønn eller HTML i preview → DONE uten WS-kutt. **GRØNN 2026-09-27** (U1–U3).
+2. **Minne som hjelper:** neste spørsmål treffer forrige feature, ikke 4× `repo_read`-JSON. **DELVIS** — ranking funker; tool-engrams kuttes nå. Trenger UI-bevis etter truncate.
+3. **Én synlig agent i Arbeid** (`build`). Resten i kjøredetaljer. **GRØNN** (chip-rad = build).
+4. **Dokumenterte nei:** ingen sudo, ingen push, ingen 0.0.0.0. **GRØNN** (C4).
 
-Når 1–2 er grønt i denne filas testlogg *fra UI*, ikke bare API: da er det legitimt å åpne Hiroshima-protokollen (Jev-port, tshark-evidens, Mercury-klassifisering).
+Når 2 er grønt i UI: Hiroshima-protokoll (Jev-port, tshark-evidens, Mercury-klassifisering).
 
 ---
 
-## 4. I dag, rekkefølge
+## 4. Neste
 
-1. Du: `sudo systemctl start docker.socket docker.service && bash cockpit/scripts/up.sh` — fem lag `true`.
-2. Vi: fyll M5 på nytt + dine tre manuelle UI-steg.
-3. Oppdater tabellen over med pass/fail. Ingen ny feature før tabellen er ærlig.
+1. Verifiser minne etter korte engrams: «hva var probe-appen?» skal treffe `_probe.html`, ikke en vegg av NOW.md.
+2. Auto-preview når `repo_edit` skriver `.html`.
+3. Hiroshima-protokoll — når du forklarer den.
