@@ -1,6 +1,6 @@
 # Jev (TypeSafe) — research og anbefaling (2026-09-27)
 
-**A er i treet** (2026-09-27): `decide.py` + `gate_recall` etter MiniLM. `source=rules`. Live Jev = B når nøkkel finnes.
+**A+B-skall i treet:** `decide.py` + Settings **Vercel AI Gateway (Jev)**. Uten nøkkel: `src=rules`. Med `AI_GATEWAY_API_KEY`: `POST …/typesafe/v1/systemone` modell `typesafe-ai/jev`, faller tilbake til rules ved feil.
 
 Du skrev «safetype»; produktet heter **TypeSafe**. Modellen heter **Jev** (`jev-1.13` / `jev-latest`). Lansert 15. sep 2026. Kahneman System 1: rask beslutning, ikke essay.
 

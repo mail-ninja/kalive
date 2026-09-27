@@ -64,6 +64,29 @@ PROVIDERS = [
         ],
     },
     {
+        "id": "vercel",
+        "label": "Vercel AI Gateway (Jev)",
+        "docs": "https://vercel.com/docs/ai-gateway/authentication-and-byok",
+        "keys": [
+            {
+                "name": "AI_GATEWAY_API_KEY",
+                "secret": True,
+                "label": "AI Gateway-nøkkel — lim inn her for Jev",
+            },
+            {
+                "name": "VERCEL_API_KEY",
+                "secret": True,
+                "label": "alias (hvis nøkkelen heter Vercel API)",
+            },
+            {
+                "name": "AI_GATEWAY_BASE_URL",
+                "secret": False,
+                "label": "Base URL",
+                "placeholder": "https://ai-gateway.vercel.sh/typesafe",
+            },
+        ],
+    },
+    {
         "id": "github",
         "label": "GitHub",
         "docs": "https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens",

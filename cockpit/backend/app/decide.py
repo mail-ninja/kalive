@@ -1,12 +1,15 @@
 """Typed decisions. Same question shapes as TypeSafe Jev (Choice/Score/Noul).
 
-A: deterministic rules. Live Jev is B — only if OPENROUTER_API_KEY / TYPESAFE_API_KEY.
+Rules always run. Live Jev via Vercel AI Gateway when AI_GATEWAY_API_KEY is set.
 Policy stays in this file. The model never writes the prompt.
 """
 from __future__ import annotations
 
+import json
 import re
 from typing import Any
+
+import httpx
 
 from .secrets_store import load_env
 
@@ -20,15 +23,76 @@ _ASK = re.compile(r"\b(hva|hvor|hvilken|hvem|hvordan|was|what|where|which)\b", r
 
 def jev_key() -> str:
     env = load_env()
-    return (env.get("OPENROUTER_API_KEY") or env.get("TYPESAFE_API_KEY") or "").strip()
+    return (
+        env.get("AI_GATEWAY_API_KEY")
+        or env.get("VERCEL_API_KEY")
+        or env.get("OPENROUTER_API_KEY")
+        or env.get("TYPESAFE_API_KEY")
+        or ""
+    ).strip()
 
 
 def decide(state: Any, questions: dict[str, dict]) -> dict:
     """answers[id] = {choice|score|noul, confidence, source}."""
-    src = "rules"
-    # B later: if jev_key(): try HTTP, src="jev"
-    answers = {qid: _rule_one(state, qid, spec) for qid, spec in questions.items()}
-    return {"source": src, "answers": answers}
+    rules = {qid: _rule_one(state, qid, spec) for qid, spec in questions.items()}
+    key = jev_key()
+    if key:
+        try:
+            live = _jev_http(state, questions, key)
+            if live:
+                return {"source": "jev", "answers": live}
+        except Exception:
+            pass
+    return {"source": "rules", "answers": rules}
+
+
+def _jev_http(state: Any, questions: dict[str, dict], key: str) -> dict[str, dict] | None:
+    env = load_env()
+    base = (env.get("AI_GATEWAY_BASE_URL") or "https://ai-gateway.vercel.sh/typesafe").rstrip("/")
+    qs: dict[str, dict] = {}
+    for qid, spec in questions.items():
+        item: dict[str, Any] = {
+            "type": spec.get("type") or "noul",
+            "instructions": spec.get("instructions") or qid,
+        }
+        if spec.get("criteria"):
+            item["criteria"] = spec["criteria"]
+        qs[qid] = item
+    body = {
+        "model": "typesafe-ai/jev",
+        "state": state if isinstance(state, str) else json.dumps(state, ensure_ascii=False),
+        "questions": qs,
+    }
+    r = httpx.post(
+        base + "/v1/systemone",
+        headers={"Authorization": "Bearer " + key, "Content-Type": "application/json"},
+        json=body,
+        timeout=4.0,
+    )
+    r.raise_for_status()
+    data = r.json()
+    raw = data.get("answers") or (data.get("result") or {}).get("answers") or {}
+    if not isinstance(raw, dict) or not raw:
+        return None
+    out: dict[str, dict] = {}
+    for qid, ans in raw.items():
+        if not isinstance(ans, dict):
+            continue
+        d: dict[str, Any] = {"source": "jev", "confidence": float(ans.get("confidence") or 0.5)}
+        if ans.get("noul") is not None:
+            d["noul"] = float(ans["noul"])
+        elif ans.get("probability") is not None:
+            d["noul"] = float(ans["probability"])
+        elif isinstance(ans.get("boolean"), bool):
+            d["noul"] = 1.0 if ans["boolean"] else 0.0
+        elif ans.get("boolean") is not None:
+            d["noul"] = float(ans["boolean"])
+        if ans.get("choice") is not None:
+            d["choice"] = str(ans["choice"])
+        if ans.get("score") is not None:
+            d["score"] = float(ans["score"])
+        out[qid] = d
+    return out or None
 
 
 def _rule_one(state: Any, qid: str, spec: dict) -> dict:
