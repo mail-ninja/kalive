@@ -1,6 +1,6 @@
 # Jev (TypeSafe) — research og anbefaling (2026-09-27)
 
-Ikke kodet inn. Dette er beslutningsgrunnlag.
+**A er i treet** (2026-09-27): `decide.py` + `gate_recall` etter MiniLM. `source=rules`. Live Jev = B når nøkkel finnes.
 
 Du skrev «safetype»; produktet heter **TypeSafe**. Modellen heter **Jev** (`jev-1.13` / `jev-latest`). Lansert 15. sep 2026. Kahneman System 1: rask beslutning, ikke essay.
 
@@ -65,6 +65,8 @@ Mål: 20 loggede `decide`-rader med menneskelig «enig/uenig». Først da er Jev
 - LangChain TypeSafeClassifier
 - Jev som «sikkerhetsagent» som later som den er SOC
 - Bytte ut MiniLM
+
+Logg: `minne-gate: N treff … act=use_memory|read_disk|both src=rules`. `act=use_memory` fjerner tools den runden.
 
 ## Beslutning jeg vil ha fra deg
 

@@ -14,7 +14,8 @@ from .agents import Agent
 from .catalog import get_provider
 from .agents import get_agent
 from .hiroshima import MAX_ROUNDS as HIRO_ROUNDS
-from .memory import format_recall, recall
+from .decide import gate_recall
+from .memory import format_recall, recall, remember_engram
 from .secrets_store import load_env
 from .tools import call_tool, openai_tools
 
@@ -27,11 +28,9 @@ def _system_prompt(agent: Agent) -> str:
             "\n\nDu er i cockpit-Arbeid (kode). "
             "Workspace er filer på disk. build bruker repo_glob/grep/read/edit. "
             "repo_edit: old_string med omliggende linjer. Aldri duplikat-overskrift på EOF. "
-            "Hvis minne-blokken allerede svarer: svar ut fra den. Ikke ritual-les README. "
-            "Ingen bash — operator kjører build i PTY. "
-            "Preview = HTML på disk eller loopback. "
-            "Forklaring: les README.md og docs/COCKPIT.md, så SVAR. Ikke les hele docs/. "
-            "Maks 8 tool-runder, deretter svar uten flere kall. Oneshot. Passord bare i xterm."
+            "Hvis minne-blokken allerede svarer og act=use_memory: svar uten tools. "
+            "repo_bash er lov bak haken. Preview = HTML på disk. "
+            "Maks 16 tool-runder. Oneshot. Passord bare i xterm."
         )
     else:
         extra = (
@@ -101,27 +100,49 @@ async def run_turn(
         raise RuntimeError(f"ingen nøkkel for provider={pid} — lim inn i Settings")
     hits: list[dict] = []
     mem_block = ""
+    decision: dict = {}
     if _depth == 0:
         try:
             hits = recall(agent.id, user_text, limit=4)
+            hits, decision = gate_recall(user_text, hits)
             mem_block = format_recall(hits)
+            try:
+                remember_engram(
+                    agent.id,
+                    "decide",
+                    {
+                        "user": user_text[:400],
+                        "act": decision.get("act"),
+                        "n": decision.get("n"),
+                        "source": decision.get("source"),
+                    },
+                )
+            except Exception:
+                pass
         except Exception:
             hits = []
             mem_block = ""
+            decision = {}
+    act = str(decision.get("act") or "")
     if mem_block:
         best = hits[0].get("score") if hits else 0
-        yield {"type": "log", "text": f"minne-gate: {len(hits)} treff (beste {best})"}
+        yield {
+            "type": "log",
+            "text": f"minne-gate: {len(hits)} treff (beste {best}) act={act or '—'} src={decision.get('source') or 'rules'}",
+        }
     elif _depth == 0:
         yield {"type": "log", "text": "minne-gate: ingen treff"}
     sys_content = _system_prompt(agent)
     if mem_block:
         sys_content = sys_content + "\n\n" + mem_block
+        if act == "use_memory":
+            sys_content += "\n\nact=use_memory: svar fra minne-blokken. Ikke kall repo_read."
     messages: list[dict[str, Any]] = [
         {"role": "system", "content": sys_content},
         {"role": "user", "content": user_text},
     ]
     names = list(agent.tools) if agent.tools else None
-    tools = openai_tools(names) if use_tools else []
+    tools = openai_tools(names) if use_tools and act != "use_memory" else []
     tool_cap = 16 if (agent.desk == "code" or agent.id == "build") else HIRO_ROUNDS
     max_r = tool_cap + 1
     async with httpx.AsyncClient(timeout=120.0) as client:
