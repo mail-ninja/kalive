@@ -194,7 +194,10 @@ def write(rel: str, text: str) -> dict:
             lineterm="",
         )
     )
-    return {"path": rel_of(p), "n": len(text), "diff": diff[:12000], "wrote": True}
+    out = {"path": rel_of(p), "n": len(text), "diff": diff[:12000], "wrote": True}
+    if str(out["path"]).lower().endswith((".html", ".htm")):
+        out["mode"] = "iframe"
+    return out
 
 
 def _headings(s: str) -> list[str]:

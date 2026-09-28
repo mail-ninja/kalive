@@ -82,7 +82,7 @@ Hiroshima  skuff, verdict fra disk
 | Skriv filer | `repo_edit` / `text=` på disk | Feil seksjon uten kontekst — *guard* inne, trenger UI-bevis |
 | Ny fil | `repo_edit` med `text=` på ny path | Ingen «ny fil»-knapp; agent må treffe path |
 | Kjør | `repo_bash` cwd workspace, 120 s | Ingen langlivet `npm run dev` (timeout). Preview av *ny* Vite-app krever PTY/`up.sh` |
-| Se | iframe = HTML på disk (`/v1/workspace/raw`) | Auto-hopp til preview etter `repo_edit` av `.html` (delvis: operator trykker preview) |
+| Se | iframe = HTML på disk (`/v1/workspace/raw`) | **Auto-preview** etter `repo_edit` / klikk / lagre av `.html`. Loopback-app (Vite) er fortsatt PTY. |
 | Test | `python3 -m pytest` hvis det finnes | Ingen standard app-mal |
 | Husk | korte tool-engrams (etter 2026-09-27) | Gamle episoder er fortsatt støyete |
 | Team | **build** synlig; resten i kjøredetaljer | crew/forge/review/term finnes, ikke i chip-rad |

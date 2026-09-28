@@ -21,7 +21,7 @@ Kart 2026-09-26: minne+UI målt.
 Rett etter, samme uke, ikke samme PR:
 
 1. Minne: MiniLM + **samme `decide()` på uthenting og skriving**. Graf: `path:`-noder + `ABOUT`/`EDITED`/`USED` på samme `memory_id` som sqlite/Qdrant. Se [MEMORY.md](MEMORY.md).
-2. Preview: statisk HTML i boks (`docs/_probe.html`). Loopback-app senere.
+2. Preview: statisk HTML i boks. **Auto-iframe** ved `repo_edit`/klikk/lagre av `.html` (`/v1/workspace/raw`). Loopback-app senere.
 3. Hiroshima: egen runde (Jev/tshark/Mercury) når du forklarer protokollen.
 
 Chat-tester: [CHAT-TESTS.md](CHAT-TESTS.md). **M1–M4 + K1–K3 2026-09-28** (K3: stack oppe, pipe i argv = exit 6). Neste: auto-preview HTML, Hiroshima-protokoll.

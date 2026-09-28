@@ -118,7 +118,12 @@
       applyToolResult(r)
       if (r?.wrote === true && typeof r.path === 'string') {
         diskPath = r.path
-        setCanvas({ path: r.path, mode: 'monaco' })
+        const html = r.mode === 'iframe' || /\.html?$/i.test(r.path)
+        setCanvas({
+          path: r.path,
+          mode: html ? 'iframe' : 'monaco',
+          rev: (getCanvas().rev || 0) + 1,
+        })
       }
       const diff = typeof r?.diff === 'string' ? r.diff : ''
       let text = ''
@@ -259,6 +264,9 @@
       body: JSON.stringify({ path: diskPath, text: c.text }),
     })
     saveNote = r.ok ? 'lagret ' + diskPath : 'lagre feilet'
+    if (r.ok && /\.html?$/i.test(diskPath)) {
+      setCanvas({ path: diskPath, mode: 'iframe', rev: (getCanvas().rev || 0) + 1 })
+    }
     window.setTimeout(() => {
       if (saveNote.startsWith('lagret')) saveNote = ''
     }, 2000)
@@ -275,7 +283,12 @@
     })
     if (r.ok) {
       diskPath = dest
-      setCanvas({ path: dest })
+      const html = /\.html?$/i.test(dest)
+      setCanvas({
+        path: dest,
+        mode: html ? 'iframe' : 'monaco',
+        rev: (getCanvas().rev || 0) + 1,
+      })
       saveAs = false
       saveNote = 'lagret som ' + dest
     } else saveNote = 'lagre som feilet'
@@ -283,7 +296,12 @@
 
   async function openDisk(p: string) {
     diskPath = p
-    setCanvas({ path: p, mode: 'monaco' })
+    const html = /\.html?$/i.test(p)
+    setCanvas({
+      path: p,
+      mode: html ? 'iframe' : 'monaco',
+      rev: (getCanvas().rev || 0) + 1,
+    })
   }
 
   function say() {

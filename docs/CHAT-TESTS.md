@@ -107,4 +107,10 @@ Pipe må være `line` (bash -c), ikke `argv` der `|` blir et ekstra curl-argumen
 | K1 feil fil / WS-kutt | kode-loop |
 | K2 glemmer K1 | skriving/recall av ny feature |
 
+### P1 — HTML-preview (ingen hake)
+
+Klikk `docs/_probe.html` i treet, eller **preview fil** når den er valgt. Forvent: iframe med klikk-teller, ikke Monaco.
+
+Etter `repo_edit` av en `.html` (hake på) skal fliken **preview** slå seg på av seg selv.
+
 Etter hver runde: lim sys+svar her, så sjekker vi sqlite/Kuzu.
