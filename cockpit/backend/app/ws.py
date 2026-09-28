@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import time
 import uuid
 from typing import Any
 
@@ -50,6 +51,7 @@ def _remember_chat(agent_id: str, payload: dict) -> dict:
         "persist_hot": 0.5,
         "veto": "",
     }
+    t_cls = time.perf_counter()
     try:
         tag = classify_turn(
             {
@@ -65,7 +67,10 @@ def _remember_chat(agent_id: str, payload: dict) -> dict:
         body["salience_src"] = tag.get("source") or "rules"
     except Exception:
         pass
+    tag["classify_ms"] = int((time.perf_counter() - t_cls) * 1000)
+    t_w = time.perf_counter()
     remember_engram(agent_id, "chat", body)
+    tag["write_ms"] = int((time.perf_counter() - t_w) * 1000)
     return tag
 
 
@@ -188,7 +193,9 @@ async def handle_socket(ws: WebSocket) -> None:
                                     "text": (
                                         f"minne-skriv: {tag.get('kind') or 'fact'} "
                                         f"persist={tag.get('persist_hot')} "
-                                        f"src={tag.get('source') or 'rules'}"
+                                        f"src={tag.get('source') or 'rules'}  "
+                                        f"{tag.get('classify_ms') or 0}ms decide "
+                                        f"{tag.get('write_ms') or 0}ms write"
                                     ),
                                     "agent": ag.id,
                                 },

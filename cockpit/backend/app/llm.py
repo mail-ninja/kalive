@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import json
 import queue
+import time
 from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any
@@ -101,10 +102,16 @@ async def run_turn(
     hits: list[dict] = []
     mem_block = ""
     decision: dict = {}
+    t_recall_ms = 0
+    t_decide_ms = 0
     if _depth == 0:
         try:
+            t0 = time.perf_counter()
             hits = recall(agent.id, user_text, limit=4)
+            t_recall_ms = int((time.perf_counter() - t0) * 1000)
+            t1 = time.perf_counter()
             hits, decision = gate_recall(user_text, hits)
+            t_decide_ms = int((time.perf_counter() - t1) * 1000)
             mem_block = format_recall(hits)
             try:
                 remember_engram(
@@ -115,6 +122,8 @@ async def run_turn(
                         "act": decision.get("act"),
                         "n": decision.get("n"),
                         "source": decision.get("source"),
+                        "recall_ms": t_recall_ms,
+                        "decide_ms": t_decide_ms,
                     },
                 )
             except Exception:
@@ -128,7 +137,11 @@ async def run_turn(
         best = hits[0].get("score") if hits else 0
         yield {
             "type": "log",
-            "text": f"minne-gate: {len(hits)} treff (beste {best}) act={act or '—'} src={decision.get('source') or 'rules'}",
+            "text": (
+                f"minne-gate: {len(hits)} treff (beste {best}) act={act or '—'} "
+                f"src={decision.get('source') or 'rules'}  "
+                f"{t_recall_ms}ms recall {t_decide_ms}ms decide"
+            ),
         }
     elif _depth == 0:
         yield {"type": "log", "text": "minne-gate: ingen treff"}
