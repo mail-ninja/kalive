@@ -53,7 +53,7 @@ Scan-jobber overlever WS-kutt. Når prosessen er død: `done` + stopp. Rutine = 
 
 ## Minne-lag
 
-Før hver oppgave (`run_turn`) henter **minne-gaten** episoder over terskel (ikke et fast antall 6). Embedder: lokal **paraphrase-multilingual-MiniLM-L12-v2** (384-d). Tool-engrams er korte. Workspace på disk vinner ved konflikt.
+Se [MEMORY.md](MEMORY.md). Kort: MiniLM henter kandidater → **Jev** (ellers Mercury-2.5, ellers rules) velger `keep`/`act` → Grok. Verifisert `src=jev+rules` 2026-09-28. Tool-engrams er korte. Disk vinner.
 
 Alle agenter bruker alle lag. Namespace `kalived:{agent_id}:`.
 

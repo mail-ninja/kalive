@@ -118,11 +118,11 @@ Hull som **ikke** slo ut: haken var på; edit traff seksjon; HTML landet i works
 Minimum, UFO-ærlig:
 
 1. **Én happy path:** oppgave → færre enn 6 tools → fil på disk på rett sted → bash-test grønn eller HTML i preview → DONE uten WS-kutt. **GRØNN 2026-09-27** (U1–U3).
-2. **Minne som hjelper:** neste spørsmål treffer forrige feature, ikke 4× `repo_read`-JSON. **DELVIS** — ranking funker; tool-engrams kuttes nå. Trenger UI-bevis etter truncate.
+2. **Minne som hjelper:** neste spørsmål treffer forrige feature, ikke 4× `repo_read`-JSON. **GRØNN 2026-09-28** — `src=jev+rules` `act=both`, ingen tools, `_probe.html`.
 3. **Én synlig agent i Arbeid** (`build`). Resten i kjøredetaljer. **GRØNN** (chip-rad = build).
 4. **Dokumenterte nei:** ingen sudo, ingen push, ingen 0.0.0.0. **GRØNN** (C4).
 
-Når 2 er grønt i UI: Hiroshima-protokoll (Jev-port, tshark-evidens, Mercury-klassifisering).
+Når 2 er grønt i UI: Hiroshima-protokoll (Jev-port, tshark-evidens, Mercury-klassifisering). **2 er grønt.** Jev på *skriving* (salience, ikke per tool): [MEMORY.md](MEMORY.md).
 
 ---
 

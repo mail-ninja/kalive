@@ -10,7 +10,7 @@ Dette er **ikke** Huntress, ikke et SIEM, ikke en LAN-skanner, ikke GitHub Pages
 
 Repo: [github.com/mail-ninja/kalive](https://github.com/mail-ninja/kalive) (`git remote kalive`). `origin` peker fortsatt på et eldre `wallE`-tre — ikke bland.
 
-Les mer: [docs/README.md](docs/README.md). Neste bygg (forslag, ikke startet): [docs/NEXT.md](docs/NEXT.md). Operator-kontrakt for scan/API: [docs/SURFACE.md](docs/SURFACE.md).
+Les mer: [docs/README.md](docs/README.md) · [docs/MEMORY.md](docs/MEMORY.md) · [docs/KART.md](docs/KART.md) · [docs/JEV.md](docs/JEV.md). Scan-kontrakt: [docs/SURFACE.md](docs/SURFACE.md).
 
 ---
 
@@ -52,11 +52,11 @@ Exit scan: `0` CLEAN · `1` WARN · `2` ALERT · `3` ERROR. Sannheten er `echo $
 
 | Rom | Hvor | Hva det er i dag |
 |-----|------|------------------|
-| **Arbeid** | `:5173` fanen Arbeid | Chat + kodeteam (`crew` / `forge` / `review` / `term`) + canvas **Monaco** eller **iframe** (`iframe_write`, knapp *spill*) + cockpit-PTY |
+| **Arbeid** | `:5173` | **build**-loop: agentkonsoll, mappetre, Monaco på disk, iframe-preview (`docs/_probe.html`), `repo_bash`, PTY-skuff |
 | **Hiroshima** | rosa skuff, samme UI | Siste `verdict.json` fra disk, scan via `sudo -n kalived-ctl` (oneshot-jobb), egen PTY. Trenger **ikke** `:8787`. |
 | **Settings** | fanen | Skriv nøkler til `~/.config/kalived/env` (0600). UI får aldri full nøkkel tilbake. |
 
-Agenter husker på **`agent_id`**, ikke på provider. Bytt Grok → Mercury: samme graf/episoder. Fem lag: Kuzu, Qdrant, SQLite, MinIO, Redis. Isolasjon = namespace. Ingen LangChain. Ingen Semantic Kernel. Orkestrering = FastAPI + én WebSocket.
+Agenter husker på **`agent_id`**, ikke på provider. Fem lag: Kuzu, Qdrant, SQLite, MinIO, Redis. Embedder: lokal MiniLM (norsk+engelsk). **Jev** (Vercel Gateway) reranker treff; fallback **Mercury-2.5 + regler**. Isolasjon = namespace. Ingen LangChain. Orkestrering = FastAPI + én WebSocket. Detalj: [docs/MEMORY.md](docs/MEMORY.md), [docs/JEV.md](docs/JEV.md).
 
 `:8787` er den gamle kalived-API (scan/playbooks/root-PTY). Vi wrapper den ikke. Hiroshima på `:8788` leser snapshot og kaller `kalived-ctl`.
 

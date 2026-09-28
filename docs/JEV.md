@@ -66,7 +66,7 @@ Mål: 20 loggede `decide`-rader med menneskelig «enig/uenig». Først da er Jev
 - Jev som «sikkerhetsagent» som later som den er SOC
 - Bytte ut MiniLM
 
-Logg: `minne-gate: N treff … act=use_memory|read_disk|both src=rules`. `act=use_memory` fjerner tools den runden.
+Logg: `minne-gate: N treff … act=… src=jev+rules|mercury+rules|rules`. `use_memory` fjerner tools. **Uthenting er live.** Skriving er fortsatt deterministisk (korte engrams); neste: én `decide()` på slutt-engramet (salience), ikke per tool. Verifisert 2026-09-28: `src=jev+rules` `act=both` probe-spørsmål.
 
 ## Beslutning jeg vil ha fra deg
 
