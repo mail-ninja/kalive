@@ -24,6 +24,8 @@ Rett etter, samme uke, ikke samme PR:
 2. Preview: statisk HTML i boks (`docs/_probe.html`). Loopback-app senere.
 3. Hiroshima: egen runde (Jev/tshark/Mercury) når du forklarer protokollen.
 
+Chat-tester: [CHAT-TESTS.md](CHAT-TESTS.md). Anbefalt neste kode: K1 minne-statuslinje i Arbeid, så K2 «husker den det?».
+
 Port C (sandbox-VM, NIM, tale, mobil) er destinasjon. Ikke neste.
 
 ## Når du er tilbake
