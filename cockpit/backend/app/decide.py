@@ -104,18 +104,26 @@ def _jev_http(state: Any, questions: dict[str, dict], key: str) -> dict[str, dic
         ),
     ]
     last_err = None
+    import time
+
     for url, body in attempts:
-        try:
-            r = httpx.post(url, headers=headers, json=body, timeout=8.0)
-            if r.status_code >= 400:
-                last_err = r.status_code
-                continue
-            parsed = _parse_jev_answers(r.json() if r.content else {})
-            if parsed:
-                return parsed
-        except Exception as e:
-            last_err = e
-            continue
+        for attempt in range(3):
+            try:
+                r = httpx.post(url, headers=headers, json=body, timeout=8.0)
+                if r.status_code == 429:
+                    last_err = 429
+                    time.sleep(0.6 * (attempt + 1))
+                    continue
+                if r.status_code >= 400:
+                    last_err = r.status_code
+                    break
+                parsed = _parse_jev_answers(r.json() if r.content else {})
+                if parsed:
+                    return parsed
+                break
+            except Exception as e:
+                last_err = e
+                break
     if last_err:
         raise RuntimeError(str(last_err)[:120])
     return None
