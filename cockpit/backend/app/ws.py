@@ -118,6 +118,17 @@ async def handle_socket(ws: WebSocket) -> None:
                 turn_id = str(uuid.uuid4())
                 tool_mids: list[str] = []
                 tool_paths: list[str] = []
+                dead = False
+
+                async def emit(obj: dict) -> None:
+                    nonlocal dead
+                    if dead:
+                        return
+                    try:
+                        await ws.send_json(obj)
+                    except Exception:
+                        dead = True
+
                 try:
                     async for ev in run_turn(
                         ag,
@@ -131,14 +142,14 @@ async def handle_socket(ws: WebSocket) -> None:
                         kind = ev.get("type")
                         if kind == "token":
                             excerpt.append(str(ev.get("text") or ""))
-                            await ws.send_json(_msg("chat", "token", {"text": ev.get("text") or "", "agent": ag.id}, mid))
+                            await emit(_msg("chat", "token", {"text": ev.get("text") or "", "agent": ag.id}, mid))
                         elif kind == "tool":
                             tools_used.append(str(ev.get("name") or ""))
-                            await ws.send_json(
+                            await emit(
                                 _msg("tools", "call", {"name": ev.get("name"), "args": ev.get("args"), "round": ev.get("round"), "agent": ag.id}, mid)
                             )
                         elif kind == "tool_out":
-                            await ws.send_json(
+                            await emit(
                                 _msg(
                                     "tools",
                                     "out",
@@ -174,15 +185,15 @@ async def handle_socket(ws: WebSocket) -> None:
                                     tool_paths.append(str(pth))
                             except Exception:
                                 pass
-                            await ws.send_json(
+                            await emit(
                                 _msg("tools", "result", {"name": ev.get("name"), "result": ev.get("result"), "round": ev.get("round"), "agent": ag.id}, mid)
                             )
                         elif kind == "log":
-                            await ws.send_json(_msg("log", "line", {"text": ev.get("text") or "", "agent": ag.id}, mid))
+                            await emit(_msg("log", "line", {"text": ev.get("text") or "", "agent": ag.id}, mid))
                         elif kind == "stopped":
-                            await ws.send_json(_msg("run", "stopped", {"text": ev.get("text") or ""}, mid))
+                            await emit(_msg("run", "stopped", {"text": ev.get("text") or ""}, mid))
                     if not stop.is_set():
-                        await ws.send_json(_msg("chat", "done", {"agent": ag.id}, mid))
+                        await emit(_msg("chat", "done", {"agent": ag.id}, mid))
                     tag = _remember_chat(
                         ag.id,
                         {
@@ -197,26 +208,25 @@ async def handle_socket(ws: WebSocket) -> None:
                         },
                         rel_to=tool_mids[:20],
                     )
-                    try:
-                        await ws.send_json(
-                            _msg(
-                                "log",
-                                "line",
-                                {
-                                    "text": (
-                                        f"minne-skriv: {tag.get('kind') or 'fact'} "
-                                        f"persist={tag.get('persist_hot')} "
-                                        f"src={tag.get('source') or 'rules'}  "
-                                        f"{tag.get('classify_ms') or 0}ms decide "
-                                        f"{tag.get('write_ms') or 0}ms write"
-                                    ),
-                                    "agent": ag.id,
-                                },
-                                mid,
-                            )
+                    await emit(
+                        _msg(
+                            "log",
+                            "line",
+                            {
+                                "text": (
+                                    f"minne-skriv: {tag.get('kind') or 'fact'} "
+                                    f"persist={tag.get('persist_hot')} "
+                                    f"src={tag.get('source') or 'rules'}  "
+                                    f"{tag.get('classify_ms') or 0}ms decide "
+                                    f"{tag.get('write_ms') or 0}ms write"
+                                ),
+                                "agent": ag.id,
+                            },
+                            mid,
                         )
-                    except Exception:
-                        pass
+                    )
+                    if dead:
+                        return
                 except WebSocketDisconnect:
                     try:
                         _remember_chat(

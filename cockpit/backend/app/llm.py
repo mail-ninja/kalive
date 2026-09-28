@@ -158,6 +158,7 @@ async def run_turn(
     tools = openai_tools(names) if use_tools and act != "use_memory" else []
     tool_cap = 16 if (agent.desk == "code" or agent.id == "build") else HIRO_ROUNDS
     max_r = tool_cap + 1
+    did_mutate = False
     async with httpx.AsyncClient(timeout=120.0) as client:
         for rnd in range(max_r):
             if cancel is not None and cancel.is_set():
@@ -263,6 +264,8 @@ async def run_turn(
                         call_tool, name, args, allow_mutate=allow_mutate, allow=names, cancel=cancel
                     )
                 yield {"type": "tool_result", "name": name, "result": result, "round": rnd + 1}
+                if name in ("repo_edit", "repo_bash", "iframe_write"):
+                    did_mutate = True
                 messages.append(
                     {
                         "role": "tool",
@@ -300,4 +303,21 @@ async def run_turn(
                                 bits.append(str(ev.get("text") or ""))
                         result = {"ok": True, "agent": sub.id, "excerpt": "".join(bits)[:1500]}
                         messages[-1]["content"] = json.dumps(result, ensure_ascii=False)[:8000]
+            if (
+                (agent.desk == "code" or agent.id == "build")
+                and rnd + 1 >= 4
+                and not did_mutate
+                and names
+            ):
+                names = [n for n in names if n in ("repo_read", "repo_edit", "repo_bash")]
+                tools = openai_tools(names) if (use_tools and act != "use_memory" and names) else []
+                messages.append(
+                    {
+                        "role": "user",
+                        "content": (
+                            "4 tools uten repo_edit. Neste kall: repo_edit på fila du allerede har lest, "
+                            "eller svar DONE. Ingen grep/glob mer."
+                        ),
+                    }
+                )
         yield {"type": "token", "text": "(nådde max runder uten svar)"}
