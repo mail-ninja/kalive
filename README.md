@@ -56,7 +56,11 @@ Exit scan: `0` CLEAN · `1` WARN · `2` ALERT · `3` ERROR. Sannheten er `echo $
 | **Hiroshima** | rosa skuff, samme UI | Siste `verdict.json` fra disk, scan via `sudo -n kalived-ctl` (oneshot-jobb), egen PTY. Trenger **ikke** `:8787`. |
 | **Settings** | fanen | Skriv nøkler til `~/.config/kalived/env` (0600). UI får aldri full nøkkel tilbake. |
 
-Agenter husker på **`agent_id`**, ikke på provider. Fem lag: Kuzu, Qdrant, SQLite, MinIO, Redis. Embedder: lokal MiniLM (norsk+engelsk). **Jev** (Vercel Gateway) reranker treff; fallback **Mercury-2.5 + regler**. Isolasjon = namespace. Ingen LangChain. Orkestrering = FastAPI + én WebSocket. Detalj: [docs/MEMORY.md](docs/MEMORY.md), [docs/JEV.md](docs/JEV.md).
+Agenter husker på **`agent_id`**, ikke på provider. Fem lag: Kuzu, Qdrant, SQLite, MinIO, Redis. Embedder: lokal MiniLM (norsk+engelsk). Isolasjon = namespace. Ingen LangChain. Orkestrering = FastAPI + én WebSocket.
+
+**Minne, én runde:** MiniLM henter kandidater → **Jev** (ellers Mercury-2.5, ellers rules) velger `keep`/`act` → Grok svarer → **samme `decide()`** merker slutt-engramet `fact|artifact|noise|decision` + `persist_hot`. Tools lagres korte, uten Jev. Støy med lav persist droppes ved neste uthenting. Detalj: [docs/MEMORY.md](docs/MEMORY.md), [docs/JEV.md](docs/JEV.md).
+
+Verifisert 2026-09-28: «hva var probe-appen?» → `src=jev+rules` `act=both`, svar `docs/_probe.html`, ingen tools.
 
 `:8787` er den gamle kalived-API (scan/playbooks/root-PTY). Vi wrapper den ikke. Hiroshima på `:8788` leser snapshot og kaller `kalived-ctl`.
 

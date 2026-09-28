@@ -22,23 +22,23 @@ Isolasjon: `agent_id`. `build` ser ikke `signal`. Disk vinner ved konflikt med m
 
 ```
 du skriver
-    → recall() MiniLM + sqlite  (kandidater)
+    → recall() MiniLM + sqlite  (kandidater; hopp over decide-logger og støy)
     → decide() Jev, ellers Mercury-2.5, ellers rules
          keep (noul) per treff · act = use_memory | read_disk | both
     → Grok ser minne-blokk; use_memory fjerner tools
-    → svar + tools
-    → remember_engram(chat) + korte tool-engrams
+    → svar + korte tool-engrams (uten Jev)
+    → DONE
+    → decide() én gang til på slutt-engramet: kind + persist_hot
 ```
 
 Logg: `minne-gate: N treff (beste X) act=… src=jev+rules|mercury+rules|rules`.
+Etter svaret: `minne-skriv: fact|artifact|noise|decision persist=0–1 src=…`.
 
-Verifisert 2026-09-28 08:26: `src=jev+rules` `act=both` `n=4`, ingen tools, riktig `_probe.html`.
+Verifisert uthenting 2026-09-28 08:26: `src=jev+rules` `act=both` `n=4`, ingen tools, riktig `_probe.html`.
 
 ## Brukes Jev/Mercury på skriving *og* uthenting?
 
-**I dag: bare uthenting** (etter MiniLM, før prompt). Skriving er deterministisk: all chat + korte tools går i alle fem lag.
-
-**Beste neste steg er samme adapter på skriving — men ikke per tool.** Jev koster 0,1–20 s. 16 tool-runder × Jev = død loop.
+**Samme `decide()`-adapter begge veier.** MiniLM finner like episoder. Jev (ellers Mercury, ellers rules) sier hva som *betyr noe*.
 
 | Sted | Jev/Mercury | Hvorfor |
 |---|---|---|
@@ -47,7 +47,7 @@ Verifisert 2026-09-28 08:26: `src=jev+rules` `act=both` `n=4`, ingen tools, rikt
 | Hvert `repo_read` | **nei** | for tregt; korte engrams holder |
 | MiniLM-vektor | **nei** | Jev rangerer ikke embeddings |
 
-Skrive-policy (én `decide()` etter svaret): Noul `persist_hot` + Choice `kind` = `fact|artifact|noise|decision`. `noise` lagres likevel, men med lav salience så `recall()` kan droppe den. Mutasjon og `_probe.html`-artifacts skal overleve.
+Skrive-policy: Noul `persist_hot` + Choice `kind` = `fact|artifact|noise|decision`. `noise` lagres likevel, men `recall()` dropper den når `persist_hot < 0.35`. Mutasjon og `_probe.html` kan ikke merkes `noise` (rules-veto, persist minst 0.75). `kind=decide`-logger (selve gaten) går ikke inn i prompten.
 
 Hiroshima senere: samme `decide()`, andre questions (støy / kandidat / ALERT).
 

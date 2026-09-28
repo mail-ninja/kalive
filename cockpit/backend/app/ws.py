@@ -10,6 +10,7 @@ from fastapi import WebSocket, WebSocketDisconnect
 
 from .agents import get_agent, list_public
 from .catalog import public as catalog_public
+from .decide import classify_turn
 from .llm import run_turn
 from .memory import ensure as memory_bind
 from .memory import remember_engram
@@ -38,6 +39,34 @@ def _tool_engram(name: str, result: dict) -> str:
 
 def _msg(ch: str, typ: str, payload: Any, id_: str | None = None) -> dict:
     return {"v": 1, "ch": ch, "id": id_ or str(uuid.uuid4()), "type": typ, "payload": payload}
+
+
+def _remember_chat(agent_id: str, payload: dict) -> dict:
+    """Stamp the final chat engram with one decide(); tools stay short and untagged."""
+    body = dict(payload)
+    tag = {
+        "source": "rules",
+        "kind": "fact",
+        "persist_hot": 0.5,
+        "veto": "",
+    }
+    try:
+        tag = classify_turn(
+            {
+                "query": body.get("user") or "",
+                "assistant": body.get("assistant") or "",
+                "tools": body.get("tools") or [],
+                "note": body.get("note") or "",
+                "error": body.get("error") or "",
+            }
+        )
+        body["salience_kind"] = tag.get("kind") or "fact"
+        body["persist_hot"] = tag.get("persist_hot")
+        body["salience_src"] = tag.get("source") or "rules"
+    except Exception:
+        pass
+    remember_engram(agent_id, "chat", body)
+    return tag
 
 
 async def handle_socket(ws: WebSocket) -> None:
@@ -139,9 +168,8 @@ async def handle_socket(ws: WebSocket) -> None:
                             await ws.send_json(_msg("run", "stopped", {"text": ev.get("text") or ""}, mid))
                     if not stop.is_set():
                         await ws.send_json(_msg("chat", "done", {"agent": ag.id}, mid))
-                    remember_engram(
+                    tag = _remember_chat(
                         ag.id,
-                        "chat",
                         {
                             "user": text[:2000],
                             "assistant": "".join(excerpt)[:3000],
@@ -151,11 +179,28 @@ async def handle_socket(ws: WebSocket) -> None:
                             "allow_mutate": allow,
                         },
                     )
+                    try:
+                        await ws.send_json(
+                            _msg(
+                                "log",
+                                "line",
+                                {
+                                    "text": (
+                                        f"minne-skriv: {tag.get('kind') or 'fact'} "
+                                        f"persist={tag.get('persist_hot')} "
+                                        f"src={tag.get('source') or 'rules'}"
+                                    ),
+                                    "agent": ag.id,
+                                },
+                                mid,
+                            )
+                        )
+                    except Exception:
+                        pass
                 except WebSocketDisconnect:
                     try:
-                        remember_engram(
+                        _remember_chat(
                             ag.id,
-                            "chat",
                             {
                                 "user": text[:2000],
                                 "assistant": "".join(excerpt)[:3000],
@@ -168,9 +213,8 @@ async def handle_socket(ws: WebSocket) -> None:
                     return
                 except Exception as e:
                     try:
-                        remember_engram(
+                        _remember_chat(
                             ag.id,
-                            "chat",
                             {
                                 "user": text[:2000],
                                 "assistant": "".join(excerpt)[:3000],

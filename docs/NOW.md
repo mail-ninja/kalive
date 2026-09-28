@@ -20,7 +20,7 @@ Kart 2026-09-26: minne+UI målt.
 
 Rett etter, samme uke, ikke samme PR:
 
-1. Minne: MiniLM + **Jev-uthenting live** (`src=jev+rules` 2026-09-28). Skriving: korte engrams. Neste: salience-`decide()` på slutt-engram (ikke per tool). Se [MEMORY.md](MEMORY.md).
+1. Minne: MiniLM + **samme `decide()` på uthenting og skriving**. Uthenting live `src=jev+rules` 2026-09-28. Skriving: én salience-`decide()` på slutt-engram (ikke per tool). Se [MEMORY.md](MEMORY.md).
 2. Preview: statisk HTML i boks (`docs/_probe.html`). Loopback-app senere.
 3. Hiroshima: egen runde (Jev/tshark/Mercury) når du forklarer protokollen.
 

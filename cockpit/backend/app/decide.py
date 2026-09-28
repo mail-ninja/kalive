@@ -19,6 +19,9 @@ _MUTATE = re.compile(
     re.I,
 )
 _ASK = re.compile(r"\b(hva|hvor|hvilken|hvem|hvordan|was|what|where|which)\b", re.I)
+_GREET = re.compile(r"^\s*(yo|halla|hallo|hei+|hi+|hey|sup|god\s+morgen|god\s+kveld)\b", re.I)
+_KINDS = ("fact", "artifact", "noise", "decision")
+_MUTATE_TOOLS = frozenset({"repo_edit", "repo_bash", "iframe_write"})
 
 
 def jev_key() -> str:
@@ -221,11 +224,49 @@ def _jev_http(state: Any, questions: dict[str, dict], key: str) -> dict[str, dic
     return None
 
 
+def _tool_names(state: dict) -> list[str]:
+    names: list[str] = []
+    for t in state.get("tools") or []:
+        if isinstance(t, str):
+            names.append(t)
+        elif isinstance(t, dict) and t.get("name"):
+            names.append(str(t.get("name")))
+    return names
+
+
 def _rule_one(state: Any, qid: str, spec: dict) -> dict:
     typ = (spec.get("type") or "noul").lower()
     st = state if isinstance(state, dict) else {"query": str(state)}
-    query = str(st.get("query") or "")
+    query = str(st.get("query") or st.get("user") or "")
     hits = st.get("hits") or []
+    names = _tool_names(st)
+    asst = str(st.get("assistant") or "")
+    note = str(st.get("note") or "")
+    err = str(st.get("error") or "")
+    blob = f"{query} {asst}".lower()
+    if typ == "noul" and qid == "persist_hot":
+        noul = 0.45
+        if any(n in _MUTATE_TOOLS for n in names) or "_probe.html" in blob:
+            noul = 0.9
+        elif _ASK.search(query) and len(asst) > 40:
+            noul = 0.75
+        elif _GREET.search(query) and not names:
+            noul = 0.15
+        elif "ws-disconnect" in note or err:
+            noul = 0.55 if names else 0.2
+        return {"noul": noul, "confidence": 0.6, "source": "rules"}
+    if typ == "choice" and qid == "kind":
+        if any(n in _MUTATE_TOOLS for n in names) or "_probe.html" in blob:
+            choice = "artifact"
+        elif _GREET.search(query) and not names:
+            choice = "noise"
+        elif "ws-disconnect" in note and len(asst) < 40:
+            choice = "noise"
+        elif _ASK.search(query):
+            choice = "fact"
+        else:
+            choice = "fact" if asst else "noise"
+        return {"choice": choice, "confidence": 0.65, "source": "rules"}
     if typ == "noul" and qid.startswith("keep_"):
         try:
             i = int(qid.split("_", 1)[1])
@@ -301,3 +342,57 @@ def gate_recall(query: str, hits: list[dict]) -> tuple[list[dict], dict]:
         "n": len(kept),
         "answers": {k: {kk: vv for kk, vv in v.items() if kk != "source"} for k, v in answers.items()},
     }
+
+
+def _finalize_salience(st: dict, out: dict) -> dict:
+    answers = out.get("answers") or {}
+    kind = str((answers.get("kind") or {}).get("choice") or "fact")
+    if kind not in _KINDS:
+        kind = "fact"
+    try:
+        persist = float((answers.get("persist_hot") or {}).get("noul") or 0.5)
+    except (TypeError, ValueError):
+        persist = 0.5
+    persist = max(0.0, min(1.0, persist))
+    names = _tool_names(st)
+    blob = f"{st.get('query') or st.get('user') or ''} {st.get('assistant') or ''}".lower()
+    veto = ""
+    if any(n in _MUTATE_TOOLS for n in names) or "_probe.html" in blob:
+        if kind == "noise":
+            kind = "artifact"
+        persist = max(persist, 0.75)
+        veto = "artifact"
+    return {
+        "source": out.get("source") or "rules",
+        "kind": kind,
+        "persist_hot": round(persist, 2),
+        "veto": veto,
+    }
+
+
+def classify_turn(state: dict | None = None) -> dict:
+    """One decide() after the answer: salience for the final chat engram, never per tool."""
+    st = dict(state or {})
+    if "query" not in st:
+        st["query"] = st.get("user") or ""
+    questions = {
+        "persist_hot": {
+            "type": "noul",
+            "instructions": (
+                "Should later turns easily recall this episode? High for durable facts "
+                "and files written on disk; low for greetings, empty disconnects, chatter."
+            ),
+        },
+        "kind": {
+            "type": "choice",
+            "instructions": "What is this episode?",
+            "criteria": {
+                "fact": "A durable answer (what/where/which) worth recalling",
+                "artifact": "A file, probe, edit, or bash result on disk",
+                "decision": "A policy/choice about how to work, not a world fact",
+                "noise": "Greeting, stall, empty disconnect, or throwaway chatter",
+            },
+        },
+    }
+    out = decide(st, questions)
+    return _finalize_salience(st, out)

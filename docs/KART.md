@@ -33,7 +33,7 @@ Fem lag, alle namespacet `kalived:{agent_id}`. Join-nøkkel: **engram UUID**.
 
 **Embedder:** `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` (fastembed/ONNX, lokal, norsk+engelsk). Override `KALIVED_EMBED_MODEL`. Første last ~220 MB.
 
-**Gaten:** før `run_turn` → `recall()` (sqlite-tokens + Qdrant kNN) → inn i systemprompt. Etter svar → `remember_engram` for `chat` og hver `tool`. Disk vinner ved konflikt.
+**Gaten:** før `run_turn` → `recall()` (sqlite-tokens + Qdrant kNN) → `decide()` keep/act → inn i systemprompt. Etter svar → korte tool-engrams + én `classify_turn()` på chat-engramet. Disk vinner ved konflikt.
 
 **Isolasjon:** `recall('signal', …)` ser ikke `build`s episoder. Testet.
 
@@ -122,7 +122,7 @@ Minimum, UFO-ærlig:
 3. **Én synlig agent i Arbeid** (`build`). Resten i kjøredetaljer. **GRØNN** (chip-rad = build).
 4. **Dokumenterte nei:** ingen sudo, ingen push, ingen 0.0.0.0. **GRØNN** (C4).
 
-Når 2 er grønt i UI: Hiroshima-protokoll (Jev-port, tshark-evidens, Mercury-klassifisering). **2 er grønt.** Jev på *skriving* (salience, ikke per tool): [MEMORY.md](MEMORY.md).
+Når 2 er grønt i UI: Hiroshima-protokoll (Jev-port, tshark-evidens, Mercury-klassifisering). **2 er grønt.** Jev på *skriving* (salience, én gang per slutt-engram, ikke per tool) er i treet: [MEMORY.md](MEMORY.md).
 
 ---
 

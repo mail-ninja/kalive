@@ -49,7 +49,7 @@ Ikke gjør OpenRouter til hard avhengighet (loopback-først, tre trær, vi har i
 
 **Bygg slik:**
 
-1. `cockpit/backend/app/decide.py` — `decide(state, questions) -> answers`. I dag: deterministisk (score-cutoff vi nettopp satte). I morgen: HTTP til Jev hvis `OPENROUTER_API_KEY` eller `TYPESAFE_API_KEY` finnes.
+1. `cockpit/backend/app/decide.py` — `decide(state, questions) -> answers`. Live: Jev via Vercel Gateway, ellers Mercury-2.5, ellers rules. `gate_recall()` på uthenting, `classify_turn()` på slutt-engram.
 2. **Første kallsted:** etter `recall()`, før prompt. State = query + topp-kandidater (korte). Questions:
    - Noul `keep` per treff: «er dette nyttig for *dette* spørsmålet?»
    - Choice `act`: `use_memory` / `read_disk` / `both`
@@ -66,7 +66,7 @@ Mål: 20 loggede `decide`-rader med menneskelig «enig/uenig». Først da er Jev
 - Jev som «sikkerhetsagent» som later som den er SOC
 - Bytte ut MiniLM
 
-Logg: `minne-gate: N treff … act=… src=jev+rules|mercury+rules|rules`. `use_memory` fjerner tools. **Uthenting er live.** Skriving er fortsatt deterministisk (korte engrams); neste: én `decide()` på slutt-engramet (salience), ikke per tool. Verifisert 2026-09-28: `src=jev+rules` `act=both` probe-spørsmål.
+Logg: `minne-gate: N treff … act=… src=jev+rules|mercury+rules|rules`. `use_memory` fjerner tools. **Uthenting og skriving bruker samme `decide()`.** Uthenting: keep/act. Skriving: én `classify_turn()` på slutt-engramet (`persist_hot` + `kind`), ikke per tool. Verifisert uthenting 2026-09-28: `src=jev+rules` `act=both` probe-spørsmål.
 
 ## Beslutning jeg vil ha fra deg
 

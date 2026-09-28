@@ -206,6 +206,20 @@ def cheap_vec(text: str) -> list[float]:
     return embed_one(text)
 
 
+def _recall_skip(e: dict) -> bool:
+    """decide-logs are for us; tagged noise with low persist_hot stays out of the prompt."""
+    if (e.get("kind") or "") == "decide":
+        return True
+    p = e.get("payload") or {}
+    if str(p.get("salience_kind") or "") != "noise":
+        return False
+    try:
+        hot = float(p.get("persist_hot"))
+    except (TypeError, ValueError):
+        return False
+    return hot < 0.35
+
+
 _STOP = {
     "the",
     "and",
@@ -236,6 +250,8 @@ def recall(agent_id: str, query: str, limit: int = 4) -> list[dict]:
     tokens = [t for t in re.findall(r"[a-zA-Z0-9_./-]{3,}", q.lower()) if t not in _STOP]
     scored: dict[str, tuple[float, dict]] = {}
     for e in list_episodes(agent_id, limit=80):
+        if _recall_skip(e):
+            continue
         blob = json.dumps(e.get("payload") or {}, ensure_ascii=False).lower()
         kw = float(sum(1 for t in tokens if t in blob)) if tokens else 0.0
         if kw < 1:
@@ -257,9 +273,12 @@ def recall(agent_id: str, query: str, limit: int = 4) -> list[dict]:
                 scored[mid] = (s + sim, e)
             elif sim >= 0.55:
                 try:
-                    scored[mid] = (sim, get_engram(agent_id, mid))
+                    found = get_engram(agent_id, mid)
                 except KeyError:
-                    pass
+                    continue
+                if _recall_skip(found):
+                    continue
+                scored[mid] = (sim, found)
     except Exception:
         pass
     ranked = sorted(scored.values(), key=lambda x: -x[0])

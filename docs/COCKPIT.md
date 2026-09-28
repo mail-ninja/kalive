@@ -53,7 +53,7 @@ Scan-jobber overlever WS-kutt. Når prosessen er død: `done` + stopp. Rutine = 
 
 ## Minne-lag
 
-Se [MEMORY.md](MEMORY.md). Kort: MiniLM henter kandidater → **Jev** (ellers Mercury-2.5, ellers rules) velger `keep`/`act` → Grok. Verifisert `src=jev+rules` 2026-09-28. Tool-engrams er korte. Disk vinner.
+Se [MEMORY.md](MEMORY.md). Kort: MiniLM henter kandidater → **Jev** (ellers Mercury-2.5, ellers rules) velger `keep`/`act` → Grok → **samme decide()** merker slutt-engramet. Verifisert uthenting `src=jev+rules` 2026-09-28. Tool-engrams er korte. Disk vinner.
 
 Alle agenter bruker alle lag. Namespace `kalived:{agent_id}:`.
 
