@@ -33,17 +33,109 @@ def jev_key() -> str:
 
 
 def decide(state: Any, questions: dict[str, dict]) -> dict:
-    """answers[id] = {choice|score|noul, confidence, source}."""
+    """Jev first; fallback Mercury-2.5 + rules veto. Last resort: rules only."""
     rules = {qid: _rule_one(state, qid, spec) for qid, spec in questions.items()}
+    live = None
+    src = "rules"
     key = jev_key()
     if key:
         try:
             live = _jev_http(state, questions, key)
             if live:
-                return {"source": "jev", "answers": live}
+                src = "jev"
         except Exception:
-            pass
+            live = None
+    if live is None:
+        try:
+            live = _mercury_http(state, questions)
+            if live:
+                src = "mercury"
+        except Exception:
+            live = None
+    if live:
+        return {"source": src + "+rules", "answers": _merge_rules(state, rules, live)}
     return {"source": "rules", "answers": rules}
+
+
+def _query_of(state: Any) -> str:
+    if isinstance(state, dict):
+        return str(state.get("query") or "")
+    return str(state or "")
+
+
+def _merge_rules(state: Any, rules: dict, live: dict) -> dict:
+    """Rules never let a mutate-task skip disk (use_memory-only)."""
+    out = dict(live)
+    q = _query_of(state)
+    act = (out.get("act") or {}).get("choice")
+    if _MUTATE.search(q) and act == "use_memory":
+        base = dict(out.get("act") or {})
+        base["choice"] = "both"
+        base["veto"] = "rules-mutate"
+        out["act"] = base
+    for qid, rans in rules.items():
+        if qid.startswith("keep_") and qid not in out:
+            out[qid] = rans
+    return out
+
+
+def _mercury_http(state: Any, questions: dict[str, dict]) -> dict[str, dict] | None:
+    env = load_env()
+    key = (env.get("INCEPTION_API_KEY") or "").strip()
+    if not key:
+        return None
+    base = (env.get("INCEPTION_BASE_URL") or "https://api.inceptionlabs.ai/v1").rstrip("/")
+    payload = {"state": state, "questions": questions}
+    r = httpx.post(
+        base + "/chat/completions",
+        headers={"Authorization": "Bearer " + key, "Content-Type": "application/json"},
+        json={
+            "model": "mercury-2.5",
+            "temperature": 0.5,
+            "max_tokens": 1500,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": (
+                        "Return ONLY a JSON object keyed by question id. "
+                        "noul/boolean: {\"noul\": 0-1, \"confidence\": 0-1}. "
+                        "choice: {\"choice\": \"<one criteria key>\", \"confidence\": 0-1}. "
+                        "No markdown, no extra keys."
+                    ),
+                },
+                {"role": "user", "content": json.dumps(payload, ensure_ascii=False)[:8000]},
+            ],
+        },
+        timeout=8.0,
+    )
+    r.raise_for_status()
+    content = (((r.json().get("choices") or [{}])[0].get("message") or {}).get("content") or "").strip()
+    if content.startswith("```"):
+        content = content.strip("`")
+        if content.lower().startswith("json"):
+            content = content[4:].strip()
+    try:
+        data = json.loads(content)
+    except json.JSONDecodeError:
+        m = re.search(r"\{.*\}", content, re.S)
+        if not m:
+            return None
+        data = json.loads(m.group(0))
+    if not isinstance(data, dict):
+        return None
+    out: dict[str, dict] = {}
+    for qid, ans in data.items():
+        if not isinstance(ans, dict):
+            continue
+        d: dict[str, Any] = {"source": "mercury", "confidence": float(ans.get("confidence") or 0.5)}
+        if ans.get("noul") is not None:
+            d["noul"] = float(ans["noul"])
+        if ans.get("choice") is not None:
+            d["choice"] = str(ans["choice"])
+        if ans.get("score") is not None:
+            d["score"] = float(ans["score"])
+        out[qid] = d
+    return out or None
 
 
 def _parse_jev_answers(data: dict) -> dict[str, dict] | None:
