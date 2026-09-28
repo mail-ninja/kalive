@@ -35,7 +35,15 @@ def jev_key() -> str:
     ).strip()
 
 
-def decide(state: Any, questions: dict[str, dict]) -> dict:
+def decide(
+    state: Any,
+    questions: dict[str, dict],
+    *,
+    jev_attempts: int = 3,
+    jev_timeout: float = 8.0,
+    jev_second_url: bool = True,
+    use_mercury: bool = True,
+) -> dict:
     """Jev first; fallback Mercury-2.5 + rules veto. Last resort: rules only."""
     rules = {qid: _rule_one(state, qid, spec) for qid, spec in questions.items()}
     live = None
@@ -43,12 +51,19 @@ def decide(state: Any, questions: dict[str, dict]) -> dict:
     key = jev_key()
     if key:
         try:
-            live = _jev_http(state, questions, key)
+            live = _jev_http(
+                state,
+                questions,
+                key,
+                attempts=jev_attempts,
+                timeout=jev_timeout,
+                second_url=jev_second_url,
+            )
             if live:
                 src = "jev"
         except Exception:
             live = None
-    if live is None:
+    if live is None and use_mercury:
         try:
             live = _mercury_http(state, questions)
             if live:
@@ -170,7 +185,15 @@ def _parse_jev_answers(data: dict) -> dict[str, dict] | None:
     return out or None
 
 
-def _jev_http(state: Any, questions: dict[str, dict], key: str) -> dict[str, dict] | None:
+def _jev_http(
+    state: Any,
+    questions: dict[str, dict],
+    key: str,
+    *,
+    attempts: int = 3,
+    timeout: float = 8.0,
+    second_url: bool = True,
+) -> dict[str, dict] | None:
     """Vercel labs sample uses /v1/evaluate; TypeSafe SDK uses /typesafe/v1/systemone."""
     env = load_env()
     headers = {"Authorization": "Bearer " + key, "Content-Type": "application/json"}
@@ -188,7 +211,7 @@ def _jev_http(state: Any, questions: dict[str, dict], key: str) -> dict[str, dic
             ev["criteria"] = crit
         qs_one[qid] = one
         qs_eval[qid] = ev
-    attempts = [
+    targets = [
         (
             "https://ai-gateway.vercel.sh/v1/evaluate",
             {"model": "typesafe-ai/jev", "state": state if not isinstance(state, str) else st, "questions": qs_eval},
@@ -201,12 +224,16 @@ def _jev_http(state: Any, questions: dict[str, dict], key: str) -> dict[str, dic
     last_err = None
     import time
 
-    for url, body in attempts:
-        for attempt in range(3):
+    n_try = max(1, int(attempts))
+    urls = targets if second_url else targets[:1]
+    for url, body in urls:
+        for attempt in range(n_try):
             try:
-                r = httpx.post(url, headers=headers, json=body, timeout=8.0)
+                r = httpx.post(url, headers=headers, json=body, timeout=timeout)
                 if r.status_code == 429:
                     last_err = 429
+                    if attempt + 1 >= n_try:
+                        break
                     time.sleep(0.6 * (attempt + 1))
                     continue
                 if r.status_code >= 400:
@@ -394,5 +421,14 @@ def classify_turn(state: dict | None = None) -> dict:
             },
         },
     }
-    out = decide(st, questions)
+    # Gate already spent the Jev budget this turn; a second call is usually 429
+    # plus Mercury (8–20s). One short evaluate, then rules+veto.
+    out = decide(
+        st,
+        questions,
+        jev_attempts=1,
+        jev_timeout=4.0,
+        jev_second_url=False,
+        use_mercury=False,
+    )
     return _finalize_salience(st, out)
