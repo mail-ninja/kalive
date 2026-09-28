@@ -199,6 +199,59 @@ def _payload_text(payload: dict) -> str:
     return " ".join(bits)
 
 
+_PATH_IN_TEXT = re.compile(
+    r"\b(?:docs|cockpit|prompts|config|scripts|api|inventory)/[A-Za-z0-9_./-]+\.[A-Za-z0-9]+"
+)
+_TOUCH = {
+    "repo_edit": "EDITED",
+    "iframe_write": "EDITED",
+    "repo_bash": "RAN",
+    "repo_read": "READ",
+    "repo_glob": "READ",
+    "repo_grep": "READ",
+}
+
+
+def path_node_id(rel: str) -> str | None:
+    """Stable graph id for a workspace file. Same path → same node across episodes."""
+    s = str(rel or "").replace("\\", "/").strip()
+    if s.startswith("path:"):
+        s = s[5:]
+    if s.startswith("./"):
+        s = s[2:]
+    s = s.lstrip("/")
+    parts = [p for p in s.split("/") if p not in ("", ".")]
+    if not parts or ".." in parts:
+        return None
+    return "path:" + "/".join(parts)[:240]
+
+
+def _paths_of(body: dict) -> list[str]:
+    found: list[str] = []
+
+    def add(raw: str) -> None:
+        pid = path_node_id(raw)
+        if not pid:
+            return
+        rel = pid[5:]
+        if rel not in found:
+            found.append(rel)
+
+    add(str(body.get("path") or ""))
+    for extra in body.get("paths") or []:
+        add(str(extra))
+    blob = " ".join(str(body.get(k) or "") for k in ("text", "assistant", "user"))
+    for m in _PATH_IN_TEXT.findall(blob):
+        add(m)
+    return found[:12]
+
+
+def _touch_kind(kind: str, body: dict) -> str:
+    if kind == "tool":
+        return _TOUCH.get(str(body.get("name") or ""), "MENTIONED")
+    return "MENTIONED"
+
+
 def cheap_vec(text: str) -> list[float]:
     """384-d embedding. Local MiniLM via fastembed; hash fallback."""
     from .embedder import embed_one
@@ -311,6 +364,10 @@ def format_recall(hits: list[dict], budget: int = 1600) -> str:
         line = f"- [{kind}] {user}"
         if asst:
             line += f" → {asst}"
+        paths = p.get("paths") or ([p.get("path")] if p.get("path") else [])
+        paths = [str(x) for x in paths if x][:3]
+        if paths:
+            line += f" ({', '.join(paths)})"
         if used + len(line) > budget:
             break
         lines.append(line)
@@ -332,26 +389,32 @@ def remember_engram(
     body = dict(payload or {})
     body["memory_id"] = mid
     body["agent_id"] = agent_id
+    paths = _paths_of(body)
+    if paths:
+        body["paths"] = paths
+    if rel_to:
+        body["rel_to"] = [str(x) for x in rel_to if x][:20]
     wrote = ["meta"]
     skipped = []
     remember_meta(agent_id, kind, body, memory_id=mid)
     try:
-        graph_node(agent_id, mid, kind, body)
-        graph_node(agent_id, f"agent:{agent_id}", "agent", {"agent_id": agent_id})
-        graph_edge(agent_id, f"agent:{agent_id}", mid, "OWNS")
-        for other in rel_to or []:
-            graph_edge(agent_id, mid, other, "REL")
+        _graph_attach(agent_id, mid, kind, body, body.get("rel_to") or [])
         wrote.append("graph")
     except Exception as e:
         skipped.append({"graph": str(e)[:200]})
     try:
         vec = vector or cheap_vec(_payload_text(body))
-        vector_upsert(
-            agent_id,
-            mid,
-            vec,
-            {"kind": kind, "memory_id": mid, "agent_id": agent_id, "text": _payload_text(body)[:400]},
-        )
+        pay = {
+            "kind": kind,
+            "memory_id": mid,
+            "agent_id": agent_id,
+            "text": _payload_text(body)[:400],
+        }
+        if paths:
+            pay["path"] = paths[0]
+        if body.get("turn_id"):
+            pay["turn_id"] = str(body.get("turn_id"))
+        vector_upsert(agent_id, mid, vec, pay)
         wrote.append("vector")
     except Exception as e:
         skipped.append({"vector": str(e)[:200]})
@@ -466,6 +529,73 @@ def graph_edge(agent_id: str, src: str, dst: str, kind: str, props: dict | None 
     return {"agent_id": agent_id, "src": src, "dst": dst, "kind": kind}
 
 
+def graph_edge_once(agent_id: str, src: str, dst: str, kind: str, props: dict | None = None) -> dict:
+    """CREATE would duplicate on backfill; skip if this src/kind/dst already exists."""
+    _graph_init(agent_id)
+    conn = _graph_conn(agent_id)
+    result = conn.execute(
+        "MATCH (a:Entity {id: $src})-[r:Rel]->(b:Entity {id: $dst}) "
+        "WHERE r.kind = $kind RETURN count(r)",
+        {"src": src, "dst": dst, "kind": kind},
+    )
+    n = 0
+    try:
+        if result.has_next():
+            n = int(result.get_next()[0] or 0)
+    except Exception:
+        n = 0
+    if n:
+        return {"agent_id": agent_id, "src": src, "dst": dst, "kind": kind, "existed": True}
+    return graph_edge(agent_id, src, dst, kind, props)
+
+
+def _graph_attach(agent_id: str, mid: str, kind: str, body: dict, rel_to: list) -> None:
+    """Episode node + OWNS + path ABOUT/EDITED + USED. Edge props carry memory_id (and turn_id)."""
+    graph_node(agent_id, mid, kind, body)
+    graph_node(agent_id, f"agent:{agent_id}", "agent", {"agent_id": agent_id})
+    edge_props = {"memory_id": mid}
+    if body.get("turn_id"):
+        edge_props["turn_id"] = str(body.get("turn_id"))
+    graph_edge_once(agent_id, f"agent:{agent_id}", mid, "OWNS", edge_props)
+    for rel in body.get("paths") or _paths_of(body):
+        pid = path_node_id(rel)
+        if not pid:
+            continue
+        graph_node(agent_id, pid, "path", {"path": pid[5:]})
+        graph_edge_once(agent_id, pid, mid, _touch_kind(kind, body), edge_props)
+        graph_edge_once(agent_id, mid, pid, "ABOUT", edge_props)
+    used_kind = "USED" if kind == "chat" else "REL"
+    for other in rel_to or []:
+        other = str(other)
+        if not other or other == mid:
+            continue
+        graph_edge_once(agent_id, mid, other, used_kind, edge_props)
+
+
+def backfill_graph_links(agent_id: str, limit: int = 200) -> dict:
+    """Attach path/USED edges for episodes already in sqlite. Idempotent."""
+    check_agent(agent_id)
+    n = 0
+    paths = 0
+    for e in list_episodes(agent_id, limit=limit):
+        p = dict(e.get("payload") or {})
+        mid = str(e.get("memory_id") or p.get("memory_id") or "")
+        if not mid:
+            continue
+        found = _paths_of(p)
+        if not found and not (p.get("rel_to") or []):
+            continue
+        if found:
+            p["paths"] = found
+        try:
+            _graph_attach(agent_id, mid, str(e.get("kind") or "note"), p, p.get("rel_to") or [])
+            n += 1
+            paths += len(found)
+        except Exception:
+            continue
+    return {"agent_id": agent_id, "linked": n, "path_mentions": paths}
+
+
 def graph_query(agent_id: str, cypher: str) -> dict:
     conn = _graph_conn(agent_id)
     result = conn.execute(cypher)
@@ -543,7 +673,13 @@ def reindex_vectors(agent_id: str) -> dict:
                 agent_id,
                 mid,
                 cheap_vec(_payload_text(p)),
-                {"kind": e.get("kind"), "memory_id": mid, "agent_id": agent_id, "text": _payload_text(p)[:400]},
+                {
+                    "kind": e.get("kind"),
+                    "memory_id": mid,
+                    "agent_id": agent_id,
+                    "text": _payload_text(p)[:400],
+                    **({"path": _paths_of(p)[0]} if _paths_of(p) else {}),
+                },
             )
             n += 1
         except Exception:

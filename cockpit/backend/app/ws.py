@@ -42,7 +42,7 @@ def _msg(ch: str, typ: str, payload: Any, id_: str | None = None) -> dict:
     return {"v": 1, "ch": ch, "id": id_ or str(uuid.uuid4()), "type": typ, "payload": payload}
 
 
-def _remember_chat(agent_id: str, payload: dict) -> dict:
+def _remember_chat(agent_id: str, payload: dict, rel_to: list | None = None) -> dict:
     """Stamp the final chat engram with one decide(); tools stay short and untagged."""
     body = dict(payload)
     tag = {
@@ -69,7 +69,7 @@ def _remember_chat(agent_id: str, payload: dict) -> dict:
         pass
     tag["classify_ms"] = int((time.perf_counter() - t_cls) * 1000)
     t_w = time.perf_counter()
-    remember_engram(agent_id, "chat", body)
+    remember_engram(agent_id, "chat", body, rel_to=rel_to)
     tag["write_ms"] = int((time.perf_counter() - t_w) * 1000)
     return tag
 
@@ -115,6 +115,9 @@ async def handle_socket(ws: WebSocket) -> None:
                 stop.clear()
                 excerpt: list[str] = []
                 tools_used: list[str] = []
+                turn_id = str(uuid.uuid4())
+                tool_mids: list[str] = []
+                tool_paths: list[str] = []
                 try:
                     async for ev in run_turn(
                         ag,
@@ -152,7 +155,7 @@ async def handle_socket(ws: WebSocket) -> None:
                             name = str(ev.get("name") or "")
                             result = ev.get("result") if isinstance(ev.get("result"), dict) else {}
                             try:
-                                remember_engram(
+                                wrote = remember_engram(
                                     ag.id,
                                     "tool",
                                     {
@@ -160,8 +163,15 @@ async def handle_socket(ws: WebSocket) -> None:
                                         "path": result.get("path") if isinstance(result, dict) else None,
                                         "text": _tool_engram(name, result),
                                         "user": text[:400],
+                                        "turn_id": turn_id,
                                     },
                                 )
+                                mid_tool = (wrote or {}).get("memory_id")
+                                if mid_tool:
+                                    tool_mids.append(str(mid_tool))
+                                pth = result.get("path") if isinstance(result, dict) else None
+                                if pth and str(pth) not in tool_paths:
+                                    tool_paths.append(str(pth))
                             except Exception:
                                 pass
                             await ws.send_json(
@@ -182,7 +192,10 @@ async def handle_socket(ws: WebSocket) -> None:
                             "provider": str(payload.get("provider") or ag.provider),
                             "model": str(payload.get("model") or ag.model),
                             "allow_mutate": allow,
+                            "turn_id": turn_id,
+                            "paths": tool_paths[:12],
                         },
+                        rel_to=tool_mids[:20],
                     )
                     try:
                         await ws.send_json(
@@ -213,7 +226,10 @@ async def handle_socket(ws: WebSocket) -> None:
                                 "assistant": "".join(excerpt)[:3000],
                                 "tools": tools_used[:20],
                                 "note": "ws-disconnect mid-turn",
+                                "turn_id": turn_id,
+                                "paths": tool_paths[:12],
                             },
+                            rel_to=tool_mids[:20],
                         )
                     except Exception:
                         pass
@@ -227,7 +243,10 @@ async def handle_socket(ws: WebSocket) -> None:
                                 "assistant": "".join(excerpt)[:3000],
                                 "tools": tools_used[:20],
                                 "error": str(e)[:300],
+                                "turn_id": turn_id,
+                                "paths": tool_paths[:12],
                             },
+                            rel_to=tool_mids[:20],
                         )
                     except Exception:
                         pass

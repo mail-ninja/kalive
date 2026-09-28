@@ -41,7 +41,7 @@ Fem lag, alle namespacet `kalived:{agent_id}`. Join-nøkkel: **engram UUID**.
 
 - Semantikk som faktisk hjelper neste oppgave, ikke «topp 6 tilfeldige tool-JSON».
 - Korte engrams: user + handling + path, ikke hele fila.
-- Graf: fil `[:Path]--EDITED-->` episode, agent `ASKED` agent.
+- Graf: fil `[:Path]--EDITED-->` episode, agent `ASKED` agent. **Delvis i treet (2026-09-28):** `path:`-noder, `ABOUT`/`EDITED`/`READ`/`USED`, `turn_id`. `ASKED` mellom agenter gjenstår.
 - Redis som nervesystem mellom `build` og `review` (ikke bare logg).
 - Sletting / TTL / «glem denne runden».
 - Embedder lastes én gang, synlig i `/v1/memory`.

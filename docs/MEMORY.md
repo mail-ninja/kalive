@@ -4,17 +4,26 @@ Slik det **faktisk** kjører 2026-09-28. Start: `bash cockpit/scripts/up.sh` (do
 
 ## Fem lag, én UUID
 
-Hver episode får `memory_id`. Alle lag som er oppe får den.
+Hver episode får `memory_id`. Det er limet. Ingen synk-tabell, ingen utenlandsk nøkkel på tvers av motorer: **samme streng** er sqlite-rad, Kuzu-node, Qdrant-punkt, MinIO-nøkkel `engrams/<id>.json`, Redis-melding.
 
-| Lag | Motor | Skrives | Leses |
+| Lag | Motor | Rolle | Join |
 |---|---|---|---|
-| meta | sqlite `~/.config/kalived/memory/<agent>/episodes.sqlite` | alltid | nøkkelord i `recall()` |
-| graph | Kuzu `graph.kuzu` | node + `OWNS` | (lite i gaten ennå) |
-| vector | Qdrant `:6333` `kalived_<agent>` | MiniLM 384-d | kNN i `recall()` |
-| blob | MinIO `:9100` | JSON-kopi | ikke i gaten |
-| bus | Redis `:6379` | publish | ikke i gaten |
+| meta | sqlite `episodes.sqlite` | hva som skjedde (payload, salience, `paths`, `turn_id`) | `memory_id` |
+| graph | Kuzu `graph.kuzu` | *hvordan* det henger (fil, runde, agent) | node `id = memory_id` eller `path:…` |
+| vector | Qdrant `:6333` | *hva det ligner* (MiniLM 384-d) | point id = `memory_id` |
+| blob | MinIO `:9100` | JSON-kopi | `engrams/<memory_id>.json` |
+| bus | Redis `:6379` | siste 100 UUID-er | melding inneholder `memory_id` |
 
-Isolasjon: `agent_id`. `build` ser ikke `signal`. Disk vinner ved konflikt med minne.
+Isolasjon: `agent_id` (egen sqlite/kuzu/collection/bucket/kanal). `build` ser ikke `signal`. Disk vinner ved konflikt med minne.
+
+Kuzu-kanter kopieres **ikke** inn i Qdrant. Vektorer er likhet, ikke topologi. Konteksten til en relasjon ligger på kanten: `props.memory_id` (episoden som skapte den) og `props.turn_id` (samme chat-runde). Sqlite får en denormalisert `paths[]` så `recall()` ser fila uten Cypher.
+
+```
+agent:build --OWNS--> {memory_id}
+path:docs/_probe.html --EDITED|READ|RAN|MENTIONED--> {memory_id}
+{memory_id} --ABOUT--> path:docs/_probe.html
+{chat_id} --USED--> {tool_id}          # samme turn_id
+```
 
 **Embedder:** `paraphrase-multilingual-MiniLM-L12-v2` (lokal fastembed/ONNX). `KALIVED_EMBED_MODEL` overstyrer.
 
@@ -57,4 +66,4 @@ Hiroshima senere: samme `decide()`, andre questions (støy / kandidat / ALERT).
 - Recall uten ritual-README.
 - Skriv: korte, taggede engrams. Ingen vegg av fil-JSON.
 - TTL / «glem denne runden».
-- Graf: fil `--EDITED-->` episode.
+- Graf: fil `--EDITED-->` episode. **I treet:** `ABOUT` / `EDITED` / `READ` / `USED`, `turn_id` på runden, `paths[]` i sqlite. TTL / «glem» gjenstår.
