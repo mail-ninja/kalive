@@ -106,7 +106,7 @@ def _mercury_http(state: Any, questions: dict[str, dict]) -> dict[str, dict] | N
                 {"role": "user", "content": json.dumps(payload, ensure_ascii=False)[:8000]},
             ],
         },
-        timeout=8.0,
+        timeout=20.0,
     )
     r.raise_for_status()
     content = (((r.json().get("choices") or [{}])[0].get("message") or {}).get("content") or "").strip()
