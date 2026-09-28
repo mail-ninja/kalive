@@ -260,10 +260,13 @@ def cheap_vec(text: str) -> list[float]:
 
 
 def _recall_skip(e: dict) -> bool:
-    """decide-logs are for us; tagged noise with low persist_hot stays out of the prompt."""
-    if (e.get("kind") or "") == "decide":
+    """decide-logs and ritual grep/read stay out of the prompt. Edit/bash/chat remain."""
+    kind = e.get("kind") or ""
+    if kind == "decide":
         return True
     p = e.get("payload") or {}
+    if kind == "tool" and str(p.get("name") or "") in ("repo_grep", "repo_glob", "repo_read"):
+        return True
     if str(p.get("salience_kind") or "") != "noise":
         return False
     try:

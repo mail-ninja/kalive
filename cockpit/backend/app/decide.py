@@ -81,15 +81,40 @@ def _query_of(state: Any) -> str:
     return str(state or "")
 
 
+def _hit_answers(hits: list) -> bool:
+    for h in hits or []:
+        if not isinstance(h, dict):
+            continue
+        if (h.get("kind") or "") != "chat":
+            continue
+        asst = str(h.get("assistant") or "")
+        sal = str(h.get("salience") or h.get("salience_kind") or "")
+        if len(asst) > 40 and sal in ("", "artifact", "fact"):
+            return True
+    return False
+
+
 def _merge_rules(state: Any, rules: dict, live: dict) -> dict:
-    """Rules never let a mutate-task skip disk (use_memory-only)."""
+    """Mutate cannot skip disk. Ask-questions with a chat-answer cannot skip memory."""
     out = dict(live)
     q = _query_of(state)
+    st = state if isinstance(state, dict) else {}
+    hits = st.get("hits") or []
     act = (out.get("act") or {}).get("choice")
     if _MUTATE.search(q) and act == "use_memory":
         base = dict(out.get("act") or {})
         base["choice"] = "both"
         base["veto"] = "rules-mutate"
+        out["act"] = base
+    elif (
+        _ASK.search(q)
+        and not _MUTATE.search(q)
+        and _hit_answers(hits)
+        and act == "read_disk"
+    ):
+        base = dict(out.get("act") or {})
+        base["choice"] = "use_memory"
+        base["veto"] = "rules-answered"
         out["act"] = base
     for qid, rans in rules.items():
         if qid.startswith("keep_") and qid not in out:
@@ -307,10 +332,12 @@ def _rule_one(state: Any, qid: str, spec: dict) -> dict:
     if typ == "choice" and qid == "act":
         kept_scores = [float(h.get("score") or 0) for h in hits]
         top = max(kept_scores) if kept_scores else 0.0
-        if not hits or top < 1.5:
+        if _MUTATE.search(query):
+            choice = "both" if hits else "read_disk"
+        elif _ASK.search(query) and _hit_answers(hits):
+            choice = "use_memory"
+        elif not hits or top < 1.5:
             choice = "read_disk"
-        elif _MUTATE.search(query):
-            choice = "both"
         elif _ASK.search(query) and top >= 2.8:
             choice = "use_memory"
         else:
@@ -331,6 +358,8 @@ def gate_recall(query: str, hits: list[dict]) -> tuple[list[dict], dict]:
                 "i": i,
                 "score": h.get("score") or 0,
                 "kind": h.get("kind"),
+                "salience": p.get("salience_kind"),
+                "paths": (p.get("paths") or ([p.get("path")] if p.get("path") else []))[:3],
                 "user": str(p.get("user") or "")[:200],
                 "assistant": str(p.get("assistant") or p.get("text") or "")[:160],
             }

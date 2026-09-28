@@ -35,6 +35,7 @@ du skriver
     → decide() Jev, ellers Mercury-2.5, ellers rules
          keep (noul) per treff · act = use_memory | read_disk | both
     → Grok ser minne-blokk; use_memory fjerner tools
+         (ask + eksisterende chat-svar tvinger use_memory; grep/read hoppes i recall)
     → svar + korte tool-engrams (uten Jev)
     → DONE
     → decide() én gang til på slutt-engramet: kind + persist_hot

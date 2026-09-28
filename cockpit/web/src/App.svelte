@@ -7,21 +7,22 @@
   import Term from './lib/Term.svelte'
   import Tree from './lib/Tree.svelte'
   import { applyToolResult, getCanvas, setCanvas, subscribeCanvas } from './lib/desk'
+  import { loadHist, persistHist, type Hist } from './lib/hist'
   import { connect, send, type Frame } from './lib/ws'
-
-  type Hist = { role: 'you' | 'bot' | 'sys' | 'tool'; text: string; name?: string; diff?: string; path?: string }
 
   let wsReady = $state(false)
   let hiroshima = $state(false)
   let hiroshimaW = $state(Number(localStorage.getItem('kalived.hiroshimaW') || 92) || 92)
   let hiroDragging = $state(false)
   let tab = $state('work')
-  let hist = $state<Hist[]>([])
+  let hist = $state<Hist[]>(loadHist())
   let histEl: HTMLDivElement | undefined = $state()
   let draft = $state('')
   let stream = $state('')
   let tools = $state<string[]>([])
   let health = $state('…')
+  let memory = $state<Record<'sqlite' | 'qdrant' | 'kuzu' | 'redis' | 'minio', boolean> | null>(null)
+  const memoryKeys = ['sqlite', 'qdrant', 'kuzu', 'redis', 'minio'] as const
   let agents = $state<{ id: string; name: string; description: string; provider: string; model: string; desk?: string }[]>([])
   let providers = $state<{ id: string; label: string; models: string[] }[]>([])
   let agentId = $state('build')
@@ -159,6 +160,7 @@
   $effect(() => {
     hist.length
     stream
+    persistHist(hist)
     queueMicrotask(() => {
       if (histEl) histEl.scrollTop = histEl.scrollHeight
     })
@@ -196,15 +198,32 @@
         if (Array.isArray(j.providers) && j.providers.length) providers = j.providers
       })
       .catch(() => {})
+    fetch('/v1/memory')
+      .then((r) => r.json())
+      .then((j) => {
+        const b = (j && j.backends) || {}
+        memory = {
+          sqlite: !!b.sqlite,
+          qdrant: !!b.qdrant,
+          kuzu: !!b.kuzu,
+          redis: !!b.redis,
+          minio: !!b.minio,
+        }
+      })
+      .catch(() => {
+        memory = { sqlite: false, qdrant: false, kuzu: false, redis: false, minio: false }
+      })
     const unsub = connect(onFrame, (s) => {
       wsReady = s === 'open'
       if (s === 'open') hist = [...hist, { role: 'sys', text: 'cockpit ws up' }]
       if (s === 'close' && running) {
         hist = [
           ...hist,
-          { role: 'sys', text: 'ws kuttet under runden — loopen ble avbrutt. Send på nytt.' },
+          {
+            role: 'sys',
+            text: 'ws brutt — runden kjører videre på server. Histikk ligger i sqlite hvis UI tømmes.',
+          },
         ]
-        running = false
         liveCmd = ''
       }
     })
@@ -288,6 +307,12 @@
     <div class="font-serif text-xl tracking-wide">cockpit</div>
     <span class="text-xs text-clean/80">{wsName}</span>
     <span class="text-xs text-paper/40">{health}</span>
+    <span class="text-xs text-paper/40" title="GET /v1/memory">
+      Minne
+      {#each memoryKeys as k}
+        <span class="ml-1.5">{k} {memory ? (memory[k] ? 'oppe' : 'nede') : '…'}</span>
+      {/each}
+    </span>
     <div class="ml-auto flex flex-wrap items-center gap-2">
       <button
         class="rounded-full border border-white/15 px-3 py-1 text-sm hover:bg-white/10"

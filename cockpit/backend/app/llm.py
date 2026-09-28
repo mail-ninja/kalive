@@ -29,7 +29,7 @@ def _system_prompt(agent: Agent) -> str:
             "\n\nDu er i cockpit-Arbeid (kode). "
             "Workspace er filer på disk. build bruker repo_glob/grep/read/edit. "
             "repo_edit: old_string med omliggende linjer. Aldri duplikat-overskrift på EOF. "
-            "Hvis minne-blokken allerede svarer og act=use_memory: svar uten tools. "
+            "act=use_memory eller minne-blokken svarer: ingen tools. "
             "repo_bash er lov bak haken. Preview = HTML på disk. "
             "Maks 16 tool-runder. Oneshot. Passord bare i xterm."
         )
