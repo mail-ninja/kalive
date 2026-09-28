@@ -302,10 +302,14 @@ def bash(
     if argv and isinstance(argv, list) and any(str(a) for a in argv):
         cmd = [str(a) for a in argv if str(a) != ""]
     elif line and str(line).strip():
-        try:
-            cmd = shlex.split(str(line).strip(), posix=True)
-        except ValueError as e:
-            return {"error": f"kan ikke parse linje: {e}"}
+        raw = str(line).strip()
+        if re.search(r"[|&;<>]", raw):
+            cmd = ["/bin/bash", "-c", raw]
+        else:
+            try:
+                cmd = shlex.split(raw, posix=True)
+            except ValueError as e:
+                return {"error": f"kan ikke parse linje: {e}"}
     else:
         return {"error": "trenger argv eller line"}
     if not cmd:

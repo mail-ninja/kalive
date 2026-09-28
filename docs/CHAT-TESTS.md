@@ -11,8 +11,10 @@ Skriv opp: `minne-gate` (treff, act, src, ms), tools, om svaret er rett, `minne-
 | M1 | **pass** | `docs/_probe.html`, ingen tools. Varm recall ~80 ms. Jev på gate når Gateway har plass. |
 | M2 | **pass** | fila + **skrevet**. Graf `ABOUT`/`EDITED` i Kuzu; prompten brukte chat-engrams. |
 | M3 | **pass** | `ingen treff`, `noise persist=0.15`, probe-recall lever. |
-| M4 | åpen | isolasjon `signal` vs `build` |
-| K1 | åpen | minne-statuslinje i Arbeid, så K2 |
+| M4 | **pass** | signal: 0 treff. build: probe. (signal kjørte scan + WS-kutt — isolasjon OK) |
+| K1 | **pass** | «Minne» i `cockpit/web/src/App.svelte`, `GET /v1/memory` → `backends`. HMR tømte chat; sqlite har DONE. |
+| K2 | **pass** | `act=use_memory` `jev+rules`, ingen tools, fila i svaret. |
+| K3 | **pass*** | fem backends true. `exit 6`: `|` i argv ble ekstra curl-URL. Live-vindu fikk hele JSON-bloben. |
 
 «ingen treff» i UI viser ikke src/ms; decide-engrammet i sqlite gjør det.
 
@@ -89,6 +91,8 @@ Forvent: treff på Svelte-fila fra K1, ingen ritual-README, `act=use_memory` ell
 Kjør repo_bash: curl -sf http://127.0.0.1:8788/v1/memory | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('backends'))"
 ```
 Forvent: live stdout, `kuzu`/`qdrant` true, exit 0.
+
+Pipe må være `line` (bash -c), ikke `argv` der `|` blir et ekstra curl-argument (exit 6 + hele `/v1/memory`-JSON i vinduet). 2026-09-28: backends alle true, exit 6 av den grunn.
 
 ---
 

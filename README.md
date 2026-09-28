@@ -60,7 +60,7 @@ Agenter husker på **`agent_id`**, ikke på provider. Fem lag: Kuzu, Qdrant, SQL
 
 **Minne, én runde:** MiniLM henter kandidater → **Jev** (ellers Mercury-2.5, ellers rules) velger `keep`/`act` → Grok svarer → **samme `decide()`** merker slutt-engramet `fact|artifact|noise|decision` + `persist_hot`. Tools lagres korte, uten Jev. Støy med lav persist droppes ved neste uthenting. Detalj: [docs/MEMORY.md](docs/MEMORY.md), [docs/JEV.md](docs/JEV.md).
 
-Verifisert 2026-09-28: «hva var probe-appen?» → `src=jev+rules` `act=both`, svar `docs/_probe.html`, ingen tools.
+Verifisert 2026-09-28: probe-recall `use_memory`; K2 «minne-statuslinjen» → `cockpit/web/src/App.svelte`, `src=jev+rules`, ingen tools. Fem minne-backends oppe (K3). Tester: [docs/CHAT-TESTS.md](docs/CHAT-TESTS.md).
 
 `:8787` er den gamle kalived-API (scan/playbooks/root-PTY). Vi wrapper den ikke. Hiroshima på `:8788` leser snapshot og kaller `kalived-ctl`.
 

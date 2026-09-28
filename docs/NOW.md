@@ -24,7 +24,7 @@ Rett etter, samme uke, ikke samme PR:
 2. Preview: statisk HTML i boks (`docs/_probe.html`). Loopback-app senere.
 3. Hiroshima: egen runde (Jev/tshark/Mercury) når du forklarer protokollen.
 
-Chat-tester: [CHAT-TESTS.md](CHAT-TESTS.md). **M1–M3 pass 2026-09-28.** Neste: M4 isolasjon, så K1 minne-statuslinje + K2 «husker den det?».
+Chat-tester: [CHAT-TESTS.md](CHAT-TESTS.md). **M1–M4 + K1–K3 2026-09-28** (K3: stack oppe, pipe i argv = exit 6). Neste: auto-preview HTML, Hiroshima-protokoll.
 
 Port C (sandbox-VM, NIM, tale, mobil) er destinasjon. Ikke neste.
 
