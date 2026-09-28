@@ -1,8 +1,22 @@
 # Chat-tester — minne og kode-loop
 
-Lim inn i Arbeid mot **build**. Huk av «agent får kjøre» bare på K-oppgavene. Hard-refresh UI først (API ble restartet).
+Lim inn i Arbeid. Huk av «agent får kjøre» **bare** på K-oppgavene. Hard-refresh hvis API nettopp ble restartet.
 
 Skriv opp: `minne-gate` (treff, act, src, ms), tools, om svaret er rett, `minne-skriv` (kind, persist, src, ms).
+
+## Resultat 2026-09-28
+
+| Test | Utfall | Kort |
+|---|---|---|
+| M1 | **pass** | `docs/_probe.html`, ingen tools. Varm recall ~80 ms. Jev på gate når Gateway har plass. |
+| M2 | **pass** | fila + **skrevet**. Graf `ABOUT`/`EDITED` i Kuzu; prompten brukte chat-engrams. |
+| M3 | **pass** | `ingen treff`, `noise persist=0.15`, probe-recall lever. |
+| M4 | åpen | isolasjon `signal` vs `build` |
+| K1 | åpen | minne-statuslinje i Arbeid, så K2 |
+
+«ingen treff» i UI viser ikke src/ms; decide-engrammet i sqlite gjør det.
+
+---
 
 ## M — hukommelse (ingen hake)
 
@@ -10,56 +24,83 @@ Skriv opp: `minne-gate` (treff, act, src, ms), tools, om svaret er rett, `minne-
 ```
 hva var probe-appen?
 ```
-Forvent: `docs/_probe.html`, ingen `repo_read`, `act=use_memory` eller `both`. Sys viser `Nms recall Nms decide`.
+Forvent: `docs/_probe.html`, ingen `repo_read`, `act=use_memory` eller `both`.
 
-**M2 — fil-kontekst (graf)**
+**M2 — fil-kontekst**
 ```
 hvilken fil hører probe-appen til, og ble den skrevet eller bare lest?
 ```
-Forvent: `docs/_probe.html`, skrevet (`repo_edit` / EDITED). Ikke en vegg av NOW.md.
+Forvent: `docs/_probe.html`, **skrevet**. Ikke en vegg av NOW.md.
 
 **M3 — støy**
 ```
 yo
 ```
-Forvent: kort hilsen. `minne-skriv: noise` med lav persist, eller i hvert fall ikke en probe-essay.
+Forvent: kort hilsen. `minne-skriv: noise` med persist under 0.35. Ikke probe-essay.
 
-**M4 — isolasjon** (bytt agent til `signal`, så tilbake til build)
+### M4 — isolasjon (to lim, bytt agent)
+
+Chip-raden viser bare `build`. Agent velges under **kjøredetaljer** (utvid), feltet **agent**.
+
+**M4a** — velg `signal` i den lista, så:
 ```
 hva var probe-appen?
 ```
-På **signal**: ingen treff / ikke `_probe.html`. På **build**: samme som M1.
+Forvent: `minne-gate: ingen treff` **eller** treff uten `_probe.html`. Ikke «klikkteller i docs/_probe.html». `signal` har tom sqlite.
 
-## K — kode, så minne (hake på)
+**M4b** — sett agent tilbake til `build`, samme spørsmål:
+```
+hva var probe-appen?
+```
+Forvent: samme som M1. Hvis M4a visste om proben, er namespace ødelagt.
 
-Ikke en ny telleapp. Én synlig greie i **kalived selv**, så vi spør etterpå om den.
+---
 
-**K1 — bygg (hake på)**
-```
-Legg en diskret statuslinje i Arbeid (cockpit/web) som henter GET /v1/memory og viser om sqlite, qdrant, kuzu, redis, minio er oppe. Norsk etikett «Minne». Ikke ny agent, ikke ny side. Så vis i UI.
-```
-Forvent: `repo_read` av eksisterende Svelte, `repo_edit` på rett fil, fil på disk, preview/UI viser linjen. DONE uten WS-kutt.
+## K — kode, så minne
 
-**K2 — husk (hake av)**
-```
-hva er minne-statuslinjen vi nettopp la inn, og i hvilken fil?
-```
-Forvent: treff på den nye fila, ingen ritual-README, svar som matcher K1.
+Ikke en ny telleapp. Én synlig greie **i kalived**, så vi spør etterpå.
 
-**K3 — bash på det du bygde (hake på)**
+### K1 — bygg statuslinjen (hake **på**)
+
+Lim inn mot **build**:
 ```
-Kjør en kjapp sjekk med repo_bash at GET http://127.0.0.1:8788/v1/memory returnerer backends.kuzu og backends.qdrant true. Vis output.
+Legg en diskret statuslinje i Arbeid med etiketten «Minne». Den skal GET /v1/memory (samme origin/proxy som resten av cockpit) og vise fem prikker eller ja/nei for sqlite, qdrant, kuzu, redis, minio. Bruk eksisterende Svelte (App.svelte eller en liten komponent ved siden av workspace-linjen). Ikke ny agent, ikke ny side, ikke Hiroshima. Etter edit: fila på disk, linjen synlig i UI uten hard-refresh hvis Vite HMR tar den.
 ```
+
+Forvent:
+
+- `repo_read` av `cockpit/web/src/App.svelte` (eller `lib/` ved siden av), så `repo_edit` på **den** fila — ikke README, ikke NOW.md.
+- Mutasjon bare med haken. DONE uten WS-kutt.
+- Du ser «Minne» + fem backends i Arbeid (toppbar eller over treet).
+- `minne-skriv` med `paths` som inneholder den Svelte-fila.
+
+Hvis den leser åtte docs og dør: fail. Hvis linjen bare finnes i canvas-buffer: fail.
+
+### K2 — husk K1 (hake **av**)
+
+Rett etter K1, fortsatt `build`:
+```
+hva er minne-statuslinjen vi nettopp la inn, og i hvilken fil ligger den?
+```
+Forvent: treff på Svelte-fila fra K1, ingen ritual-README, `act=use_memory` eller `both`. Svaret matcher det som faktisk ble skrevet.
+
+### K3 — bash (hake **på**, valgfritt)
+```
+Kjør repo_bash: curl -sf http://127.0.0.1:8788/v1/memory | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('backends'))"
+```
+Forvent: live stdout, `kuzu`/`qdrant` true, exit 0.
+
+---
 
 ## Hva vi leser ut
 
 | Symptom | Betydning |
 |---|---|
-| M1 feil / ritual-read | gaten eller MiniLM |
-| M2 treffer probe men ikke fila | graf `ABOUT` brukes ikke i prompt ennå (forventet til vi tar graph-hop) |
-| M3 dumper probe | salience/støyfilter |
-| M4 signal vet om probe | namespace-lekkasje |
-| K1 dør i WS / feil fil | kode-loop |
+| M1 ritual-read | gaten / MiniLM |
+| M2 uten filnavn | minne har probe, ikke path |
+| M3 dumper probe | salience |
+| M4a kjenner `_probe.html` | namespace-lekkasje |
+| K1 feil fil / WS-kutt | kode-loop |
 | K2 glemmer K1 | skriving/recall av ny feature |
 
-Etter M+K: si ifra, så leser vi sqlite/Kuzu sammen.
+Etter hver runde: lim sys+svar her, så sjekker vi sqlite/Kuzu.
