@@ -1,0 +1,32 @@
+{
+  "status": "ran",
+  "iface": "lo",
+  "duration_s": 8,
+  "raw_rows": 28,
+  "kept_synack": 28,
+  "hidden_raw": 28,
+  "hidden_kept": 8,
+  "drop": {
+    "scan_self": 0,
+    "noise_port": 0,
+    "other": 0
+  },
+  "synack_ports": [
+    5173,
+    6333,
+    6379,
+    8788,
+    9100,
+    9101,
+    9224,
+    42745
+  ],
+  "vs_nmap": "match",
+  "vs_ss": "match",
+  "classes": {
+    "hidden_listen": 0,
+    "extra": 0,
+    "confirm": 8,
+    "ephemeral": 0
+  }
+}

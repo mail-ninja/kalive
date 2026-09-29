@@ -289,6 +289,10 @@ def _tool_names(state: dict) -> list[str]:
 def _rule_one(state: Any, qid: str, spec: dict) -> dict:
     typ = (spec.get("type") or "noul").lower()
     st = state if isinstance(state, dict) else {"query": str(state)}
+    if st.get("protocol") == "hiroshima":
+        from .hiroshima_decide import rule_one as hiro_rule
+
+        return hiro_rule(st, qid, spec)
     query = str(st.get("query") or st.get("user") or "")
     hits = st.get("hits") or []
     names = _tool_names(st)

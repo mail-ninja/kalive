@@ -8,7 +8,7 @@ Kalived er to rom: Arbeid (kode) og Hiroshima (host-SOC på én Kali-laptop). Hi
 
 1. **Miljøklasse auto-merkes.** Ny SSID / ny default-rute / ny DNS blir `env_shift` og vises i skuffen. ALERT krever dual-source eller hard artefakt oppå det.
 2. **Falco etter H4.** Auditd + eksisterende huntere først. Én eBPF-sensor (Falco, container-regler av) når rolling egress-watch er grønn.
-3. **Denne fila er H0.** H1 (porten på eksisterende scan-digest) er neste kode. Si GO på H1 når spekken er ok.
+3. **Denne fila er H0.** H1 (porten på eksisterende scan-digest) er i treet 2026-09-29.
 
 SSID **Gal** (wlan0 `10.125.19.203/24`, IPv6 `2001:2020:8351:7f87::/64`) er **delt nett fra operatorens telefon**. Klasse: `tether`. Ikke campus, ikke `travel`.
 
@@ -259,9 +259,11 @@ Levert 2026-09-29. Tester: [CHAT-TESTS.md](CHAT-TESTS.md) avsnitt H.
 
 ### H1 — Porten på eksisterende scan
 
-Etter `kalived-ctl scan` (cockpit-jobb ferdig, og ved `GET /v1/hiroshima/verdict` hvis `protocol.json` mangler): bygg digest fra snapshot → `decide(hiroshima_questions)` → skriv `logs/status/<stamp>/protocol.json` → engram i `signal` (`kind=decide`). Skuffen viser `class`, `env.class`, `src`.
+**I treet 2026-09-29.** Etter `kalived-ctl scan` (cockpit-jobb ferdig) og ved `GET /v1/hiroshima/verdict` (cache hvis `protocol.json` er nyere enn `verdict.json`; `?port=true` tvinger): digest → `decide()` (Jev 1×4s, ingen Mercury, rules-fallback) → `logs/status/<stamp>/protocol.json` → engram i `signal` (`kind=decide`). Skuffen viser `class`, `env.class`, SSID, `src`, playbook og `sensor_gaps`.
 
-Filer (plan): `cockpit/backend/app/hiroshima.py` (kall etter reap/done), ny `hiroshima_decide.py` eller spørsmålssett i `decide.py`, `Hiroshima.svelte` (rad under verdict), `kalived-advise.py` (env-felt når H3; i H1 kan env være `unknown`).
+Filer: `cockpit/backend/app/hiroshima_decide.py`, hook i `decide.py`, reap/GET i `hiroshima.py`, `hiroshima_verdict` i `tools.py`, rad i `Hiroshima.svelte`, fixture `scripts/tests/protocol_h1.py`.
+
+Env: seed `Gal→tether`; valgfri overlay `~/.config/kalived/env_class.toml` (0600, ikke git). Live mot `2026-09-29_112349`: `class=env_shift`, `env.class=tether`, `ssid=Gal`, `src=rules`, `playbook=aide-init`, `dual=0.08`, scan-verdict WARN urørt, ROOT-RKH/TAINT i `sensor_gaps`.
 
 Ikke: live capture, Falco, ny agent, auto-ban.
 
@@ -313,7 +315,7 @@ eve.json på aktiv uplink hvis H4/H5 misser kjente signaturer. Ingen pcap-dump. 
 | PR | Tittel | Filer | Avhenger |
 |---|---|---|---|
 | 0 | Spekk Hiroshima-protokoll | `docs/HIROSHIMA.md`, CHAT-TESTS, NOW, KART, NEXT, JEV, README | — |
-| 1 | H1 port på scan-digest | `hiroshima.py`, `decide.py` / `hiroshima_decide.py`, `Hiroshima.svelte`, evt. advise | 0 |
+| 1 | H1 port på scan-digest | `hiroshima.py`, `decide.py`, `hiroshima_decide.py`, `Hiroshima.svelte`, fixture | 0 — i treet 2026-09-29 |
 | 2 | H2 kandidat + graf | `memory.py` kanter, signal-engrams, Mercury-gren | 1 |
 | 3 | H3 env_class + isolate-dst | `env_class.toml` schema, playbook, skuff-retag | 1 |
 | 4 | H4 egress-watch | ctl-binær/script, ringbuffer, timer-oneshot | 1–2 |
@@ -344,4 +346,4 @@ Hver PR mergebar alene. Scan-scripts i `/usr/local` oppdateres bare via `install
 - Hash vs familie for SNI: H4.
 - `ai_enabled` default for interaktiv scan vs timer: behold config-default `false` for timer; cockpit-H1 kan kalle `decide()` når Gateway-nøkkel finnes (samme som minne-gaten).
 
-Når H0 er i treet: neste kode er **H1** mot dagens WARN-digest (Gal/tether).
+Når H1 er i treet: neste kode er **H2** (kandidat-ring + Mercury på `candidate`).

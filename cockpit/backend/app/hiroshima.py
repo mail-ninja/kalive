@@ -68,6 +68,29 @@ def _read_verdict(snap: Path) -> dict:
     return doc
 
 
+def _attach_protocol(doc: dict, snap: Path, *, refresh: bool = False) -> dict:
+    try:
+        from .hiroshima_decide import ensure_protocol
+
+        proto = ensure_protocol(snap, refresh=refresh)
+    except Exception as e:
+        doc["protocol_error"] = str(e)[:200]
+        return doc
+    doc["protocol"] = {
+        "class": proto.get("class"),
+        "env": proto.get("env"),
+        "src": proto.get("src"),
+        "playbook": proto.get("playbook"),
+        "ours": proto.get("ours"),
+        "dual": proto.get("dual"),
+        "severity": proto.get("severity"),
+        "sensor_gaps": proto.get("sensor_gaps") or [],
+        "ms": proto.get("ms"),
+        "stamp": proto.get("stamp"),
+    }
+    return doc
+
+
 def _alive(pid: int) -> bool:
     try:
         os.kill(pid, 0)
@@ -191,6 +214,15 @@ def _reap(j: dict) -> None:
         proc = j.get("proc")
         code = proc.poll() if proc is not None else None
         _close_job(j, "done", code=code)
+        if j.get("name") == "scan":
+            snap = latest_snapshot()
+            if snap:
+                try:
+                    from .hiroshima_decide import ensure_protocol
+
+                    ensure_protocol(snap, refresh=True)
+                except Exception:
+                    pass
         log = Path(j.get("log") or "")
         text = ""
         if log.is_file():
@@ -402,11 +434,11 @@ def health():
 
 
 @router.get("/verdict")
-def verdict():
+def verdict(port: bool = False):
     snap = latest_snapshot()
     if not snap:
         raise HTTPException(404, "ingen snapshot")
-    return _read_verdict(snap)
+    return _attach_protocol(_read_verdict(snap), snap, refresh=port)
 
 
 @router.get("/snapshots")

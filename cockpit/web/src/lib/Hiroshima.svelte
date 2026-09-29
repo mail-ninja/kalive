@@ -4,11 +4,21 @@
   import Term from './Term.svelte'
 
   type Finding = { severity?: string; id?: string; title?: string; detail?: string }
+  type Protocol = {
+    class?: string
+    src?: string
+    playbook?: string
+    ours?: number
+    dual?: number
+    sensor_gaps?: string[]
+    env?: { class?: string; ssid?: string | null; iface?: string | null }
+  }
   type Verdict = {
     verdict?: string
     stamp?: string
     exit_code?: number
     findings?: Finding[]
+    protocol?: Protocol
   }
 
   let doc = $state<Verdict | null>(null)
@@ -92,6 +102,7 @@
   })
 
   const word = $derived(doc?.verdict || '—')
+  const proto = $derived(doc?.protocol)
 </script>
 
 <div class="flex h-full min-h-0 flex-col bg-ink">
@@ -106,6 +117,14 @@
           {doc?.stamp || 'ingen snapshot'}{#if doc?.exit_code != null}
             · exit {doc.exit_code}{/if}
         </p>
+        {#if proto}
+          <p class="mb-3 text-xs text-paper/70">
+            port {proto.class || '—'}{proto.env?.class ? ` · ${proto.env.class}` : ''}{proto.env?.ssid ? ` · ${proto.env.ssid}` : ''} · src={proto.src || '—'}{proto.playbook ? ` · ${proto.playbook}` : ''}
+          </p>
+          {#if proto.sensor_gaps?.length}
+            <p class="mb-3 text-xs text-warn">{proto.sensor_gaps.join(' · ')}</p>
+          {/if}
+        {/if}
         <div class="mb-3 flex flex-wrap items-center gap-2">
           <button class="rounded-full bg-paper px-3 py-1 text-sm text-ink disabled:opacity-50" disabled={scanning} onclick={scan}>
             {scanning ? 'scanner…' : 'Kjør scan'}

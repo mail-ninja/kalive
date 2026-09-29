@@ -1,0 +1,21 @@
+{
+  "window_h": 24,
+  "lines": 16017,
+  "block": 459,
+  "allow": 3428,
+  "allow_dns_proton": 180,
+  "dropped_noise": 10145,
+  "scans": [],
+  "floods": [],
+  "hits_listen": [],
+  "top_block_dpt": [
+    3702,
+    59216,
+    54325,
+    48140,
+    58068,
+    47054,
+    38240,
+    44900
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "schema": 1,
+  "verdict": "WARN",
+  "exit_code": 1,
+  "stamp": "2026-09-29_112349",
+  "sudo": 1,
+  "findings": [
+    {
+      "severity": "INFO",
+      "id": "NET-UFW-NOISE",
+      "title": "UFW 24t: 16017 linjer (block=459 allow=3428) — støy, ikke angrep",
+      "source": "ufw_digest.json"
+    },
+    {
+      "severity": "INFO",
+      "id": "PERS-SUID",
+      "title": "Kjent nettleser-sandbox SUID: /opt/brave.com/brave/chrome-sandbox",
+      "source": "hunt_suid_extra.txt"
+    },
+    {
+      "severity": "WARN",
+      "id": "FIM-AIDE",
+      "title": "AIDE endret: /etc/systemd/system /etc/systemd/system/multi-user.target.wants /etc/systemd/system/snapd.mounts.target.wants /usr/local/lib/kalived/playbooks/rkhunter.conf.local /usr",
+      "source": "aide_check.txt"
+    },
+    {
+      "severity": "INFO",
+      "id": "ROOT-TAINT",
+      "title": "kernel_taint.txt mangler",
+      "source": "kernel_taint.txt"
+    },
+    {
+      "severity": "INFO",
+      "id": "ROOT-RKH",
+      "title": "rkhunter-output mangler (kjør playbooks/rkhunter-setup.sh)",
+      "source": "hunt_rkhunter.txt"
+    },
+    {
+      "severity": "INFO",
+      "id": "ROOT-RKH",
+      "title": "chkrootkit-output mangler",
+      "source": "hunt_chkrootkit.txt"
+    },
+    {
+      "severity": "INFO",
+      "id": "PROC-HIDDEN-NOISE",
+      "title": "Skjulte PID-kandidater filtrert: hidden_raw=3 hidden_kept=0",
+      "source": "hunt_hidden_drop.txt"
+    },
+    {
+      "severity": "INFO",
+      "id": "PCAP-NOISE",
+      "title": "lo-burst: raw=28 synack_ports=8 vs_nmap=match vs_ss=match",
+      "source": "hunt_pcap_summary.json"
+    }
+  ]
+}

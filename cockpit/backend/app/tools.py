@@ -55,7 +55,7 @@ def hiroshima_verdict(_args: dict) -> dict:
     snap = h.latest_snapshot()
     if not snap:
         return {"error": "ingen snapshot"}
-    doc = h._read_verdict(snap)
+    doc = h._attach_protocol(h._read_verdict(snap), snap)
     findings = doc.get("findings") or []
     slim = [
         {"severity": f.get("severity"), "id": f.get("id"), "title": f.get("title")}
@@ -67,6 +67,7 @@ def hiroshima_verdict(_args: dict) -> dict:
         "verdict": doc.get("verdict"),
         "exit_code": doc.get("exit_code"),
         "findings": slim,
+        "protocol": doc.get("protocol"),
     }
 
 
