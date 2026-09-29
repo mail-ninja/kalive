@@ -283,7 +283,11 @@ Paste: **H2** i CHAT-TESTS.
 
 ### H3 — Miljøklasse + isolasjon
 
-Les/skriv `env_class.toml`. Seed `Gal=tether`. Skuffen viser klasse. Playbook `isolate-dst` + `kill-pid`. Retag i UI.
+**I treet 2026-09-29.** `~/.config/kalived/env_class.toml` (0600) leses/skrives; seed `Gal=tether`. Skuffen har retag home|travel|tether. Confirm (to klikk) kjører `kalived-ctl` uten ekstra argv: `aide-init`, `rkhunter-setup`, `isolate-dst` (UFW deny-out mot **unknown** ESTAB-dst fra snapshot, rollback-fil), `isolate-undo`, `kill-pid` (exe-match, ikke ours). Act-fil `act.json` 0600 — dest kommer ikke på kommandolinja.
+
+NOPASSWD krever `install-kalived-helper.sh` + `install-nopasswd-ctl.sh` (passord én gang). Før det: sudo -n feiler, hint i xterm. `isolate-dst` kjører ikke i H3-verifikasjon mot Gal (ingen unknown i ringen).
+
+Filer: `playbooks/isolate-dst.sh`, `isolate-undo.sh`, `kill-pid.sh`, `scripts/lib/hiroshima_act.py`, ctl-subkommandoer, `GET/PUT /v1/hiroshima/env`, Confirm-knapper i `Hiroshima.svelte`.
 
 ### H4 — Rolling egress-watch
 
@@ -325,7 +329,7 @@ eve.json på aktiv uplink hvis H4/H5 misser kjente signaturer. Ingen pcap-dump. 
 | 0 | Spekk Hiroshima-protokoll | `docs/HIROSHIMA.md`, CHAT-TESTS, NOW, KART, NEXT, JEV, README | — |
 | 1 | H1 port på scan-digest | `hiroshima.py`, `decide.py`, `hiroshima_decide.py`, `Hiroshima.svelte`, fixture | 0 — i treet 2026-09-29 |
 | 2 | H2 kandidat + graf | `memory.py` kanter, signal-engrams, Mercury-gren | 1 — i treet 2026-09-29 |
-| 3 | H3 env_class + isolate-dst | `env_class.toml` schema, playbook, skuff-retag | 1 |
+| 3 | H3 env_class + isolate-dst | toml, playbooks, ctl, skuff-retag/Confirm | 1 — i treet 2026-09-29 |
 | 4 | H4 egress-watch | ctl-binær/script, ringbuffer, timer-oneshot | 1–2 |
 | 5 | H5 Falco host-regler | playbook install, JSON→kandidat | 4 |
 | 6 | H6 Suricata (valgfri) | playbook, eve-ingest | 4 |
@@ -350,8 +354,7 @@ Hver PR mergebar alene. Scan-scripts i `/usr/local` oppdateres bare via `install
 
 ## Åpne (ikke blokkere H1)
 
-- Retag-UI for SSID: H3.
 - Hash vs familie for SNI: H4.
 - `ai_enabled` default for interaktiv scan vs timer: behold config-default `false` for timer; cockpit-H1 kan kalle `decide()` når Gateway-nøkkel finnes (samme som minne-gaten).
 
-Når H2 er i treet: neste kode er **H3** (env_class.toml + isolate-dst + retag).
+Når H3 er i treet: neste kode er **H4** (rolling egress-watch). Helper-kopi av ctl/playbooks krever passord én gang.

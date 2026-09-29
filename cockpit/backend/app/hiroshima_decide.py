@@ -155,9 +155,35 @@ def _json(path: Path) -> dict:
     return raw if isinstance(raw, dict) else {}
 
 
+ENV_CLASSES = ("home", "travel", "tether")
+
+
+def env_class_path() -> Path:
+    return Path.home() / ".config/kalived/env_class.toml"
+
+
+def _overlay_block(data: dict, name: str) -> str | None:
+    block = data.get("ssid") or {}
+    if not isinstance(block, dict):
+        return None
+    raw = block.get(name)
+    if raw is None:
+        for k, v in block.items():
+            if str(k).lower() == name.lower():
+                raw = v
+                break
+    if isinstance(raw, dict):
+        c = str(raw.get("class") or "").strip().lower()
+    else:
+        c = str(raw or "").strip().lower()
+    if c in ENV_CLASSES:
+        return c
+    return None
+
+
 def _overlay_ssid(name: str) -> str | None:
-    p = Path.home() / ".config/kalived/env_class.toml"
-    if not p.is_file():
+    p = env_class_path()
+    if not p.is_file() or not name:
         return None
     try:
         import tomllib
@@ -165,12 +191,59 @@ def _overlay_ssid(name: str) -> str | None:
         data = tomllib.loads(p.read_text(encoding="utf-8"))
     except Exception:
         return None
-    block = (data.get("ssid") or {}).get(name) or (data.get("ssid") or {}).get(name.lower())
-    if isinstance(block, dict):
-        c = str(block.get("class") or "").strip().lower()
-        if c in ("home", "travel", "tether"):
-            return c
-    return None
+    if not isinstance(data, dict):
+        return None
+    return _overlay_block(data, name)
+
+
+def load_env_overlay() -> dict[str, str]:
+    p = env_class_path()
+    out: dict[str, str] = {}
+    if not p.is_file():
+        return out
+    try:
+        import tomllib
+
+        data = tomllib.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        return out
+    block = (data or {}).get("ssid") or {}
+    if not isinstance(block, dict):
+        return out
+    for k, v in block.items():
+        if isinstance(v, dict):
+            c = str(v.get("class") or "").strip().lower()
+        else:
+            c = str(v or "").strip().lower()
+        if c in ENV_CLASSES:
+            out[str(k)] = c
+    return out
+
+
+def write_env_overlay(ssid: str, klass: str) -> dict[str, str]:
+    klass = str(klass or "").strip().lower()
+    ssid = str(ssid or "").strip()[:64]
+    if klass not in ENV_CLASSES:
+        raise ValueError("class må være home|travel|tether")
+    if not ssid or any(ch in ssid for ch in ("/", "\\", "\n", "\r", "[", "]")):
+        raise ValueError("ugyldig ssid")
+    cur = load_env_overlay()
+    cur[ssid] = klass
+    if not any(k.lower() == "gal" for k in cur):
+        cur["Gal"] = "tether"
+    lines = ["# kalived env class. chmod 600. Ikke git.", "[ssid]"]
+    for k in sorted(cur, key=str.lower):
+        key = k if re.fullmatch(r"[A-Za-z0-9_-]+", k) else json.dumps(k)
+        lines.append(f'{key} = "{cur[k]}"')
+    text = "\n".join(lines) + "\n"
+    p = env_class_path()
+    p.parent.mkdir(parents=True, exist_ok=True)
+    tmp = p.with_suffix(".toml.tmp")
+    tmp.write_text(text, encoding="utf-8")
+    os.chmod(tmp, 0o600)
+    tmp.replace(p)
+    os.chmod(p, 0o600)
+    return cur
 
 
 def env_from_snapshot(snap: Path) -> dict[str, Any]:
@@ -314,7 +387,10 @@ def dst_family(addr: str) -> str:
         return "loopback"
     if ip in ipaddress.ip_network("10.2.0.0/16"):
         return "Proton"
-    if ip.is_private or ip.is_link_local:
+    if ip.is_link_local:
+        return "private"
+    lan = ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "100.64.0.0/10", "fc00::/7")
+    if any(ip in ipaddress.ip_network(n) for n in lan):
         return "private"
     return "unknown"
 
@@ -329,8 +405,6 @@ def flow_family(comm: str, addr: str, port: int) -> str:
     if c in BROWSER_COMM:
         return "browser"
     if int(port) in COCKPIT_PORTS:
-        return "cockpit"
-    if c in ("uvicorn", "python3", "python3.14", "node", "mainthread"):
         return "cockpit"
     return "unknown"
 

@@ -24,7 +24,15 @@ JOB_DIR = Path.home() / ".config/kalived/memory/_hiroshima"
 RUNS = {
     "scan": ["sudo", "-n", "kalived-ctl", "scan"],
     "defs": ["sudo", "-n", "kalived-ctl", "defs"],
+    "aide-init": ["sudo", "-n", "kalived-ctl", "aide-init"],
+    "rkhunter-setup": ["sudo", "-n", "kalived-ctl", "rkhunter-setup"],
+    "isolate-dst": ["sudo", "-n", "kalived-ctl", "isolate-dst"],
+    "isolate-undo": ["sudo", "-n", "kalived-ctl", "isolate-undo"],
+    "kill-pid": ["sudo", "-n", "kalived-ctl", "kill-pid"],
 }
+ACT_PATH = Path.home() / ".config" / "kalived" / "act.json"
+ROLLBACK_PATH = Path.home() / ".config" / "kalived" / "isolate-rollback.json"
+PLAYBOOK_RUNS = frozenset({"aide-init", "rkhunter-setup", "isolate-dst", "isolate-undo", "kill-pid"})
 
 router = APIRouter(prefix="/v1/hiroshima", tags=["hiroshima"])
 
@@ -116,6 +124,8 @@ def _attach_protocol(doc: dict, snap: Path, *, refresh: bool = False) -> dict:
             if merc
             else None
         ),
+        "rollback": ROLLBACK_PATH.is_file(),
+        "isolatable": any(x.get("dst_family") == "unknown" for x in ring),
     }
     return doc
 
@@ -252,6 +262,22 @@ def _reap(j: dict) -> None:
                     ensure_protocol(snap, refresh=True)
                 except Exception:
                     pass
+        if j.get("name") in PLAYBOOK_RUNS:
+            try:
+                from .memory import remember_engram
+
+                remember_engram(
+                    "signal",
+                    "playbook_run",
+                    {
+                        "protocol": "hiroshima",
+                        "name": j.get("name"),
+                        "exit_code": code,
+                        "stamp": latest_snapshot().name if latest_snapshot() else None,
+                    },
+                )
+            except Exception:
+                pass
         log = Path(j.get("log") or "")
         text = ""
         if log.is_file():
@@ -357,13 +383,27 @@ def ensure_watch() -> None:
         t.start()
 
 
-def start_named(name: str, confirm: bool) -> dict:
+def _write_act(doc: dict) -> None:
+    ACT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    tmp = ACT_PATH.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(doc, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    os.chmod(tmp, 0o600)
+    tmp.replace(ACT_PATH)
+    os.chmod(ACT_PATH, 0o600)
+
+
+def start_named(name: str, confirm: bool, act: dict | None = None) -> dict:
     ensure_watch()
     if not confirm:
         return {"error": "confirm=true kreves"}
     argv = RUNS.get(name)
     if not argv:
         return {"error": f"ukjent run: {name}", "have": sorted(RUNS)}
+    if act:
+        try:
+            _write_act({"op": name, **act})
+        except OSError as e:
+            return {"error": f"act.json: {e}"}
     with _lock:
         for j in _jobs.values():
             if j["name"] == name and j["status"] == "running":
@@ -527,6 +567,16 @@ class ConfirmIn(BaseModel):
 class RunIn(BaseModel):
     name: str = Field(pattern=r"^[a-z][a-z0-9_-]{0,20}$")
     confirm: bool = False
+    family: str | None = None
+    pid: int | None = None
+    exe: str | None = None
+
+
+class EnvIn(BaseModel):
+    class_: str = Field(alias="class", pattern=r"^(home|travel|tether)$")
+    ssid: str | None = None
+
+    model_config = {"populate_by_name": True}
 
 
 @router.post("/scan")
@@ -536,4 +586,77 @@ def scan(body: ConfirmIn):
 
 @router.post("/run")
 def run(body: RunIn):
-    return start_named(body.name, body.confirm)
+    extra: dict = {}
+    if body.family:
+        extra["family"] = body.family
+    if body.pid is not None:
+        extra["pid"] = int(body.pid)
+    if body.exe:
+        extra["exe"] = Path(str(body.exe)).name
+    return start_named(body.name, body.confirm, extra or None)
+
+
+@router.get("/env")
+def env_get():
+    from .hiroshima_decide import ENV_CLASSES, load_env_overlay
+
+    snap = latest_snapshot()
+    env = {}
+    if snap:
+        from .hiroshima_decide import env_from_snapshot
+
+        env = env_from_snapshot(snap)
+    return {
+        "env": env,
+        "overlay": load_env_overlay(),
+        "classes": list(ENV_CLASSES),
+        "rollback": ROLLBACK_PATH.is_file(),
+        "runs": sorted(RUNS),
+    }
+
+
+@router.put("/env")
+def env_put(body: EnvIn):
+    from .hiroshima_decide import env_from_snapshot, write_env_overlay, write_protocol, read_protocol, _digest_text
+
+    snap = latest_snapshot()
+    ssid = (body.ssid or "").strip()
+    if not ssid and snap:
+        ssid = str((env_from_snapshot(snap) or {}).get("ssid") or "")
+    if not ssid:
+        raise HTTPException(400, "ssid mangler")
+    try:
+        overlay = write_env_overlay(ssid, body.class_)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    env = env_from_snapshot(snap) if snap else {"class": body.class_, "ssid": ssid, "src": "overlay"}
+    if snap:
+        proto = read_protocol(snap)
+        if proto:
+            proto["env"] = {
+                **(proto.get("env") or {}),
+                "class": env.get("class"),
+                "ssid": env.get("ssid"),
+                "src": env.get("src"),
+            }
+            try:
+                from .memory import remember_engram
+
+                remember_engram(
+                    "signal",
+                    "env_shift",
+                    {
+                        "protocol": "hiroshima",
+                        "stamp": snap.name,
+                        "class": proto.get("class"),
+                        "env": proto.get("env"),
+                        "text": _digest_text(proto),
+                    },
+                )
+            except Exception:
+                pass
+            try:
+                write_protocol(snap, proto)
+            except OSError:
+                pass
+    return {"ok": True, "env": env, "overlay": overlay}

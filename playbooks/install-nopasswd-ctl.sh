@@ -28,7 +28,7 @@ SUDOERS=/etc/sudoers.d/kalived
 cat > "$SUDOERS" << EOF
 # kalived — NOPASSWD only for root-owned dispatcher. visudo -c on install.
 Defaults!/usr/sbin/kalived-ctl env_reset
-Cmnd_Alias KALIVED_CTL = /usr/sbin/kalived-ctl scan, /usr/sbin/kalived-ctl api, /usr/sbin/kalived-ctl defs, /usr/sbin/kalived-ctl token-fix
+Cmnd_Alias KALIVED_CTL = /usr/sbin/kalived-ctl scan, /usr/sbin/kalived-ctl api, /usr/sbin/kalived-ctl defs, /usr/sbin/kalived-ctl token-fix, /usr/sbin/kalived-ctl aide-init, /usr/sbin/kalived-ctl rkhunter-setup, /usr/sbin/kalived-ctl isolate-dst, /usr/sbin/kalived-ctl isolate-undo, /usr/sbin/kalived-ctl kill-pid
 ${OWNER} ALL=(root) NOPASSWD: KALIVED_CTL
 EOF
 chmod 440 "$SUDOERS"
@@ -51,6 +51,7 @@ echo "  sudo kalived-ctl scan    # /usr/sbin (Kali sudo PATH)"
 echo "  sudo kalived-ctl api"
 echo "  sudo kalived-ctl defs"
 echo "  sudo kalived-ctl token-fix"
+echo "  sudo kalived-ctl aide-init | rkhunter-setup | isolate-dst | isolate-undo | kill-pid"
 echo "Helper-oppdatering fra git krever FORTSATT passord:"
 echo "  sudo bash $ROOT/playbooks/install-kalived-helper.sh"
 echo "DONE"

@@ -2,8 +2,8 @@
 # Shared gate for mutating playbooks. Source after ROOT is set.
 
 kalived_latest_scan_dir() {
-  local d best="" best_meta=""
-  for d in "$ROOT"/logs/status/*/; do
+  local d best="" best_meta="" base="${KALIVED_DATA:-$ROOT}"
+  for d in "$base"/logs/status/*/; do
     [[ -f "$d/meta.txt" && -f "$d/verdict.json" ]] || continue
     grep -q '^kalived_scan=1' "$d/meta.txt" 2>/dev/null || continue
     if [[ -z "$best" || "$d" > "$best" ]]; then
@@ -40,12 +40,14 @@ kalived_require_not_alert() {
 }
 
 kalived_changelog() {
+  local dest="${KALIVED_DATA:-$ROOT}/remediation/CHANGELOG.md"
+  mkdir -p "$(dirname "$dest")"
   {
     echo ""
     echo "### $(date +%Y-%m-%d_%H%M) — $1"
     echo "$2"
-  } >> "$ROOT/remediation/CHANGELOG.md"
+  } >> "$dest"
   if [[ -n "${SUDO_USER:-}" ]]; then
-    chown "${SUDO_USER}:${SUDO_USER}" "$ROOT/remediation/CHANGELOG.md" 2>/dev/null || true
+    chown "${SUDO_USER}:${SUDO_USER}" "$dest" 2>/dev/null || true
   fi
 }

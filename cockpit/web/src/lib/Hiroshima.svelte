@@ -23,6 +23,8 @@
     env?: { class?: string; ssid?: string | null; iface?: string | null }
     ring?: RingItem[]
     mercury?: { family?: string; why?: string; playbook?: string; src?: string } | null
+    rollback?: boolean
+    isolatable?: boolean
   }
   type Verdict = {
     verdict?: string
@@ -37,6 +39,8 @@
   let scanning = $state(false)
   let jobNote = $state('')
   let split = $state(42)
+  let envClass = $state('tether')
+  let pending = $state('')
 
   async function load() {
     err = ''
@@ -49,6 +53,8 @@
         return
       }
       doc = j
+      const c = j?.protocol?.env?.class
+      if (c) envClass = c
     } catch (e) {
       err = String(e)
     }
@@ -72,27 +78,61 @@
     err = 'poll timeout — jobben kan fortsatt kjøre, sjekk /v1/hiroshima/jobs'
   }
 
-  async function scan() {
+  async function startRun(name: string, extra: Record<string, unknown> = {}) {
     scanning = true
     err = ''
-    jobNote = 'starter…'
+    jobNote = 'starter ' + name
+    pending = ''
     try {
-      const r = await fetch('/v1/hiroshima/scan', {
+      const r = await fetch('/v1/hiroshima/run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ confirm: true }),
+        body: JSON.stringify({ name, confirm: true, ...extra }),
       })
       const j = await r.json()
       if (j.error && !j.job_id) {
         err = j.error
       } else if (j.job_id) {
-        jobNote = j.note || 'kjører — får bli ferdig'
+        jobNote = j.note || name + ' kjører'
         await pollJob(j.job_id)
       }
     } catch (e) {
       err = String(e)
     }
     scanning = false
+  }
+
+  async function scan() {
+    await startRun('scan')
+  }
+
+  async function retag() {
+    err = ''
+    try {
+      const r = await fetch('/v1/hiroshima/env', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ class: envClass }),
+      })
+      const j = await r.json()
+      if (!r.ok) {
+        err = j.detail || j.error || r.statusText
+        return
+      }
+      jobNote = 'retag ' + (j.env?.ssid || '') + ' → ' + (j.env?.class || envClass)
+      await load()
+    } catch (e) {
+      err = String(e)
+    }
+  }
+
+  function confirmRun(name: string, extra: Record<string, unknown> = {}) {
+    if (pending !== name) {
+      pending = name
+      jobNote = 'Confirm ' + name + ' — trykk igjen'
+      return
+    }
+    startRun(name, extra)
   }
 
   onMount(() => {
@@ -155,6 +195,55 @@
             {scanning ? 'scanner…' : 'Kjør scan'}
           </button>
           <button class="rounded-full border border-white/15 px-3 py-1 text-sm" onclick={load}>oppdater</button>
+          {#if proto?.env?.ssid}
+            <label class="flex items-center gap-1 text-xs text-paper/60">
+              env
+              <select class="rounded-full border border-white/15 bg-ink px-2 py-1 text-paper" bind:value={envClass}>
+                <option value="home">home</option>
+                <option value="travel">travel</option>
+                <option value="tether">tether</option>
+              </select>
+            </label>
+            <button class="rounded-full border border-white/15 px-3 py-1 text-sm" disabled={scanning} onclick={retag}>
+              retag
+            </button>
+          {/if}
+          {#if proto?.playbook === 'aide-init'}
+            <button
+              class="rounded-full border border-warn/50 px-3 py-1 text-sm text-warn disabled:opacity-50"
+              disabled={scanning}
+              onclick={() => confirmRun('aide-init')}
+            >
+              {pending === 'aide-init' ? 'Confirm aide-init' : 'aide-init'}
+            </button>
+          {/if}
+          {#if proto?.sensor_gaps?.some((g) => g.includes('ROOT-RKH') || g.includes('rkhunter') || g.includes('chkrootkit'))}
+            <button
+              class="rounded-full border border-warn/50 px-3 py-1 text-sm text-warn disabled:opacity-50"
+              disabled={scanning}
+              onclick={() => confirmRun('rkhunter-setup')}
+            >
+              {pending === 'rkhunter-setup' ? 'Confirm rkhunter-setup' : 'rkhunter-setup'}
+            </button>
+          {/if}
+          {#if proto?.isolatable}
+            <button
+              class="rounded-full border border-alert/50 px-3 py-1 text-sm text-alert disabled:opacity-50"
+              disabled={scanning}
+              onclick={() => confirmRun('isolate-dst', { family: 'unknown' })}
+            >
+              {pending === 'isolate-dst' ? 'Confirm isolate unknown' : 'isolate unknown'}
+            </button>
+          {/if}
+          {#if proto?.rollback}
+            <button
+              class="rounded-full border border-white/15 px-3 py-1 text-sm disabled:opacity-50"
+              disabled={scanning}
+              onclick={() => confirmRun('isolate-undo')}
+            >
+              {pending === 'isolate-undo' ? 'Confirm undo isolate' : 'undo isolate'}
+            </button>
+          {/if}
           {#if jobNote}
             <span class="text-xs text-clean">{jobNote}</span>
           {/if}

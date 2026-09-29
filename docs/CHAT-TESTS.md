@@ -156,13 +156,19 @@ Skuffen viser `ring N · exe→familie`. Ingen mercury-rad på denne WARN (Mercu
 
 H2 live 2026-09-29 i agentkonsollen (signal, hake av): `minne-gate` 2 treff (4.5) `act=use_memory` `src=jev+rules` recall 1443 ms decide 44 ms. Svar: WARN hygiene, Gal=tether/hotspot, ikke kompromittert, F-010, dual=0.08, Neste: Ferdig. `minne-skriv` fact persist=0.75.
 
-**H3 — isolasjon signal**
+**H3 — isolasjon signal** (minne, uendret)
 
 I Arbeid, agent `build`:
 ```
 hva sa hiroshima-protokollen om Gal?
 ```
 Forvent: ingen lekkasje av `protocol.json`-engrams fra `signal` (samme regel som M4). `build` kan ha *docs/HIROSHIMA.md* fra git — det er fil, ikke SOC-minne.
+
+**H3b — retag + Confirm** (i treet 2026-09-29)
+
+Hiroshima-skuffen: dropdown env home|travel|tether + **retag**. Gal forblir tether. Knapp `aide-init` og `rkhunter-setup` synlig på denne WARN (to klikk = Confirm). `isolate unknown` **skjult** mens ringen bare har browser/loopback/xAI/private. Fail: isolate-knapp mot firefox/grok. Fail: retag uten 0600-fil i `~/.config/kalived/env_class.toml`.
+
+NOPASSWD for nye ctl-subkommandoer krever `sudo bash playbooks/install-kalived-helper.sh` og `install-nopasswd-ctl.sh` (passord). Før det er Confirm-hint xterm.
 
 **H4 — payload-vegg**
 

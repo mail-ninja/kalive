@@ -15,7 +15,7 @@ export NO_COLOR=1
 # Do not pass caller environment into scripts.
 
 if [[ "$(id -u)" -ne 0 ]]; then
-  echo "bruk: sudo kalived-ctl {scan|api|defs|token-fix}" >&2
+  echo "bruk: sudo kalived-ctl {scan|api|defs|token-fix|aide-init|rkhunter-setup|isolate-dst|isolate-undo|kill-pid}" >&2
   echo "daglig: sudo kalived-ctl scan   (exit 0/1/2/3 = CLEAN/WARN/ALERT/ERROR)" >&2
   echo "(Kali sudo PATH mangler /usr/local/sbin — binær ligger i /usr/sbin/kalived-ctl)" >&2
   exit 1
@@ -48,8 +48,23 @@ case "$cmd" in
       exit 1
     fi
     ;;
+  aide-init)
+    exec "$PREFIX/playbooks/aide-init.sh" --force
+    ;;
+  rkhunter-setup)
+    exec "$PREFIX/playbooks/rkhunter-setup.sh"
+    ;;
+  isolate-dst)
+    exec "$PREFIX/playbooks/isolate-dst.sh"
+    ;;
+  isolate-undo)
+    exec "$PREFIX/playbooks/isolate-undo.sh"
+    ;;
+  kill-pid)
+    exec "$PREFIX/playbooks/kill-pid.sh"
+    ;;
   *)
-    echo "usage: kalived-ctl {scan|api|defs|token-fix}" >&2
+    echo "usage: kalived-ctl {scan|api|defs|token-fix|aide-init|rkhunter-setup|isolate-dst|isolate-undo|kill-pid}" >&2
     exit 2
     ;;
 esac
