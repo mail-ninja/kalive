@@ -1,6 +1,6 @@
 # Chat-tester — minne, kode-loop, Hiroshima
 
-Lim inn i Arbeid (M/K) eller Hiroshima-skuffen (H). Huk av «agent får kjøre» **bare** på K-oppgavene. Hard-refresh hvis API nettopp ble restartet.
+Lim inn i Arbeid (M/K) eller Hiroshima-skuffen (H1 visning). H2-chat: agentkonsollen til venstre, agent `signal`, hake av. Huk av «agent får kjøre» **bare** på K-oppgavene. Hard-refresh hvis API nettopp ble restartet.
 
 Skriv opp: `minne-gate` (treff, act, src, ms), tools, om svaret er rett, `minne-skriv` (kind, persist, src, ms).
 
@@ -17,6 +17,13 @@ Skriv opp: `minne-gate` (treff, act, src, ms), tools, om svaret er rett, `minne-
 | K3 | **pass*** | fem backends true. `exit 6`: `|` i argv ble ekstra curl-URL. Live-vindu fikk hele JSON-bloben. |
 
 «ingen treff» i UI viser ikke src/ms; decide-engrammet i sqlite gjør det.
+
+## Resultat 2026-09-29
+
+| Test | Utfall | Kort |
+|---|---|---|
+| H1 | **pass** | skuff: `env_shift` / tether / Gal / `src=rules` / `aide-init`. WARN stående. |
+| H2 | **pass** | signal, hake av. `act=use_memory` `jev+rules`, 2 treff (4.5), ingen tools. Gal=tether, ikke ALERT, dual=0.08. |
 
 ---
 
@@ -146,6 +153,8 @@ hva slags nett er Gal, og er maskinen kompromittert?
 Forvent: telefon-hotspot / `tether` / `env_shift`. Ikke ALERT. Dual-source nei. F-010 kan nevnes som hygiene (telefon som gw), ikke som bevis på PC-implantat. AIDE-helper = egen hygiene, playbook `aide-init --force` etter helper-kopi hvis det er neste steg.
 
 Skuffen viser `ring N · exe→familie`. Ingen mercury-rad på denne WARN (Mercury bare på candidate/alert_family). Fail: IP eller cmd-linje i ring-raden. Fail: ALERT på Gal.
+
+H2 live 2026-09-29 i agentkonsollen (signal, hake av): `minne-gate` 2 treff (4.5) `act=use_memory` `src=jev+rules` recall 1443 ms decide 44 ms. Svar: WARN hygiene, Gal=tether/hotspot, ikke kompromittert, F-010, dual=0.08, Neste: Ferdig. `minne-skriv` fact persist=0.75.
 
 **H3 — isolasjon signal**
 
