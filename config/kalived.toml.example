@@ -63,5 +63,11 @@ nmap_svc_probe = true
 # 24t UFW-journal → ufw_digest.json (ikke rå logg til advisor)
 ufw_digest = true
 
+# Hiroshima-protokoll (H1+). Spekk: docs/HIROSHIMA.md
+# Overlay for SSID-klasse ligger i ~/.config/kalived/env_class.toml (ikke git).
+# Gal = tether (telefon-hotspot). Ny SSID auto-merkes travel|tether; ALERT krever dual-source.
+# protocol_after_scan = true
+# env_class_auto = true
+
 # xterm.js PTY i GUI (loopback + token). Shell som eier, ikke root.
 web_terminal = true

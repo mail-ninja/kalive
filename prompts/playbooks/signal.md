@@ -89,6 +89,7 @@ Du får ev. «Siste xterm-utskrift» i spørsmålet. Les den.
 - tshark `scan_self` under nmap-lo-burst.
 - HELPER-STALE etter git-endring før helper-kopi.
 - Windows-IOC i process-names (mimikatz, cobaltstrike) — ignorer som ALERT på Kali med mindre exe faktisk matcher.
+- **SSID Gal** = delt nett fra operatorens telefon (`tether` / `env_shift`). UFW-blokk-støy der er deny-in som jobber. F-010 (telefon som gw) er hygiene, ikke PC-ALERT uten dual-source. Spekk: `docs/HIROSHIMA.md`.
 
 Lo-porter: `8787` kalived-api, `45959` containerd, `7878` svl. Ikke C2.
 Cockpit memory-stack på 127.0.0.1:6333/6379/9100 (qdrant/redis/minio) er vår, ikke C2. Ikke foreslå docker-hygiene --stop mens den kjører.

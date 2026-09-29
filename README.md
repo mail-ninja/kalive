@@ -10,7 +10,7 @@ Dette er **ikke** Huntress, ikke et SIEM, ikke en LAN-skanner, ikke GitHub Pages
 
 Repo: [github.com/mail-ninja/kalive](https://github.com/mail-ninja/kalive) (`git remote kalive`). `origin` peker fortsatt på et eldre `wallE`-tre — ikke bland.
 
-Les mer: [docs/README.md](docs/README.md) · [docs/MEMORY.md](docs/MEMORY.md) · [docs/KART.md](docs/KART.md) · [docs/JEV.md](docs/JEV.md). Scan-kontrakt: [docs/SURFACE.md](docs/SURFACE.md).
+Les mer: [docs/README.md](docs/README.md) · [docs/MEMORY.md](docs/MEMORY.md) · [docs/KART.md](docs/KART.md) · [docs/JEV.md](docs/JEV.md) · [docs/HIROSHIMA.md](docs/HIROSHIMA.md). Scan-kontrakt: [docs/SURFACE.md](docs/SURFACE.md).
 
 ---
 
@@ -106,7 +106,7 @@ WARN = hygiene. ALERT = noe å løse, ikke whitelist uten evidens i snapshotet.
 
 Arbeid: tre flater som henger sammen — **kode** (filtre + Monaco, VS Code-følelse uten Theia), **preview** (iframe som viser det du bygger, ikke en tom ramme), **cli** (der planlegging og samtale med orchestratoren skjer, som denne Grok Build-sesjonen). Forslag: [docs/NEXT.md](docs/NEXT.md).
 
-Hiroshima: fra burst-SOC til personlig lokal sikkerhet som faktisk holder — antimalware, persistens, støy vs. funn — uten å sende livet ditt til noens sky. Den er *grei* nå. Den skal bli umulig å ignorere, ikke umulig å forstå.
+Hiroshima: burst-SOC i dag, protokoll i [docs/HIROSHIMA.md](docs/HIROSHIMA.md) (H0). Jev porter et redigert digest; payload blir på maskinen. Den er *grei* nå. Den skal bli umulig å ignorere, ikke umulig å forstå.
 
 ---
 

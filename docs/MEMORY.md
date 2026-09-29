@@ -46,6 +46,8 @@ Etter svaret: `minne-skriv: fact|artifact|noise|decision persist=0–1 src=…`.
 
 Verifisert uthenting 2026-09-28 08:26: `src=jev+rules` `act=both` `n=4`, ingen tools, riktig `_probe.html`.
 
+Hiroshima bruker **samme adapter** med annet question-sett, namespace `signal`. Spekk: [HIROSHIMA.md](HIROSHIMA.md). `kind=decide` hoppes i recall der også.
+
 ## Brukes Jev/Mercury på skriving *og* uthenting?
 
 **Samme `decide()`-adapter begge veier.** MiniLM finner like episoder. Jev (ellers Mercury, ellers rules) sier hva som *betyr noe*.
@@ -56,6 +58,7 @@ Verifisert uthenting 2026-09-28 08:26: `src=jev+rules` `act=both` `n=4`, ingen t
 | Slutt-engram (chat) | **ja, én gang** | salience / kind: fact vs støy |
 | Hvert `repo_read` | **nei** | for tregt; korte engrams holder |
 | MiniLM-vektor | **nei** | Jev rangerer ikke embeddings |
+| Hiroshima-port (H1+) | **ja, én gang per scan-vindu** | `class` / `ours` / `dual` / `playbook` på redigert digest. Se [HIROSHIMA.md](HIROSHIMA.md) |
 
 Skrive-policy: Noul `persist_hot` + Choice `kind` = `fact|artifact|noise|decision`. `noise` lagres likevel, men `recall()` dropper den når `persist_hot < 0.35`. Mutasjon og `_probe.html` kan ikke merkes `noise` (rules-veto, persist minst 0.75). `kind=decide`-logger (selve gaten) går ikke inn i prompten.
 

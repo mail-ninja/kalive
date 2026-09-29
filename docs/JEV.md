@@ -32,16 +32,9 @@ Siste test («hva var probe-appen?») viste at **terskelen vi kodet i dag allere
 
 Uavhengige tester (AIMLAPI m.fl.): Jev er **midt på treet i accuracy**, vinner på **pris og fart**. Svakest når den skal *grade* kvalitet. Prompt injection kan flytte svaret; TypeSafe sier selv at state ikke behandles som fiendtlig. Pydantic: Jev **ved siden av** deterministiske sjekker, ikke i stedet.
 
-## Hiroshima senere
+## Hiroshima
 
-Samme kontrakt, andre spørsmål:
-
-- Choice: `noise` / `candidate` / `alert_family` på tshark-digest
-- Noul: «er dette vårt eget python→Cloudflare (xAI)?»
-- Score: hvor høyt skal verdikten
-- Mercury klassifiserer fort; Jev **porter**; Grok bare ved review
-
-Én adapter, to policy-sett (kode vs SOC). Ikke to integrasjoner.
+Spekk: [HIROSHIMA.md](HIROSHIMA.md). Samme `decide()`, andre spørsmål. Sensorer eier strømmen; Jev porter et redigert digest (`noise` / `env_shift` / `candidate` / `alert_family`). Mercury bare på candidate. Grok/`signal` ved review. Én adapter, to policy-sett.
 
 ## Anbefaling: **adapter nå, live Jev når nøkkel + baseline**
 
@@ -55,7 +48,7 @@ Ikke gjør OpenRouter til hard avhengighet (loopback-først, tre trær, vi har i
    - Choice `act`: `use_memory` / `read_disk` / `both`
 3. **Policy i kode:** `keep < 0.6` → dropp; `act=use_memory` → ingen tools i første runde; logg avgjørelsen som engram `kind=decide`.
 4. **Ikke:** la Jev skrive systemprompt, velge filer, eller kjøre bash. Ikke send hele `_probe.html` som state (støy senker Jev — filtrer først, TypeSafe advarer).
-5. **Hiroshima:** samme `decide()`, annet question-sett, når du forklarer protokollen.
+5. **Hiroshima:** samme `decide()`, question-sett i [HIROSHIMA.md](HIROSHIMA.md). H0 spekk 2026-09-29; H1 er neste kode.
 
 Mål: 20 loggede `decide`-rader med menneskelig «enig/uenig». Først da er Jev-live bedre enn if/else.
 

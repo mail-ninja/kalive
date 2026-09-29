@@ -57,19 +57,13 @@ Ingen LangChain. Ingen Semantic Kernel. Samme `run_turn` + WS.
 
 ---
 
-## Hiroshima — grei nå, skal vokse
+## Hiroshima — spekk inne, H1 neste kode
 
 I dag: burst-scan, fire siler, AIDE-gate, oneshot `kalived-ctl` fra skuffen, signal som SOC-dom. Det *virker* som personlig snapshot-SOC. Det er ikke always-on EDR, og det skal ikke late som det.
 
-Vekst (senere, eget løp, ikke blandet inn i cli-v1):
+Protokoll: [HIROSHIMA.md](HIROSHIMA.md) (H0, 2026-09-29). Jev porter digest; Mercury på candidate; `signal` forklarer; ctl utfører. Gal (telefon-hotspot) = `tether`. Falco etter H4. Scan-kjernen rører vi ikke «fordi UI».
 
-- bedre støy vs. funn (python-ESTAB mot xAI er self-noise)
-- defs/IOC som faktisk mates, ikke bare filer
-- persistens og «er dette *mitt*» uten å whitelist-e ALERT
-- antimalware som **lokal** evidens, ikke sky-agent
-- samme loud UX: CLEAN/WARN/ALERT, norsk, ingen hemmeligheter i git
-
-Hiroshima skal bli vanskelig å komme utenom når du er redd for maskinen. Den skal ikke bli vanskelig å *bruke*. Scan-kjernen (`kalived-scan.sh`, siler, ctl, AIDE) rører vi ikke «fordi UI».
+Neste kode når du sier GO: **H1** — `decide()` på eksisterende scan-digest → `protocol.json` i snapshot + rad i skuffen.
 
 ---
 

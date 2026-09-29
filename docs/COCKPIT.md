@@ -43,7 +43,7 @@ Spill i iframe: HTML **på disk** via `GET /v1/workspace/raw?path=…` (f.eks. `
 | `GET /v1/agents` | register |
 | `WS /v1/ws` | multiplex chat/tools/editor/log/hiroshima |
 | `WS /v1/term` | lokal forkpty (denne uid) |
-| `GET /v1/hiroshima/verdict` | siste ekte scan fra disk |
+| `GET /v1/hiroshima/verdict` | siste ekte scan fra disk (`verdict.json`; H1+: `protocol.json` ved siden av) |
 | `POST /v1/hiroshima/scan` | oneshot `sudo -n kalived-ctl scan`, watchdog 15 min, ingen restart |
 | `GET/POST /v1/desk/preview` `/play` | iframe-innhold |
 | ` /v1/memory/{agent}/…` | Kuzu / Qdrant / SQLite / MinIO / Redis |

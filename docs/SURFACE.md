@@ -4,7 +4,7 @@ Kontrakt for **scan, findings, config og den gamle API-en**. Overordnet produkt 
 
 Skrevet 2026-09-17 etter fase 8 CLEAN; GUI-avsnitt oppdatert 2026-09-23.
 
-Cockpit (`:5173` / `:8788`) er en **klient** av `verdict.json` og `kalived-ctl`. Den er ikke et nytt deteksjonslag. `:8787` er urørt stdlib-API.
+Cockpit (`:5173` / `:8788`) er en **klient** av `verdict.json` og `kalived-ctl`. Den er ikke et nytt deteksjonslag. `:8787` er urørt stdlib-API. Protokoll (Jev-port, miljøklasse, faser): [HIROSHIMA.md](HIROSHIMA.md).
 
 ---
 

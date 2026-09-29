@@ -12,7 +12,7 @@ UI: http://127.0.0.1:5173/ · API: :8788 · minne-docker: startes med `sudo syst
 | Tool-engrams dumper hele filer (støy i recall) | Nei | Notert som minne-tuning |
 | Chip-rad build/forge/review/term/crew | Nei, forvirrer UX | Rydd når vi banker UI |
 | WS kutt midt i runde | Delvis fikset (singleton, ingen `--reload`) | Overvåk i testene |
-| Hiroshima Jev/tshark/Mercury | Nei | Neste *runde*, ikke i dag |
+| Hiroshima Jev/tshark/Mercury | Nei | **H0 spekk** [HIROSHIMA.md](HIROSHIMA.md) 2026-09-29. H1 neste kode. |
 | `repo_edit` treffer feil seksjon | Guard inne (`eeed752`) | Verifiser i UI-test |
 
 **Konklusjon:** ingen rest som må kodes før testing. Stack opp, så kart.
@@ -122,12 +122,12 @@ Minimum, UFO-ærlig:
 3. **Én synlig agent i Arbeid** (`build`). Resten i kjøredetaljer. **GRØNN** (chip-rad = build).
 4. **Dokumenterte nei:** ingen sudo, ingen push, ingen 0.0.0.0. **GRØNN** (C4).
 
-Når 2 er grønt i UI: Hiroshima-protokoll (Jev-port, tshark-evidens, Mercury-klassifisering). **2 er grønt.** Jev på *skriving* (salience, én gang per slutt-engram, ikke per tool) er i treet: [MEMORY.md](MEMORY.md).
+Når 2 er grønt i UI: Hiroshima-protokoll (Jev-port, tshark-evidens, Mercury-klassifisering). **2 er grønt.** Jev på *skriving* (salience, én gang per slutt-engram, ikke per tool) er i treet: [MEMORY.md](MEMORY.md). Protokoll H0: [HIROSHIMA.md](HIROSHIMA.md).
 
 ---
 
 ## 4. Neste
 
-1. Verifiser minne etter korte engrams: «hva var probe-appen?» skal treffe `_probe.html`, ikke en vegg av NOW.md.
-2. Auto-preview når `repo_edit` skriver `.html`.
-3. Jev: se [JEV.md](JEV.md). Anbefaling: `decide()`-adapter nå; live TypeSafe når nøkkel finnes. Hiroshima bruker samme adapter.
+1. Verifiser minne etter korte engrams: «hva var probe-appen?» skal treffe `_probe.html`, ikke en vegg av NOW.md. **GRØNN** (M1–M4).
+2. Auto-preview når `repo_edit` skriver `.html`. **GRØNN** 2026-09-28.
+3. Hiroshima H1: `decide()` på scan-digest → `protocol.json` + skuff. Spekk: [HIROSHIMA.md](HIROSHIMA.md).

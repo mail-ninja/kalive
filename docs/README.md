@@ -8,7 +8,8 @@ Kalived er to rom: **Arbeid** (kodemiljø) og **Hiroshima** (lokal SOC). Overord
 | [REVIEW.md](REVIEW.md) | Svar på arkitekturkritikken (2026-09-24): inn/ut og kompromiss |
 | [KART.md](KART.md) | **2026-09-26** minne + kode-UI: bygd, test, ønsket slutt, hull |
 | [MEMORY.md](MEMORY.md) | **Skriving og recall** — fem lag, MiniLM, Jev-gate |
-| [CHAT-TESTS.md](CHAT-TESTS.md) | Paste-tester for minne (M) og kode-loop (K) |
+| [CHAT-TESTS.md](CHAT-TESTS.md) | Paste-tester for minne (M), kode-loop (K) og Hiroshima (H) |
+| [HIROSHIMA.md](HIROSHIMA.md) | **Hiroshima-protokollen** — H0 spekk 2026-09-29, H1 neste kode |
 | [JEV.md](JEV.md) | TypeSafe Jev — research, adapter, Vercel Gateway |
 | [NOW.md](NOW.md) | Hvor vi er — Port A/B levert |
 | [PORT-A.md](PORT-A.md) | Port A (levert) |

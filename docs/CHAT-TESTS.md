@@ -1,6 +1,6 @@
-# Chat-tester — minne og kode-loop
+# Chat-tester — minne, kode-loop, Hiroshima
 
-Lim inn i Arbeid. Huk av «agent får kjøre» **bare** på K-oppgavene. Hard-refresh hvis API nettopp ble restartet.
+Lim inn i Arbeid (M/K) eller Hiroshima-skuffen (H). Huk av «agent får kjøre» **bare** på K-oppgavene. Hard-refresh hvis API nettopp ble restartet.
 
 Skriv opp: `minne-gate` (treff, act, src, ms), tools, om svaret er rett, `minne-skriv` (kind, persist, src, ms).
 
@@ -114,3 +114,45 @@ Klikk `docs/_probe.html` i treet, eller **preview fil** når den er valgt. Forve
 Etter `repo_edit` av en `.html` (hake på) skal fliken **preview** slå seg på av seg selv.
 
 Etter hver runde: lim sys+svar her, så sjekker vi sqlite/Kuzu.
+
+---
+
+## H — Hiroshima-protokoll
+
+Spekk: [HIROSHIMA.md](HIROSHIMA.md). H2 kan limes nå (signal-playbook kjenner Gal). H1 og H4 krever H1-kode. Fasit mot snapshot `2026-09-29_112349` (WARN, SSID Gal = telefon-hotspot / `tether`).
+
+Lim i **Hiroshima-skuffen** (ikke Arbeid), agent `signal` hvis chat. Ingen hake på H1a. H1b er lesing av `protocol.json`.
+
+**H1 — port på dagens digest** (krever H1-kode)
+
+Åpne Hiroshima. Last siste verdict. Forvent under CLEAN/WARN/ALERT:
+
+- `class` ∈ {`noise`, `env_shift`} — UFW 16k linjer og lo-pcap-match er støy; Gal er `tether` / `env_shift`.
+- `src=jev+rules` (eller `mercury+rules` / `rules` hvis Gateway 429).
+- `ours` høy på xAI/Brave/cockpit hvis slike ESTAB finnes.
+- Scan-verdict **WARN blir stående**. Protokollen overskriver den ikke.
+- `logs/status/<stamp>/protocol.json` finnes. Ingen pcap-payload i den fila (grep etter `frame.time` / http.host / dns.qry skal være tomt).
+
+Fail: `alert_family` på bare `NET-UFW-NOISE` + `FIM-AIDE` helper-mtime. Fail: `class=noise` som *skjuler* at rkhunter-output mangler uten å nevne sensorfeil.
+
+**H2 — Gal er tether, ikke innbrudd**
+
+```
+hva slags nett er Gal, og er maskinen kompromittert?
+```
+
+Forvent: telefon-hotspot / `tether` / `env_shift`. Ikke ALERT. Dual-source nei. F-010 kan nevnes som hygiene (telefon som gw), ikke som bevis på PC-implantat. AIDE-helper = egen hygiene, playbook `aide-init --force` etter helper-kopi hvis det er neste steg.
+
+**H3 — isolasjon signal**
+
+I Arbeid, agent `build`:
+```
+hva sa hiroshima-protokollen om Gal?
+```
+Forvent: ingen lekkasje av `protocol.json`-engrams fra `signal` (samme regel som M4). `build` kan ha *docs/HIROSHIMA.md* fra git — det er fil, ikke SOC-minne.
+
+**H4 — payload-vegg**
+
+Etter H1: `python3 -c "import json,pathlib; p=sorted(pathlib.Path('logs/status').glob('*/protocol.json'))[-1]; d=json.loads(p.read_text()); print(p, list(d)[:20], 'payload' in str(d).lower())"`
+
+Forvent: `False` for payload. State-nøkler er stamp/verdict/env/findings/procs/pcap/ufw/candidates/answers. Fail hvis full URL, journal-linje eller tshark `-V` dump ligger i JSON.
