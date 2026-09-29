@@ -8,7 +8,7 @@ Kalived er to rom: Arbeid (kode) og Hiroshima (host-SOC på én Kali-laptop). Hi
 
 1. **Miljøklasse auto-merkes.** Ny SSID / ny default-rute / ny DNS blir `env_shift` og vises i skuffen. ALERT krever dual-source eller hard artefakt oppå det.
 2. **Falco etter H4.** Auditd + eksisterende huntere først. Én eBPF-sensor (Falco, container-regler av) når rolling egress-watch er grønn.
-3. **Denne fila er H0.** H1 (porten på eksisterende scan-digest) er i treet 2026-09-29.
+3. **Denne fila er H0.** H1-porten og H2-ringen er i treet 2026-09-29.
 
 SSID **Gal** (wlan0 `10.125.19.203/24`, IPv6 `2001:2020:8351:7f87::/64`) er **delt nett fra operatorens telefon**. Klasse: `tether`. Ikke campus, ikke `travel`.
 
@@ -271,7 +271,15 @@ Paste: **H1** i CHAT-TESTS.
 
 ### H2 — Kandidat-ring + graf
 
-Objekter fra sil 4 + ESTAB + DNS + AIDE + PCAP-EXTRA. Kuzu-kanter over. Mercury på `candidate`. Recall «sett denne exe→dst før?».
+**I treet 2026-09-29.** Objekter fra sil 4 + ESTAB + DNS + AIDE + PCAP-EXTRA lander i `protocol.ring` (exe, dst-familie, port, sil — aldri IP/cmd). Kuzu: `proc:{exe} --CONNECTED--> dst:{family}`, `scan:{stamp} --USED--> detector:{id}`, digest `--ABOUT-->` detector. `seen` er Kuzu-oppslag («sett denne exe→dst før?»).
+
+Mercury-2.5 (egen gren, 8–12 ringlinjer) bare når `class ∈ {candidate, alert_family}`. Svar: `{family, why, missing_evidence, playbook}`. Gal/`env_shift` hopper over Mercury. Engrams i `signal`: `digest` og `env_shift` (recall), `decide` (hoppes), `finding` for WARN/ALERT.
+
+Filer: `hiroshima_decide.py` (ring, mercury, graph), `memory.py` (`entity_id`, `graph_linked`), `Hiroshima.svelte` (ring-rad), fixture `scripts/tests/protocol_h2.py`.
+
+Live mot `2026-09-29_112349`: ring med ESTAB-flows (browser/loopback/cockpit) + FIM-AIDE + private DNS, `mercury=null`, `firefox-esr CONNECTED browser`.
+
+Paste: **H2** i CHAT-TESTS.
 
 ### H3 — Miljøklasse + isolasjon
 
@@ -316,7 +324,7 @@ eve.json på aktiv uplink hvis H4/H5 misser kjente signaturer. Ingen pcap-dump. 
 |---|---|---|---|
 | 0 | Spekk Hiroshima-protokoll | `docs/HIROSHIMA.md`, CHAT-TESTS, NOW, KART, NEXT, JEV, README | — |
 | 1 | H1 port på scan-digest | `hiroshima.py`, `decide.py`, `hiroshima_decide.py`, `Hiroshima.svelte`, fixture | 0 — i treet 2026-09-29 |
-| 2 | H2 kandidat + graf | `memory.py` kanter, signal-engrams, Mercury-gren | 1 |
+| 2 | H2 kandidat + graf | `memory.py` kanter, signal-engrams, Mercury-gren | 1 — i treet 2026-09-29 |
 | 3 | H3 env_class + isolate-dst | `env_class.toml` schema, playbook, skuff-retag | 1 |
 | 4 | H4 egress-watch | ctl-binær/script, ringbuffer, timer-oneshot | 1–2 |
 | 5 | H5 Falco host-regler | playbook install, JSON→kandidat | 4 |
@@ -346,4 +354,4 @@ Hver PR mergebar alene. Scan-scripts i `/usr/local` oppdateres bare via `install
 - Hash vs familie for SNI: H4.
 - `ai_enabled` default for interaktiv scan vs timer: behold config-default `false` for timer; cockpit-H1 kan kalle `decide()` når Gateway-nøkkel finnes (samme som minne-gaten).
 
-Når H1 er i treet: neste kode er **H2** (kandidat-ring + Mercury på `candidate`).
+Når H2 er i treet: neste kode er **H3** (env_class.toml + isolate-dst + retag).

@@ -119,7 +119,7 @@ Etter hver runde: lim sys+svar her, så sjekker vi sqlite/Kuzu.
 
 ## H — Hiroshima-protokoll
 
-Spekk: [HIROSHIMA.md](HIROSHIMA.md). H1 er i treet. H2 kan limes nå (signal-playbook kjenner Gal). Fasit mot snapshot `2026-09-29_112349` (WARN, SSID Gal = telefon-hotspot / `tether`).
+Spekk: [HIROSHIMA.md](HIROSHIMA.md). H1 og H2 er i treet. Fasit mot snapshot `2026-09-29_112349` (WARN, SSID Gal = telefon-hotspot / `tether`).
 
 Lim i **Hiroshima-skuffen** (ikke Arbeid), agent `signal` hvis chat. Ingen hake på H1a. H1b er lesing av `protocol.json`.
 
@@ -137,13 +137,15 @@ Fail: `alert_family` på bare `NET-UFW-NOISE` + `FIM-AIDE` helper-mtime. Fail: `
 
 H1 live 2026-09-29 mot `2026-09-29_112349`: `class=env_shift`, `env=tether/Gal`, `src=rules`, `playbook=aide-init`, `dual=0.08`, WARN stående, sensor_gaps ROOT-RKH/TAINT, ingen payload.
 
-**H2 — Gal er tether, ikke innbrudd**
+**H2 — Gal er tether, ikke innbrudd** (i treet 2026-09-29)
 
 ```
 hva slags nett er Gal, og er maskinen kompromittert?
 ```
 
 Forvent: telefon-hotspot / `tether` / `env_shift`. Ikke ALERT. Dual-source nei. F-010 kan nevnes som hygiene (telefon som gw), ikke som bevis på PC-implantat. AIDE-helper = egen hygiene, playbook `aide-init --force` etter helper-kopi hvis det er neste steg.
+
+Skuffen viser `ring N · exe→familie`. Ingen mercury-rad på denne WARN (Mercury bare på candidate/alert_family). Fail: IP eller cmd-linje i ring-raden. Fail: ALERT på Gal.
 
 **H3 — isolasjon signal**
 

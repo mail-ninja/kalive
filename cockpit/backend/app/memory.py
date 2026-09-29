@@ -226,6 +226,23 @@ def path_node_id(rel: str) -> str | None:
     return "path:" + "/".join(parts)[:240]
 
 
+_ENTITY_NAME = re.compile(r"^[A-Za-z0-9._+-]{1,80}$")
+_ENTITY_KINDS = frozenset({"proc", "dst", "scan", "detector", "flow"})
+
+
+def entity_id(kind: str, name: str) -> str | None:
+    """Stable SOC node id. proc:firefox-esr, dst:browser, scan:stamp, detector:FIM-AIDE."""
+    k = str(kind or "").strip().lower()
+    if k not in _ENTITY_KINDS:
+        return None
+    n = str(name or "").strip()
+    if not _ENTITY_NAME.match(n):
+        n = re.sub(r"[^A-Za-z0-9._+-]", "", n)[:80]
+    if not n or n in (".", ".."):
+        return None
+    return f"{k}:{n}"
+
+
 def _paths_of(body: dict) -> list[str]:
     found: list[str] = []
 
@@ -364,6 +381,11 @@ def format_recall(hits: list[dict], budget: int = 1600) -> str:
         user = str(p.get("user") or "")[:220]
         asst = str(p.get("assistant") or p.get("excerpt") or p.get("text") or "")[:220]
         kind = h.get("kind") or p.get("kind") or "?"
+        if kind in ("digest", "env_shift", "finding") and not user:
+            env = p.get("env") if isinstance(p.get("env"), dict) else {}
+            user = " ".join(
+                str(x) for x in (p.get("class"), env.get("class"), env.get("ssid"), p.get("sil")) if x
+            )[:220]
         line = f"- [{kind}] {user}"
         if asst:
             line += f" → {asst}"
@@ -550,6 +572,23 @@ def graph_edge_once(agent_id: str, src: str, dst: str, kind: str, props: dict | 
     if n:
         return {"agent_id": agent_id, "src": src, "dst": dst, "kind": kind, "existed": True}
     return graph_edge(agent_id, src, dst, kind, props)
+
+
+def graph_linked(agent_id: str, src: str, dst: str, kind: str) -> bool:
+    """True if src -[:kind]-> dst already exists. False on missing graph."""
+    try:
+        _graph_init(agent_id)
+        conn = _graph_conn(agent_id)
+        result = conn.execute(
+            "MATCH (a:Entity {id: $src})-[r:Rel]->(b:Entity {id: $dst}) "
+            "WHERE r.kind = $kind RETURN count(r)",
+            {"src": src, "dst": dst, "kind": kind},
+        )
+        if result.has_next():
+            return int(result.get_next()[0] or 0) > 0
+    except Exception:
+        return False
+    return False
 
 
 def _graph_attach(agent_id: str, mid: str, kind: str, body: dict, rel_to: list) -> None:

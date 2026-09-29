@@ -4,6 +4,15 @@
   import Term from './Term.svelte'
 
   type Finding = { severity?: string; id?: string; title?: string; detail?: string }
+  type RingItem = {
+    kind?: string
+    sil?: string
+    exe?: string | null
+    dst_family?: string | null
+    port?: number | null
+    seen?: boolean
+    severity?: string
+  }
   type Protocol = {
     class?: string
     src?: string
@@ -12,6 +21,8 @@
     dual?: number
     sensor_gaps?: string[]
     env?: { class?: string; ssid?: string | null; iface?: string | null }
+    ring?: RingItem[]
+    mercury?: { family?: string; why?: string; playbook?: string; src?: string } | null
   }
   type Verdict = {
     verdict?: string
@@ -123,6 +134,20 @@
           </p>
           {#if proto.sensor_gaps?.length}
             <p class="mb-3 text-xs text-warn">{proto.sensor_gaps.join(' · ')}</p>
+          {/if}
+          {#if proto.ring?.length}
+            <p class="mb-3 text-xs text-paper/55">
+              ring {proto.ring.length} · {proto.ring
+                .map((r) => (r.exe && r.dst_family ? `${r.exe}→${r.dst_family}` : r.sil || r.kind || ''))
+                .filter(Boolean)
+                .slice(0, 8)
+                .join(' · ')}
+            </p>
+          {/if}
+          {#if proto.mercury}
+            <p class="mb-3 text-xs text-paper/70">
+              mercury {proto.mercury.family || '—'}{proto.mercury.why ? ` · ${proto.mercury.why}` : ''} · src={proto.mercury.src || '—'}
+            </p>
           {/if}
         {/if}
         <div class="mb-3 flex flex-wrap items-center gap-2">

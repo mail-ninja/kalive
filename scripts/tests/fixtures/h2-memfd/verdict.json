@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "verdict": "ALERT",
+  "exit_code": 2,
+  "stamp": "h2-memfd",
+  "findings": [
+    {
+      "severity": "ALERT",
+      "id": "PROC-MEMFD",
+      "title": "memfd exe med ESTAB"
+    }
+  ]
+}

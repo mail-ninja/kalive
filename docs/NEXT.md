@@ -57,13 +57,13 @@ Ingen LangChain. Ingen Semantic Kernel. Samme `run_turn` + WS.
 
 ---
 
-## Hiroshima — H1 i treet, H2 neste
+## Hiroshima — H2 i treet, H3 neste
 
-I dag: burst-scan, fire siler, AIDE-gate, oneshot `kalived-ctl` fra skuffen, signal som SOC-dom, H1-port på digest. Det *virker* som personlig snapshot-SOC. Det er ikke always-on EDR, og det skal ikke late som det.
+I dag: burst-scan, fire siler, AIDE-gate, oneshot `kalived-ctl` fra skuffen, signal som SOC-dom, H1-port + H2-ring/graf. Det *virker* som personlig snapshot-SOC. Det er ikke always-on EDR, og det skal ikke late som det.
 
-Protokoll: [HIROSHIMA.md](HIROSHIMA.md) (H0+H1, 2026-09-29). Jev porter digest; Mercury på candidate; `signal` forklarer; ctl utfører. Gal (telefon-hotspot) = `tether`. Falco etter H4. Scan-kjernen rører vi ikke «fordi UI».
+Protokoll: [HIROSHIMA.md](HIROSHIMA.md) (H0–H2, 2026-09-29). Jev porter digest; Mercury på candidate; `signal` forklarer; ctl utfører. Gal (telefon-hotspot) = `tether`. Falco etter H4. Scan-kjernen rører vi ikke «fordi UI».
 
-Neste kode: **H2** — kandidat-ring + graf, Mercury på `candidate`.
+Neste kode: **H3** — `env_class.toml` + isolate-dst + retag i skuffen.
 
 ---
 

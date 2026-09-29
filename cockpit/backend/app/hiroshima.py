@@ -76,6 +76,24 @@ def _attach_protocol(doc: dict, snap: Path, *, refresh: bool = False) -> dict:
     except Exception as e:
         doc["protocol_error"] = str(e)[:200]
         return doc
+    ring = []
+    for it in proto.get("ring") or []:
+        if not isinstance(it, dict):
+            continue
+        ring.append(
+            {
+                "kind": it.get("kind"),
+                "sil": it.get("sil"),
+                "exe": it.get("exe"),
+                "dst_family": it.get("dst_family"),
+                "port": it.get("port"),
+                "seen": bool(it.get("seen")),
+                "severity": it.get("severity"),
+            }
+        )
+        if len(ring) >= 12:
+            break
+    merc = proto.get("mercury") if isinstance(proto.get("mercury"), dict) else None
     doc["protocol"] = {
         "class": proto.get("class"),
         "env": proto.get("env"),
@@ -87,6 +105,17 @@ def _attach_protocol(doc: dict, snap: Path, *, refresh: bool = False) -> dict:
         "sensor_gaps": proto.get("sensor_gaps") or [],
         "ms": proto.get("ms"),
         "stamp": proto.get("stamp"),
+        "ring": ring,
+        "mercury": (
+            {
+                "family": merc.get("family"),
+                "why": merc.get("why"),
+                "playbook": merc.get("playbook"),
+                "src": merc.get("src"),
+            }
+            if merc
+            else None
+        ),
     }
     return doc
 
