@@ -1,8 +1,10 @@
-# Neste bygg — forslag (ikke startet)
+# Neste bygg — forslag
 
-Skrevet for å **rådføre** før mer kode. Ingenting her er i treet som ferdig flate.
+Skrevet for å **rådføre** før mer kode. Retningen: det feteste *lokale* kodemiljøet vi klarer, med Hiroshima som sikkerhetsrom som vokser. Ikke en omvei rundt SOC-kjernen. Ikke et nytt rammeverk.
 
-Retningen: det feteste *lokale* kodemiljøet vi klarer, med Hiroshima som sikkerhetsrom som vokser. Ikke en omvei rundt SOC-kjernen. Ikke et nytt rammeverk.
+**Landet 2026-09-30** (ikke les resten som «ikke startet»): Port A/B, MiniLM+`decide()`, HTML-preview, Hiroshima H0–H4 på verten (scan, ring, Gal=`tether`, Confirm, watch-timer). Hvor vi er: [NOW.md](NOW.md). Produkt: [../README.md](../README.md).
+
+**Neste kode:** H5 Falco (host-regler, container av). Arbeid-flatene under er delvis inne (venstre konsoll + tre + Monaco + iframe); det som gjenstår der er tettere VS Code-følelse, ikke en ny app.
 
 ---
 
@@ -59,7 +61,7 @@ Ingen LangChain. Ingen Semantic Kernel. Samme `run_turn` + WS.
 
 ## Hiroshima — H4 i treet, H5 neste
 
-I dag: burst-scan, fire siler, AIDE-gate, oneshot `kalived-ctl` fra skuffen, signal som SOC-dom, H1-port + H2-ring/graf. Det *virker* som personlig snapshot-SOC. Det er ikke always-on EDR, og det skal ikke late som det.
+I dag: burst-scan, fire siler, AIDE-gate, oneshot `kalived-ctl` fra skuffen, signal som SOC-dom, H1–H4 (ring, Gal-overlay, Confirm, rolling watch på verten). Personlig snapshot-SOC + opt-in 5-min egress. Det later ikke som always-on EDR.
 
 Protokoll: [HIROSHIMA.md](HIROSHIMA.md) (H0–H4, 2026-09-30). Jev porter digest; Mercury på candidate; `signal` forklarer; ctl utfører. Gal (telefon-hotspot) = `tether`. Overlay + Confirm isolate/aide + watch i skuffen. Falco er H5. Scan-kjernen rører vi ikke «fordi UI». Baseline-allow er merkelapp, ikke rent-host-bevis.
 
@@ -80,26 +82,17 @@ Neste kode: **H5** — Falco host-regler (container-regler av) inn i samme kandi
 
 ---
 
-## Faser (anbefalt rekkefølge)
+## Faser (Arbeid — 1–5 landet)
 
-1. **Cli-v1** — fane + `build` + glob/grep/read mot `~/kalived`. Transkript. Ingen bash ennå.
-2. **Kode-tre** — filtre i canvas-kode, Monaco åpner disk-fil, save synces.
-3. **Edit** — `repo_edit` / `repo_write` + diff i cli. Haken på.
-4. **Preview-kobling** — når HTML eller `:5173`-lignende loopback finnes, iframe følger.
-5. **Bash** — `repo_bash` bak haken, timeout, allowlist-cwd.
-6. **Hiroshima-støy** — egne PRs, egne siler. Ikke i samme sleng som cli.
+1. **Cli-v1** — landet. `build` + glob/grep/read, transkript.
+2. **Kode-tre** — landet. Monaco på disk.
+3. **Edit** — landet. `repo_edit` / `repo_write` bak haken.
+4. **Preview-kobling** — landet for workspace-HTML. Loopback-app senere.
+5. **Bash** — landet. `repo_bash` bak haken, timeout, cwd=rot.
+6. **Hiroshima** — H0–H4 landet; **H5 Falco** er neste SOC-kode.
 
-Etter (1) sitter du i noe som ligner denne sesjonen, inne i kalived. Da er det lett å kjenne om retningen er feil *før* vi bygger tre + bash.
+Gjenstår i Arbeid: tettere tre-følelse, ikke ny app. Workspace default `~/kalived`. `build` som eget id.
 
 ---
 
-## Åpne spørsmål (si ifra)
-
-1. Workspace-rot: bare `~/kalived`, eller velger du mappe?
-2. Skal cli *erstatte* venstre chat i Arbeid, eller ligge som tredje canvas-knapp ved siden av monaco/iframe?
-3. Preview av *denne* cockpiten mens vi bygger den (meta) — ja/nei?
-4. `build` som eget navn, eller skal `forge` ta repo-tools?
-
-Anbefaling herfra: **(2) cli erstatter venstre chat når du er i Arbeid** (orchestratoren *er* samtalen). Hiroshima beholder sin egen chat/verdict. Workspace default `~/kalived`. `build` som eget id. Preview meta nei i v1.
-
-Etter 2026-09-24-kritikken: se [REVIEW.md](REVIEW.md). Kort: agentkonsoll = venstre; `build` eier repo-loopen; policy-gate er kode; Groq Whisper og Jev etter at én loop er i bruk.
+Etter 2026-09-24-kritikken: [REVIEW.md](REVIEW.md). Agentkonsoll = venstre; `build` eier repo-loopen; policy-gate er kode. Jev er i minne-gaten. Whisper er ikke neste.

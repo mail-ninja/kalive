@@ -1,35 +1,33 @@
-# Nå — etter kvelds (2026-09-24)
+# Nå — 2026-09-30
 
-Port A er **inne**. Ikke mer detaljpolering før neste hopp.
+To rom på `void@kali`: **Arbeid** (lokal kode-cockpit) og **Hiroshima** (personlig host-SOC). Loopback. Tre trær. Overordnet: [../README.md](../README.md).
 
-## Hva som nettopp skjedde
+## Landet
 
-Du ba `build` forklare kalived. Første forsøk: den leste åtte docs og døde (reload/WS). Andre forsøk, med tak: to `repo_read` (README + COCKPIT) og et **ferdig svar** — to rom, loopback, tre trær, cockpit `:5173`/`:8788`. Minne-gaten skrev tool + chat. Det er loopen vi ville bevise.
+| | |
+|--|--|
+| Port A | Agentkonsoll, mappetre, Monaco på disk, minne-gate MiniLM + `decide()` |
+| Port B | `repo_bash`, HTML auto-preview |
+| Minne | Fem lag, Jev → Mercury → rules, Kuzu-kanter |
+| Hiroshima H0–H4 | Spekk, digest-port, ring+graf, env-overlay Gal=`tether`, Confirm isolate/kill/aide, 5-min egress-watch |
+| Settings | Maskin + Nøkler. `watch_timer` styrer systemd |
+| Verten | helper, nopasswd-ctl, auditd-connect, watch-timer. Siste scan `2026-09-30_093742` WARN |
 
-## Port A er ferdig nok
+Chat-tester M1–M4, K1–K3, H1–H2: [CHAT-TESTS.md](CHAT-TESTS.md).
 
-Agentkonsoll, `build`, filer på disk, mappetre, Fil/Ctrl+S, stopp, `up.sh`, minne inn og ut (hash-vektor, sqlite-nøkkelord). Hiroshima er skuff, `:8787` valgfri. Det som gjenstår der er *tuning*, ikke mer produkt.
+## Neste
 
-**Ikke nå:** flere agenter, Jev, Whisper, FindingV2, Theia, mer UI-knapper.
+1. **H5 Falco** — host-regler, container av, inn i samme kandidat-ring. Spekk: [HIROSHIMA.md](HIROSHIMA.md).
+2. H4-rester når du vil: `aide-init` etter nopasswd (AIDE WARN på `/etc/sudoers.d/kalived`); AIDE early-return gjemmer andre FIM-diff så lenge sudoers er dirty.
+3. H6 Suricata — valgfri.
+4. Port C (sandbox-VM, tale, mobil) — destinasjon.
 
-## Neste hopp (det som gjør det til et kodesystem)
+Si **GO** for H5, eller pek på en H4-rest.
 
-Kart 2026-09-26: minne+UI målt.
+## Ikke nå
 
-**Port B, én ting:** `repo_bash` — cwd=`~/kalived`, timeout 120s (maks 600), ingen sudo/git push, haken på. **I treet.** `build` kan kjøre test og linter. Dev-server og passord = PTY.
+Flere agenter, Theia, Whisper, FindingV2, strangle `:8787`, CrowdSec/Zeek, always-on tshark, auto-ban.
 
-Rett etter, samme uke, ikke samme PR:
+## Planfiler
 
-1. Minne: MiniLM + **samme `decide()` på uthenting og skriving**. Graf: `path:`-noder + `ABOUT`/`EDITED`/`USED` på samme `memory_id` som sqlite/Qdrant. Se [MEMORY.md](MEMORY.md).
-2. Preview: statisk HTML i boks. **Auto-iframe** ved `repo_edit`/klikk/lagre av `.html` (`/v1/workspace/raw`). Loopback-app senere.
-3. Hiroshima: spekk H0 + **H1–H4 i treet** (2026-09-30). Gal = telefon-hotspot → `tether`. Ring + graf + Confirm-playbooks + egress-watch. Settings: watch-timer-huke + scan-knapper. Watch-timer: chown til `KALIVED_OWNER` + config uten `HOME`. Neste: **H5 Falco**.
-
-Chat-tester: [CHAT-TESTS.md](CHAT-TESTS.md). **M1–M4 + K1–K3 2026-09-28** (K3: stack oppe, pipe i argv = exit 6). HTML auto-preview i treet. Hiroshima H1–H4 i treet; H-tester klare.
-
-Port C (sandbox-VM, NIM, tale, mobil) er destinasjon. Ikke neste.
-
-## Når du er tilbake
-
-Spes: [PORT-B.md](PORT-B.md). Si **GO** når den er ok.
-
-Planfiler: [PORT-A.md](PORT-A.md), [PORT-B.md](PORT-B.md), [KART.md](KART.md) (måling 26.sep), [REVIEW.md](REVIEW.md).
+[HIROSHIMA.md](HIROSHIMA.md) · [NEXT.md](NEXT.md) · [SURFACE.md](SURFACE.md) · [COCKPIT.md](COCKPIT.md) · [KART.md](KART.md) · [PORT-A.md](PORT-A.md) · [PORT-B.md](PORT-B.md)

@@ -1,6 +1,6 @@
 # Hiroshima-protokollen
 
-Spekk 2026-09-29. Ingen kode i denne fila. Scan-sannhet er fortsatt `logs/status/<stamp>/verdict.json`. Cockpit er klient.
+Spekk 2026-09-29, status 2026-09-30: **H0–H4 i treet og på verten.** H5 Falco er neste. Scan-sannhet er `logs/status/<stamp>/verdict.json`. Cockpit er klient. Produkt og ambisjon: [../README.md](../README.md).
 
 Kalived er to rom: Arbeid (kode) og Hiroshima (host-SOC på én Kali-laptop). Hiroshima er ikke SIEM, Huntress, LAN-scanner eller sky-EDR.
 
@@ -366,4 +366,4 @@ Hver PR mergebar alene. Scan-scripts i `/usr/local` oppdateres bare via `install
 
 - `ai_enabled` default for interaktiv scan vs timer: behold config-default `false` for timer; cockpit-H1 kan kalle `decide()` når Gateway-nøkkel finnes (samme som minne-gaten).
 
-Når H4 er i treet: neste kode er **H5** (Falco host-regler, container av). Helper-kopi av ctl/playbooks krever passord én gang.
+H4 er i treet og på verten (2026-09-30). Neste kode er **H5** (Falco host-regler, container av). Helper-kopi av ctl/playbooks krever passord etter git-endring.

@@ -9,8 +9,8 @@ Start: `bash cockpit/scripts/dev.sh`.
 ```
 http://127.0.0.1:5173
   ├── Arbeid     chat | canvas (monaco | iframe) | cockpit-PTY
-  ├── Settings   nøkler → ~/.config/kalived/env (hint, aldri full nøkkel)
-  └── Hiroshima  skuff 12–100 vw: verdict fra disk + scan-jobb + PTY
+  ├── Settings   Maskin → config.toml · Nøkler → env (hint, aldri full nøkkel)
+  └── Hiroshima  skuff: verdict + protocol + ring + watch + Confirm + PTY
 ```
 
 Hiroshima **iframes ikke** `:8787`. Den gamle API-en kan fortsatt kjøre (`sudo kalived-ctl api`) for den opprinnelige SOC-GUIen. Vi strangle-r den ikke.
@@ -21,7 +21,7 @@ Minne følger `agent_id`. Provider er munnstykke.
 
 | id | desk | Rolle |
 |----|------|--------|
-| `build` | code | repo-loop på disk (`repo_glob/grep/read/edit`) |
+| `build` | code | repo-loop på disk (`repo_glob/grep/read/edit/bash`) |
 | `crew` | code | dirigent, `ask_agent` → build/forge/review/term |
 | `forge` | code | skriver canvas; spill/app → `iframe_write` |
 | `review` | code | leser canvas |
@@ -43,11 +43,15 @@ Spill i iframe: HTML **på disk** via `GET /v1/workspace/raw?path=…` (f.eks. `
 | `GET /v1/agents` | register |
 | `WS /v1/ws` | multiplex chat/tools/editor/log/hiroshima |
 | `WS /v1/term` | lokal forkpty (denne uid) |
-| `GET /v1/hiroshima/verdict` | siste ekte scan fra disk (`verdict.json`; H1+: `protocol.json` ved siden av) |
-| `POST /v1/hiroshima/scan` | oneshot `sudo -n kalived-ctl scan`, watchdog 15 min, ingen restart |
+| `GET /v1/hiroshima/verdict` | siste ekte scan (`verdict.json` + `protocol.json`, ring, watch) |
+| `GET /v1/hiroshima/watch` | siste egress-vindu (felter, 0600) |
+| `POST /v1/hiroshima/scan` | oneshot `sudo -n kalived-ctl scan`, watchdog 15 min |
+| `POST /v1/hiroshima/run` | Confirm-playbook (`watch`, `isolate-dst`, `aide-init`, …) |
+| `GET/PUT /v1/hiroshima/env` | SSID → `home`/`travel`/`tether` |
 | `GET/POST /v1/desk/preview` `/play` | iframe-innhold |
 | ` /v1/memory/{agent}/…` | Kuzu / Qdrant / SQLite / MinIO / Redis |
 | `GET/PUT /v1/secrets` | env, write-only |
+| `GET/PUT /v1/config` | `config.toml` (watch_timer, skip_rootkit, loopback-lås) |
 
 Scan-jobber overlever WS-kutt. Når prosessen er død: `done` + stopp. Rutine = `kalived-scan.timer`, ikke agent-loop.
 

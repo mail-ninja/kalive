@@ -1,25 +1,24 @@
 # Docs
 
-Kalived er to rom: **Arbeid** (kodemiljø) og **Hiroshima** (lokal SOC). Overordnet historie og daglig bruk: [../README.md](../README.md).
+Kalived er to rom: **Arbeid** (kodemiljø) og **Hiroshima** (lokal host-SOC). Start her: [../README.md](../README.md) (mål, stack, ambisjon, hvor vi er). Rådgiver: README → NOW → HIROSHIMA, deretter SURFACE/COCKPIT ved behov.
 
 | Fil | Les når |
 |-----|---------|
-| [NEXT.md](NEXT.md) | **Neste steg** — forslag før vi koder mer. Rådfør her. |
-| [REVIEW.md](REVIEW.md) | Svar på arkitekturkritikken (2026-09-24): inn/ut og kompromiss |
-| [KART.md](KART.md) | **2026-09-26** minne + kode-UI: bygd, test, ønsket slutt, hull |
-| [MEMORY.md](MEMORY.md) | **Skriving og recall** — fem lag, MiniLM, Jev-gate |
-| [CHAT-TESTS.md](CHAT-TESTS.md) | Paste-tester for minne (M), kode-loop (K) og Hiroshima (H) |
-| [HIROSHIMA.md](HIROSHIMA.md) | **Hiroshima-protokollen** — H0–H4 i treet 2026-09-30 |
-| [JEV.md](JEV.md) | TypeSafe Jev — research, adapter, Vercel Gateway |
-| [NOW.md](NOW.md) | Hvor vi er — Port A/B levert |
-| [PORT-A.md](PORT-A.md) | Port A (levert) |
-| [PORT-B.md](PORT-B.md) | Port B — `repo_bash` (i treet) |
-| [COCKPIT.md](COCKPIT.md) | Hva som faktisk kjører på `:5173` / `:8788` i dag |
-| [SURFACE.md](SURFACE.md) | Scan-kontrakt, CLI-flagg, finding-IDs, `:8787`-ruter |
-| [../cockpit/PLAN.md](../cockpit/PLAN.md) | Teknisk cockpit-plan (Svelte, minne-lag, WS) |
+| [NOW.md](NOW.md) | **Hvor vi er** — 2026-09-30, H4 på verten, H5 neste |
+| [HIROSHIMA.md](HIROSHIMA.md) | SOC-protokoll H0–H6. H0–H4 i treet og på host |
+| [NEXT.md](NEXT.md) | Neste bygg. H5 Falco. Arbeid-flater delvis landet |
+| [SURFACE.md](SURFACE.md) | Scan-kontrakt, CLI-flagg, finding-IDs, `:8787` |
+| [COCKPIT.md](COCKPIT.md) | `:5173` / `:8788` — flater, agenter, HTTP |
+| [MEMORY.md](MEMORY.md) | Fem lag, MiniLM, Jev-gate |
+| [JEV.md](JEV.md) | TypeSafe Jev — adapter, Vercel Gateway |
+| [CHAT-TESTS.md](CHAT-TESTS.md) | Paste-tester minne (M), kode (K), Hiroshima (H) |
+| [KART.md](KART.md) | 2026-09-26 minne + kode-UI (historisk måling) |
+| [REVIEW.md](REVIEW.md) | Arkitekturkritikk 2026-09-24 |
+| [PORT-A.md](PORT-A.md) · [PORT-B.md](PORT-B.md) | Levert |
+| [../cockpit/PLAN.md](../cockpit/PLAN.md) | Teknisk cockpit-plan |
 | [../inventory/host.md](../inventory/host.md) | Denne maskinen |
 | [../checklists/](../checklists/) | fase-0 og sec-runde |
-| [../findings/](../findings/) | åpne/lukkede saker |
+| [../findings/](../findings/) | saker |
 | [../remediation/CHANGELOG.md](../remediation/CHANGELOG.md) | hva playbooks faktisk gjorde |
 
-Scan-sannhet er alltid `logs/status/<stamp>/verdict.json` og `echo $?` etter `kalived-ctl scan`. GUI finner ikke opp detektorer.
+Scan-sannhet er `logs/status/<stamp>/verdict.json` og `echo $?` etter `kalived-ctl scan`. GUI finner ikke opp detektorer. Baseline på denne verten er mistenkt.

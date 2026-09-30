@@ -2,19 +2,19 @@
 
 Kontrakt for **scan, findings, config og den gamle API-en**. Overordnet produkt og cockpit: [README.md](../README.md), [COCKPIT.md](COCKPIT.md), neste steg [NEXT.md](NEXT.md).
 
-Skrevet 2026-09-17 etter fase 8 CLEAN; GUI-avsnitt oppdatert 2026-09-23.
+Skrevet 2026-09-17 etter fase 8 CLEAN; GUI 2026-09-23; H4/watch 2026-09-30.
 
-Cockpit (`:5173` / `:8788`) er en **klient** av `verdict.json` og `kalived-ctl`. Den er ikke et nytt deteksjonslag. `:8787` er urørt stdlib-API. Protokoll (Jev-port, miljøklasse, faser): [HIROSHIMA.md](HIROSHIMA.md).
+Cockpit (`:5173` / `:8788`) er en **klient** av `verdict.json`, `protocol.json` og `kalived-ctl`. Den er ikke et nytt deteksjonslag. `:8787` er urørt stdlib-API. Protokoll: [HIROSHIMA.md](HIROSHIMA.md). Produkt: [../README.md](../README.md).
 
 ---
 
 ## 1. Hva systemet er
 
-Host-SOC for én Kali-workstation (`void@kali`). Mål: avgjøre om maskinen **allerede er kompromittert**, med tydelig CLEAN / WARN / ALERT.
+Host-SOC for én Kali-workstation (`void@kali`). Mål: avgjøre om maskinen **allerede er kompromittert**, med tydelig CLEAN / WARN / ALERT. Burst-scan + opt-in rolling egress-watch (H4).
 
 Live scan **krever root**. Testdata og `--fixture` krever ikke root.
 
-Kjent-godt snapshot: `baselines/machine/prev_snapshot.txt` → `logs/status/2026-09-17_180808`.
+Baseline på denne verten er **mistenkt** (forsøkskanin). `baselines/machine/` og `outbound_proc.allow` er merkelapper, ikke rent-host-bevis. Kjent-godt snapshot-peker: `baselines/machine/prev_snapshot.txt`.
 
 ---
 
