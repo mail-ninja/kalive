@@ -22,9 +22,9 @@ Rett etter, samme uke, ikke samme PR:
 
 1. Minne: MiniLM + **samme `decide()` på uthenting og skriving**. Graf: `path:`-noder + `ABOUT`/`EDITED`/`USED` på samme `memory_id` som sqlite/Qdrant. Se [MEMORY.md](MEMORY.md).
 2. Preview: statisk HTML i boks. **Auto-iframe** ved `repo_edit`/klikk/lagre av `.html` (`/v1/workspace/raw`). Loopback-app senere.
-3. Hiroshima: spekk H0 + **H1–H3 i treet** (2026-09-29). Gal = telefon-hotspot → `tether`. Ring + graf + Confirm-playbooks. Neste: **H4**.
+3. Hiroshima: spekk H0 + **H1–H4 i treet** (2026-09-30). Gal = telefon-hotspot → `tether`. Ring + graf + Confirm-playbooks + egress-watch. Neste: **H5 Falco**.
 
-Chat-tester: [CHAT-TESTS.md](CHAT-TESTS.md). **M1–M4 + K1–K3 2026-09-28** (K3: stack oppe, pipe i argv = exit 6). HTML auto-preview i treet. Hiroshima H1–H3 i treet; H-tester klare.
+Chat-tester: [CHAT-TESTS.md](CHAT-TESTS.md). **M1–M4 + K1–K3 2026-09-28** (K3: stack oppe, pipe i argv = exit 6). HTML auto-preview i treet. Hiroshima H1–H4 i treet; H-tester klare.
 
 Port C (sandbox-VM, NIM, tale, mobil) er destinasjon. Ikke neste.
 

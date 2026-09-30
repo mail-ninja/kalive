@@ -12,6 +12,8 @@ Kalived er to rom: Arbeid (kode) og Hiroshima (host-SOC på én Kali-laptop). Hi
 
 SSID **Gal** (wlan0 `10.125.19.203/24`, IPv6 `2001:2020:8351:7f87::/64`) er **delt nett fra operatorens telefon**. Klasse: `tether`. Ikke campus, ikke `travel`.
 
+4. **Baseline er mistenkt.** Prosjektet startet fordi operator mistenkte kluss på denne Kali-en. `outbound_proc.allow` er forventet comm-navn, ikke bevis for rent host. Alt mistenkelig skal synes og kunne fjernes. Maskinen er forsøkskanin.
+
 ---
 
 ## Hva protokollen er
@@ -291,7 +293,13 @@ Filer: `playbooks/isolate-dst.sh`, `isolate-undo.sh`, `kill-pid.sh`, `scripts/li
 
 ### H4 — Rolling egress-watch
 
-systemd-oneshot / auditd `connect` + periodisk `ss`. Ringbuffer 0600. Vindu → ett digest → ett `decide()`. tshark-burst beholdes for dual-source. Fortsatt felter.
+**I treet 2026-09-30.** `sudo kalived-ctl watch` sampler `ss` ESTAB + `ausearch -k kalived_connect` (siste 10 min). Ringbuffer + `window.json` under `~/.config/kalived/hiroshima/` modus 0600/0700. Vindu er felter: exe, dst-familie, port, n, `unmapped` (IP-familie unknown *før* comm-etikett). Aldri IP/SNI/cmd. `outbound_proc.allow` merker forventet comm — den skjuler ingenting; denne maskinen er forsøkskanin.
+
+Rules på vinduet (ingen Jev fra timer): python/shell → unknown = `alert_family`; annen unknown = `candidate`; ellers `noise`. Scan-`verdict.json` overskrives ikke. Isolate bruker fortsatt siste scan-snapshot (dest-IP). Skuff: `watch` + `uplink 30s` (Confirm). `uplink-burst` er tshark på default-rute-iface, max 30 s, `-T fields`, aldri `-i any`.
+
+Timer er opt-in: `sudo bash playbooks/install-watch-timer.sh` (5 min) etter helper. Connect-regel i `auditd-mini.rules` krever `sudo bash playbooks/auditd-mini.sh` for å laste.
+
+Filer: `scripts/kalived-watch.sh`, `kalived-uplink.sh`, `scripts/lib/hiroshima_watch.py`, `systemd/kalived-watch.{service,timer}`, `GET /v1/hiroshima/watch`, fixture `scripts/tests/protocol_h4.py`.
 
 ### H5 — Falco på host
 
@@ -330,7 +338,7 @@ eve.json på aktiv uplink hvis H4/H5 misser kjente signaturer. Ingen pcap-dump. 
 | 1 | H1 port på scan-digest | `hiroshima.py`, `decide.py`, `hiroshima_decide.py`, `Hiroshima.svelte`, fixture | 0 — i treet 2026-09-29 |
 | 2 | H2 kandidat + graf | `memory.py` kanter, signal-engrams, Mercury-gren | 1 — i treet 2026-09-29 |
 | 3 | H3 env_class + isolate-dst | toml, playbooks, ctl, skuff-retag/Confirm | 1 — i treet 2026-09-29 |
-| 4 | H4 egress-watch | ctl-binær/script, ringbuffer, timer-oneshot | 1–2 |
+| 4 | H4 egress-watch | ctl-binær/script, ringbuffer, timer-oneshot | 3 — i treet 2026-09-30 |
 | 5 | H5 Falco host-regler | playbook install, JSON→kandidat | 4 |
 | 6 | H6 Suricata (valgfri) | playbook, eve-ingest | 4 |
 
@@ -354,7 +362,6 @@ Hver PR mergebar alene. Scan-scripts i `/usr/local` oppdateres bare via `install
 
 ## Åpne (ikke blokkere H1)
 
-- Hash vs familie for SNI: H4.
 - `ai_enabled` default for interaktiv scan vs timer: behold config-default `false` for timer; cockpit-H1 kan kalle `decide()` når Gateway-nøkkel finnes (samme som minne-gaten).
 
-Når H3 er i treet: neste kode er **H4** (rolling egress-watch). Helper-kopi av ctl/playbooks krever passord én gang.
+Når H4 er i treet: neste kode er **H5** (Falco host-regler, container av). Helper-kopi av ctl/playbooks krever passord én gang.

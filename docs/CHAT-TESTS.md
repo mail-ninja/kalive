@@ -170,6 +170,12 @@ Hiroshima-skuffen: dropdown env home|travel|tether + **retag**. Gal forblir teth
 
 NOPASSWD for nye ctl-subkommandoer krever `sudo bash playbooks/install-kalived-helper.sh` og `install-nopasswd-ctl.sh` (passord). Før det er Confirm-hint xterm.
 
+**H4b — watch** (i treet 2026-09-30)
+
+Hiroshima-skuffen: linje `watch N · unknown U · unmapped M`. Knapp **watch** og **uplink 30s** (to klikk). Gal: unknown 0, unmapped kan være høy (browser mot offentlig IP) — det er synlig, ikke ALERT. Fail: IP eller SNI i watch-linjen. Fail: isolate mot firefox/grok.
+
+NOPASSWD for `watch` / `uplink-burst` krever helper + `install-nopasswd-ctl.sh`. Connect-regel: `sudo bash playbooks/auditd-mini.sh`. Timer: `sudo bash playbooks/install-watch-timer.sh`.
+
 **H4 — payload-vegg**
 
 Etter H1: `python3 -c "import json,pathlib; p=sorted(pathlib.Path('logs/status').glob('*/protocol.json'))[-1]; d=json.loads(p.read_text()); print(p, list(d)[:20], 'payload' in str(d).lower())"`

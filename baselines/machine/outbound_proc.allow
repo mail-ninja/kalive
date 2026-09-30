@@ -1,4 +1,4 @@
-# comm allowed for non-localhost ESTAB (not a mask for shells)
+# comm names expected on this Kali desktop. Label only — not a proof the host is clean.
 grok
 chromium
 chrome

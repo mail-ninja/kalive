@@ -31,7 +31,7 @@ cp -a "$ROOT/playbooks/"*.conf "$PREFIX/playbooks/" 2>/dev/null || true
 chown -R root:root "$PREFIX"
 find "$PREFIX" -type d -exec chmod 755 {} \;
 find "$PREFIX" -type f -exec chmod 644 {} \;
-chmod 755 "$PREFIX/scripts/"*.sh "$PREFIX/scripts/"*.py "$PREFIX/playbooks/"*.sh "$PREFIX/playbooks/lib/"*.sh 2>/dev/null || true
+chmod 755 "$PREFIX/scripts/"*.sh "$PREFIX/scripts/"*.py "$PREFIX/scripts/lib/"*.py "$PREFIX/playbooks/"*.sh "$PREFIX/playbooks/lib/"*.sh 2>/dev/null || true
 # No NOPASSWD on /home/void/kalived.
 echo "Helper: $PREFIX (root:root)"
 ls -ld "$PREFIX" "$PREFIX/scripts/kalived-scan.sh"

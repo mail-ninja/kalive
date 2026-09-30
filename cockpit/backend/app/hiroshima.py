@@ -6,6 +6,7 @@ import os
 import shutil
 import signal
 import subprocess
+import sys
 import threading
 import time
 import uuid
@@ -29,10 +30,22 @@ RUNS = {
     "isolate-dst": ["sudo", "-n", "kalived-ctl", "isolate-dst"],
     "isolate-undo": ["sudo", "-n", "kalived-ctl", "isolate-undo"],
     "kill-pid": ["sudo", "-n", "kalived-ctl", "kill-pid"],
+    "watch": ["sudo", "-n", "kalived-ctl", "watch"],
+    "uplink-burst": ["sudo", "-n", "kalived-ctl", "uplink-burst"],
 }
 ACT_PATH = Path.home() / ".config" / "kalived" / "act.json"
 ROLLBACK_PATH = Path.home() / ".config" / "kalived" / "isolate-rollback.json"
-PLAYBOOK_RUNS = frozenset({"aide-init", "rkhunter-setup", "isolate-dst", "isolate-undo", "kill-pid"})
+PLAYBOOK_RUNS = frozenset(
+    {
+        "aide-init",
+        "rkhunter-setup",
+        "isolate-dst",
+        "isolate-undo",
+        "kill-pid",
+        "watch",
+        "uplink-burst",
+    }
+)
 
 router = APIRouter(prefix="/v1/hiroshima", tags=["hiroshima"])
 
@@ -101,6 +114,7 @@ def _attach_protocol(doc: dict, snap: Path, *, refresh: bool = False) -> dict:
         )
         if len(ring) >= 12:
             break
+    watch = _watch_public()
     merc = proto.get("mercury") if isinstance(proto.get("mercury"), dict) else None
     doc["protocol"] = {
         "class": proto.get("class"),
@@ -126,8 +140,55 @@ def _attach_protocol(doc: dict, snap: Path, *, refresh: bool = False) -> dict:
         ),
         "rollback": ROLLBACK_PATH.is_file(),
         "isolatable": any(x.get("dst_family") == "unknown" for x in ring),
+        "watch": watch,
+        "watch_unknown": int((watch or {}).get("unknown") or 0),
     }
     return doc
+
+
+def _watch_public() -> dict | None:
+    try:
+        sys_path = str(REPO / "scripts" / "lib")
+        if sys_path not in sys.path:
+            sys.path.insert(0, sys_path)
+        from hiroshima_watch import read_window, payload_leaks_watch  # type: ignore
+    except Exception:
+        return None
+    doc = read_window()
+    if not doc:
+        return None
+    if payload_leaks_watch(doc):
+        return {"ts": doc.get("ts"), "leak": True}
+    flows = []
+    for it in doc.get("flows") or []:
+        if not isinstance(it, dict):
+            continue
+        flows.append(
+            {
+                "exe": it.get("exe"),
+                "dst_family": it.get("dst_family"),
+                "port": it.get("port"),
+                "src": it.get("src"),
+                "n": it.get("n"),
+                "unmapped": bool(it.get("unmapped")),
+            }
+        )
+        if len(flows) >= 12:
+            break
+    return {
+        "ts": doc.get("ts"),
+        "class": doc.get("class"),
+        "n": doc.get("n"),
+        "unique": doc.get("unique"),
+        "unknown": doc.get("unknown"),
+        "unmapped": doc.get("unmapped"),
+        "suspect": [str(x) for x in (doc.get("suspect") or []) if x][:8],
+        "families": doc.get("families") or {},
+        "audit": doc.get("audit"),
+        "sni": doc.get("sni") or {},
+        "iface": doc.get("iface"),
+        "flows": flows,
+    }
 
 
 def _alive(pid: int) -> bool:
@@ -266,16 +327,45 @@ def _reap(j: dict) -> None:
             try:
                 from .memory import remember_engram
 
-                remember_engram(
-                    "signal",
-                    "playbook_run",
-                    {
-                        "protocol": "hiroshima",
-                        "name": j.get("name"),
-                        "exit_code": code,
-                        "stamp": latest_snapshot().name if latest_snapshot() else None,
-                    },
-                )
+                kind = "watch" if j.get("name") in ("watch", "uplink-burst") else "playbook_run"
+                body = {
+                    "protocol": "hiroshima",
+                    "name": j.get("name"),
+                    "exit_code": code,
+                    "stamp": latest_snapshot().name if latest_snapshot() else None,
+                }
+                if kind == "watch":
+                    w = _watch_public() or {}
+                    body.update(
+                        {
+                            "class": w.get("class"),
+                            "unknown": w.get("unknown"),
+                            "unmapped": w.get("unmapped"),
+                            "n": w.get("n"),
+                            "text": f"watch {w.get('class')} unknown={w.get('unknown')} unmapped={w.get('unmapped')}",
+                        }
+                    )
+                    try:
+                        from .hiroshima_decide import stamp_graph
+
+                        stamp_graph(
+                            {
+                                "stamp": f"watch-{w.get('ts') or 'now'}",
+                                "ring": [
+                                    {
+                                        "kind": "flow",
+                                        "exe": f.get("exe"),
+                                        "dst_family": f.get("dst_family"),
+                                        "sil": "NET-WATCH",
+                                    }
+                                    for f in (w.get("flows") or [])
+                                    if f.get("exe") and f.get("dst_family")
+                                ],
+                            }
+                        )
+                    except Exception:
+                        pass
+                remember_engram("signal", kind, body)
             except Exception:
                 pass
         log = Path(j.get("log") or "")
@@ -594,6 +684,14 @@ def run(body: RunIn):
     if body.exe:
         extra["exe"] = Path(str(body.exe)).name
     return start_named(body.name, body.confirm, extra or None)
+
+
+@router.get("/watch")
+def watch_get():
+    w = _watch_public()
+    if not w:
+        return {"watch": None}
+    return {"watch": w}
 
 
 @router.get("/env")

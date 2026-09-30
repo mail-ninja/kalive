@@ -25,6 +25,19 @@
     mercury?: { family?: string; why?: string; playbook?: string; src?: string } | null
     rollback?: boolean
     isolatable?: boolean
+    watch_unknown?: number
+    watch?: {
+      ts?: string
+      class?: string
+      n?: number
+      unique?: number
+      unknown?: number
+      unmapped?: number
+      audit?: string
+      suspect?: string[]
+      iface?: string | null
+      flows?: { exe?: string | null; dst_family?: string | null; n?: number }[]
+    } | null
   }
   type Verdict = {
     verdict?: string
@@ -189,6 +202,14 @@
               mercury {proto.mercury.family || '—'}{proto.mercury.why ? ` · ${proto.mercury.why}` : ''} · src={proto.mercury.src || '—'}
             </p>
           {/if}
+          {#if proto.watch}
+            <p class="mb-3 text-xs text-paper/55">
+              watch {proto.watch.n ?? 0} · unknown {proto.watch.unknown ?? 0} · unmapped {proto.watch.unmapped ?? 0}{proto.watch.class ? ` · ${proto.watch.class}` : ''}{proto.watch.audit ? ` · audit=${proto.watch.audit}` : ''}{proto.watch.ts ? ` · ${proto.watch.ts}` : ''}
+            </p>
+            {#if proto.watch.unknown && !proto.isolatable}
+              <p class="mb-3 text-xs text-warn">watch unknown — kjør scan for isolate (snapshot eier dest)</p>
+            {/if}
+          {/if}
         {/if}
         <div class="mb-3 flex flex-wrap items-center gap-2">
           <button class="rounded-full bg-paper px-3 py-1 text-sm text-ink disabled:opacity-50" disabled={scanning} onclick={scan}>
@@ -244,6 +265,20 @@
               {pending === 'isolate-undo' ? 'Confirm undo isolate' : 'undo isolate'}
             </button>
           {/if}
+          <button
+            class="rounded-full border border-white/15 px-3 py-1 text-sm disabled:opacity-50"
+            disabled={scanning}
+            onclick={() => confirmRun('watch')}
+          >
+            {pending === 'watch' ? 'Confirm watch' : 'watch'}
+          </button>
+          <button
+            class="rounded-full border border-white/15 px-3 py-1 text-sm disabled:opacity-50"
+            disabled={scanning}
+            onclick={() => confirmRun('uplink-burst')}
+          >
+            {pending === 'uplink-burst' ? 'Confirm uplink 30s' : 'uplink 30s'}
+          </button>
           {#if jobNote}
             <span class="text-xs text-clean">{jobNote}</span>
           {/if}

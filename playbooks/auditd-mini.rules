@@ -16,6 +16,9 @@
 -w /sbin/modprobe -p x -k kalived_mod
 -w /sbin/rmmod -p x -k kalived_mod
 -a always,exit -F arch=b64 -S ptrace -k kalived_ptrace
+# H4: successful connect(). Userspace dedupes to exe→familie. No payload.
+-a always,exit -F arch=b64 -S connect -F success=1 -k kalived_connect
+-a always,exit -F arch=b32 -S connect -F success=1 -k kalived_connect
 
 # USB / root-execve: commented (desktop noise). Uncomment after 48h if quiet.
 # -a always,exit -F arch=b64 -S execve -F euid=0 -k kalived_rootexec

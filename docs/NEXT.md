@@ -57,13 +57,13 @@ Ingen LangChain. Ingen Semantic Kernel. Samme `run_turn` + WS.
 
 ---
 
-## Hiroshima — H3 i treet, H4 neste
+## Hiroshima — H4 i treet, H5 neste
 
 I dag: burst-scan, fire siler, AIDE-gate, oneshot `kalived-ctl` fra skuffen, signal som SOC-dom, H1-port + H2-ring/graf. Det *virker* som personlig snapshot-SOC. Det er ikke always-on EDR, og det skal ikke late som det.
 
-Protokoll: [HIROSHIMA.md](HIROSHIMA.md) (H0–H3, 2026-09-29). Jev porter digest; Mercury på candidate; `signal` forklarer; ctl utfører. Gal (telefon-hotspot) = `tether`. Overlay + Confirm isolate/aide i skuffen. Falco etter H4. Scan-kjernen rører vi ikke «fordi UI».
+Protokoll: [HIROSHIMA.md](HIROSHIMA.md) (H0–H4, 2026-09-30). Jev porter digest; Mercury på candidate; `signal` forklarer; ctl utfører. Gal (telefon-hotspot) = `tether`. Overlay + Confirm isolate/aide + watch i skuffen. Falco er H5. Scan-kjernen rører vi ikke «fordi UI». Baseline-allow er merkelapp, ikke rent-host-bevis.
 
-Neste kode: **H4** — rolling egress-watch (auditd connect + periodisk ss).
+Neste kode: **H5** — Falco host-regler (container-regler av) inn i samme kandidat-ring.
 
 ---
 

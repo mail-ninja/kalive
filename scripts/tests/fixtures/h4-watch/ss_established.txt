@@ -1,0 +1,4 @@
+Recv-Q Send-Q                             Local Address:Port                Peer Address:Port Process
+0      0                                  10.125.19.203:40000              198.51.100.9:443   users:(("python3",pid=9,fd=1))
+0      0                                      127.0.0.1:8788                   127.0.0.1:39028 users:(("uvicorn",pid=1,fd=1))
+0      0                                  10.125.19.203:45798              203.0.113.9:443   users:(("firefox-esr",pid=1,fd=1))

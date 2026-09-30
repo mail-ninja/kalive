@@ -1,0 +1,8 @@
+----
+time->Tue Sep 30 08:00:00 2026
+type=SOCKADDR msg=audit(1759219200.000:1): saddr=020001BBC6336409
+type=SYSCALL msg=audit(1759219200.000:1): arch=c000003e syscall=42 success=yes exit=0 pid=9 comm="python3" exe="/usr/bin/python3" key="kalived_connect"
+----
+time->Tue Sep 30 08:00:01 2026
+type=SOCKADDR msg=audit(1759219201.000:2): saddr=020001BB7F000001
+type=SYSCALL msg=audit(1759219201.000:2): arch=c000003e syscall=42 success=yes exit=0 pid=1 comm="uvicorn" exe="/usr/bin/python3" key="kalived_connect"

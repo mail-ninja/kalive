@@ -1,0 +1,13 @@
+[Unit]
+Description=kalived Hiroshima egress-watch (oneshot)
+Documentation=file:///home/void/kalived/docs/HIROSHIMA.md
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/lib/kalived/scripts/kalived-watch.sh
+Environment=NO_COLOR=1
+Environment=KALIVED_DATA=/home/void/kalived
+Environment=KALIVED_OWNER=void
+Environment=KALIVED_OWNER_HOME=/home/void
+# watch always exits 0/2; 1 unused
+SuccessExitStatus=0
