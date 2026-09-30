@@ -8,6 +8,8 @@ if [[ "$(id -u)" -ne 0 ]]; then
 fi
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/.." && pwd)"
+# shellcheck source=lib/kalived-config.sh
+source "$ROOT/scripts/lib/kalived-config.sh"
 OWNER="${KALIVED_OWNER:-${SUDO_USER:-void}}"
 OWNER_HOME="${KALIVED_OWNER_HOME:-$(getent passwd "$OWNER" | cut -d: -f6)}"
 export KALIVED_OWNER_HOME="$OWNER_HOME"
@@ -59,7 +61,5 @@ ss -tpn state established >"$TMP/ss_established.txt" 2>/dev/null || true
 export KALIVED_WATCH_IFACE="$IFACE"
 export KALIVED_WATCH_AUDIT="${KALIVED_WATCH_AUDIT:-empty}"
 python3 "$HELPER" ingest "$TMP"
-if [[ -n "${SUDO_USER:-}" ]]; then
-  chown -R "${SUDO_USER}:${SUDO_USER}" "$DEST" 2>/dev/null || true
-fi
+kalived_chown_owner_dir "$DEST"
 echo "DONE uplink-burst iface=$IFACE dur=${DUR}s dest=$DEST"

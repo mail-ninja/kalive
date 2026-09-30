@@ -6,6 +6,7 @@ Documentation=file:///home/void/kalived/docs/HIROSHIMA.md
 Type=oneshot
 ExecStart=/usr/local/lib/kalived/scripts/kalived-watch.sh
 Environment=NO_COLOR=1
+Environment=HOME=/home/void
 Environment=KALIVED_DATA=/home/void/kalived
 Environment=KALIVED_OWNER=void
 Environment=KALIVED_OWNER_HOME=/home/void

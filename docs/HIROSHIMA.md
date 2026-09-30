@@ -299,6 +299,8 @@ Rules på vinduet (ingen Jev fra timer): python/shell → unknown = `alert_famil
 
 Timer er opt-in: `sudo bash playbooks/install-watch-timer.sh` (5 min) etter helper, eller huke **Egress-watch hvert 5. min** i Settings. Av i Settings setter `watch_timer=false` og `kalived-ctl watch-timer-off`. Confirm «watch» i skuffen sampler fortsatt. Connect-regel i `auditd-mini.rules` krever `sudo bash playbooks/auditd-mini.sh` for å laste.
 
+Timer-oneshot har ingen `HOME` og ingen `SUDO_USER`. `kalived-config.sh` bruker `KALIVED_OWNER` / `KALIVED_OWNER_HOME` (unit setter begge + `HOME=`). `window.json` / `watch.jsonl` chown-es til `KALIVED_OWNER` (default `void`) etter ingest, så skuffen kan lese 0600. Settings `watch_timer=false` hopper over sampling bare når config lastes.
+
 Filer: `scripts/kalived-watch.sh`, `kalived-uplink.sh`, `scripts/lib/hiroshima_watch.py`, `systemd/kalived-watch.{service,timer}`, `GET /v1/hiroshima/watch`, fixture `scripts/tests/protocol_h4.py`.
 
 ### H5 — Falco på host

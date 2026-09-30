@@ -176,7 +176,7 @@ Settings → Maskin: huke **Egress-watch hvert 5. min**. systemd-linje enabled/a
 
 **H4b — watch** (i treet 2026-09-30)
 
-Hiroshima-skuffen: linje `watch N · unknown U · unmapped M`. Knapp **watch** og **uplink 30s** (to klikk). Gal: unknown 0, unmapped kan være høy (browser mot offentlig IP) — det er synlig, ikke ALERT. Fail: IP eller SNI i watch-linjen. Fail: isolate mot firefox/grok.
+Hiroshima-skuffen: linje `watch N · unknown U · unmapped M`. Knapp **watch** og **uplink 30s** (to klikk). Gal: unknown 0, unmapped kan være høy (browser mot offentlig IP) — det er synlig, ikke ALERT. Fail: IP eller SNI i watch-linjen. Fail: isolate mot firefox/grok. Fail: etter timer-tick er `window.json` `root:root` (skal være eier 0600) eller journal `HOME: unbound variable`.
 
 NOPASSWD for `watch` / `uplink-burst` krever helper + `install-nopasswd-ctl.sh`. Connect-regel: `sudo bash playbooks/auditd-mini.sh`. Timer: `sudo bash playbooks/install-watch-timer.sh`.
 

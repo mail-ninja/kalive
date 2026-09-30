@@ -22,6 +22,11 @@ if [[ -n "${SUDO_USER:-}" ]]; then
   home="$(getent passwd "$SUDO_USER" | cut -d: -f6)"
   sed -i "s|^Environment=KALIVED_OWNER_HOME=.*|Environment=KALIVED_OWNER_HOME=${home}|" /etc/systemd/system/kalived-watch.service
   sed -i "s|^Environment=KALIVED_DATA=.*|Environment=KALIVED_DATA=${home}/kalived|" /etc/systemd/system/kalived-watch.service
+  if grep -q '^Environment=HOME=' /etc/systemd/system/kalived-watch.service; then
+    sed -i "s|^Environment=HOME=.*|Environment=HOME=${home}|" /etc/systemd/system/kalived-watch.service
+  else
+    sed -i "/^Environment=NO_COLOR=/a Environment=HOME=${home}" /etc/systemd/system/kalived-watch.service
+  fi
 fi
 systemctl daemon-reload
 systemctl enable --now kalived-watch.timer

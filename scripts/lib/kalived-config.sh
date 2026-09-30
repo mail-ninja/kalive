@@ -1,18 +1,48 @@
 # shellcheck shell=bash
 # Load ~/.config/kalived/config.toml (or KALIVED_CONFIG). Safe subset via tomllib.
 
+# systemd oneshot has no HOME (set -u). Prefer owner getent, then KALIVED_OWNER_HOME.
+kalived_owner_home() {
+  local home="" uid
+  uid="$(id -u)"
+  if [[ "$uid" -eq 0 && -n "${SUDO_USER:-}" ]]; then
+    home="$(getent passwd "$SUDO_USER" | cut -d: -f6)"
+  elif [[ "$uid" -eq 0 && -n "${KALIVED_OWNER:-}" ]]; then
+    home="$(getent passwd "$KALIVED_OWNER" | cut -d: -f6)"
+  fi
+  if [[ -z "$home" && -n "${KALIVED_OWNER_HOME:-}" ]]; then
+    home="${KALIVED_OWNER_HOME}"
+  fi
+  if [[ -z "$home" && -n "${HOME:-}" ]]; then
+    home="${HOME}"
+  fi
+  if [[ -z "$home" ]]; then
+    home="$(getent passwd "$(id -un)" | cut -d: -f6)"
+  fi
+  printf '%s' "$home"
+}
+
 kalived_config_path() {
   if [[ -n "${KALIVED_CONFIG:-}" ]]; then
     printf '%s' "$KALIVED_CONFIG"
     return 0
   fi
-  local home="$HOME"
-  if [[ "$(id -u)" -eq 0 && -n "${SUDO_USER:-}" ]]; then
-    home="$(getent passwd "$SUDO_USER" | cut -d: -f6)"
-  elif [[ "$(id -u)" -eq 0 && -n "${KALIVED_OWNER:-}" ]]; then
-    home="$(getent passwd "$KALIVED_OWNER" | cut -d: -f6)"
+  printf '%s' "$(kalived_owner_home)/.config/kalived/config.toml"
+}
+
+# Timer has KALIVED_OWNER, no SUDO_USER. Never leave secrets root:root.
+kalived_chown_owner_dir() {
+  local dest="$1"
+  local owner="${KALIVED_OWNER:-${SUDO_USER:-void}}"
+  if [[ -z "$owner" || "$owner" == "root" ]]; then
+    echo "WARN: skip chown $dest (owner=${owner:-empty})" >&2
+    return 0
   fi
-  printf '%s' "${home}/.config/kalived/config.toml"
+  if ! id -u "$owner" >/dev/null 2>&1; then
+    echo "WARN: skip chown, unknown owner $owner" >&2
+    return 0
+  fi
+  chown -R "${owner}:${owner}" "$dest"
 }
 
 # Sets CFG_* exports. Returns 3 on invalid enum/bind.

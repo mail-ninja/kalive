@@ -61,7 +61,8 @@ Ukjent flagg → exit 3.
 | `KALIVED_OUT` | tvungen snapshot-mappe |
 | `KALIVED_STAMP` | tvungen stamp |
 | `KALIVED_SUDO` | 1 når root |
-| `KALIVED_OWNER` | chown etter root-scan (timer: `void`) |
+| `KALIVED_OWNER` | chown etter root-scan og watch-ingest (timer: `void`) |
+| `KALIVED_OWNER_HOME` | config/window-sti når systemd mangler `HOME` |
 | `KALIVED_FIXTURE` / `KALIVED_FROM_DIR` | settes av flagg |
 | `NO_COLOR` | slå av ANSI |
 | `KALIVED_AIDE_INIT_POLICY` | `clean_only` / `allow_known_warn` (default) / `always_prompt` — playbook |

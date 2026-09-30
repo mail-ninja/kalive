@@ -51,7 +51,5 @@ IFACE="$(ip -4 route show default 2>/dev/null | awk '/default/ {print $5; exit}'
 export KALIVED_WATCH_IFACE="${IFACE:-}"
 export KALIVED_WATCH_AUDIT="$audit_status"
 python3 "$HELPER" ingest "$TMP"
-if [[ -n "${SUDO_USER:-}" ]]; then
-  chown -R "${SUDO_USER}:${SUDO_USER}" "$DEST" 2>/dev/null || true
-fi
+kalived_chown_owner_dir "$DEST"
 echo "DONE watch dest=$DEST audit=$audit_status iface=${IFACE:-?}"
