@@ -18,7 +18,7 @@ Chat-tester M1–M4, K1–K3, H1–H2: [CHAT-TESTS.md](CHAT-TESTS.md).
 ## Neste
 
 1. **H5 Falco** — host-regler, container av, inn i samme kandidat-ring. Spekk: [HIROSHIMA.md](HIROSHIMA.md).
-2. H4-rester når du vil: `aide-init` etter nopasswd (AIDE WARN på `/etc/sudoers.d/kalived`); AIDE early-return gjemmer andre FIM-diff så lenge sudoers er dirty.
+2. H4 AIDE: Confirm aide-init er **scoped** (kalived-filer, ikke Proton). Live overlay etter helper-reinstall + Confirm.
 3. H6 Suricata — valgfri.
 4. Port C (sandbox-VM, tale, mobil) — destinasjon.
 

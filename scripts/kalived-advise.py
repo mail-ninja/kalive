@@ -362,7 +362,7 @@ def load_thread(path: Path) -> dict:
         return {"stamp": None, "messages": []}
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
+    except (json.JSONDecodeError, OSError):
         return {"stamp": None, "messages": []}
     if not isinstance(data, dict):
         return {"stamp": None, "messages": []}

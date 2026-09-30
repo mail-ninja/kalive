@@ -49,6 +49,7 @@ case "$cmd" in
     fi
     ;;
   aide-init)
+    # Confirm = scoped --force. Never full DB rebuild (that would hide Proton).
     exec "$PREFIX/playbooks/aide-init.sh" --force
     ;;
   rkhunter-setup)

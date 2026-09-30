@@ -237,6 +237,7 @@
             >
               {pending === 'aide-init' ? 'Confirm aide-init' : 'aide-init'}
             </button>
+            <span class="text-xs text-paper/55">fryser kalived-filer, ikke Proton</span>
           {/if}
           {#if proto?.sensor_gaps?.some((g) => g.includes('ROOT-RKH') || g.includes('rkhunter') || g.includes('chkrootkit'))}
             <button

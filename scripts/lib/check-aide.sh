@@ -1,4 +1,5 @@
 # shellcheck shell=bash
+# One finding per AIDE class. INFO does not raise. No early-return after sudoers.
 
 check_aide() {
   local f="$OUT/aide_check.txt"
@@ -6,33 +7,27 @@ check_aide() {
     add_finding INFO FIM-AIDE "AIDE-sjekk ikke i snapshotet (kjør playbooks/aide-init.sh, så ny scan)" "" "aide_check.txt"
     return 0
   fi
-  if grep -qiE 'There are no differences|AIDE found NO|Nothing to do|failed to open.*No such file' "$f"; then
-    if grep -qiE 'failed to open|No such file' "$f"; then
-      add_finding INFO FIM-AIDE "AIDE-DB mangler ennå" "$(head -5 "$f")" "aide_check.txt"
-      return 0
-    fi
+  local py
+  py="$(command -v python3 || command -v python || true)"
+  if [[ -z "$py" ]]; then
+    add_finding ERROR SCAN "python3 mangler for AIDE-klassifisering" "" "aide_check.txt"
     return 0
   fi
-  # /etc/sudoers.d/kalived is our drop-in — WARN so aide-init gate still works after install-nopasswd-ctl.
-  if grep -qE '/etc/passwd|/etc/shadow|/etc/ld.so.preload|/etc/ssh/|/usr/bin/sudo' "$f" \
-    || grep -qE 'f[+]+: /etc/sudoers$' "$f"; then
-    add_finding ALERT FIM-AIDE "AIDE: endring i identitet/persistens-fil" \
-      "$(grep -E 'passwd|shadow|preload|sudoers|/etc/ssh|usr/bin/sudo' "$f" | head -40)" "aide_check.txt"
-    return 0
-  fi
-  if grep -q '/etc/sudoers.d/kalived' "$f"; then
-    add_finding WARN FIM-AIDE "AIDE: /etc/sudoers.d/kalived (vår NOPASSWD-drop-in). Kjør aide-init for å fryse." \
-      "$(grep sudoers "$f" | head -20)" "aide_check.txt"
-    return 0
-  fi
-  if grep -q '/etc/sudoers.d/' "$f"; then
-    add_finding ALERT FIM-AIDE "AIDE: ukjent endring under /etc/sudoers.d" \
-      "$(grep sudoers "$f" | head -40)" "aide_check.txt"
-    return 0
-  fi
-  if grep -qiE 'File added|File removed|changed|Entries changed|Changed entries' "$f"; then
-    local names
-    names="$(grep -E '^f |^d |File: ' "$f" | sed 's/.*: //;s/^File: //' | grep -E '^/' | head -8 | tr '\n' ' ')"
-    add_finding WARN FIM-AIDE "AIDE endret: ${names:-se aide_check.txt}" "$(grep -E 'Added|Removed|Changed|File: |^f |^d ' "$f" | head -30)" "aide_check.txt"
+  FINDINGS_JSONL="${FINDINGS_JSONL:-$OUT/findings.jsonl}"
+  if ! "$py" - "$ROOT/scripts/lib" "$f" "$FINDINGS_JSONL" << 'PY'
+import json, sys
+from pathlib import Path
+
+sys.path.insert(0, sys.argv[1])
+from aide_classify import findings_from_report, load_scope, scope_path
+
+text = Path(sys.argv[2]).read_text(encoding="utf-8", errors="replace")
+recs = findings_from_report(text, load_scope(scope_path()))
+with open(sys.argv[3], "a", encoding="utf-8") as fh:
+    for rec in recs:
+        fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
+PY
+  then
+    add_finding ERROR SCAN "AIDE-klassifisering krasjet" "" "aide_check.txt"
   fi
 }

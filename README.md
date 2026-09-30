@@ -82,7 +82,7 @@ Live scan **må** være root. NOPASSWD mot home-scripts er en bakdør. NOPASSWD 
 ```bash
 sudo bash playbooks/install-kalived-helper.sh
 sudo bash playbooks/install-nopasswd-ctl.sh   # nye ctl-verb
-sudo bash playbooks/aide-init.sh --force      # nektes hvis siste scan er ALERT
+sudo bash playbooks/aide-init.sh --force      # scoped: kalived-filer, ikke Proton; nektes ved ALERT
 sudo kalived-ctl scan
 ```
 

@@ -1,0 +1,32 @@
+Start timestamp: 2026-09-30 09:37:44 +0200 (AIDE 0.19.3)
+AIDE found differences between database and filesystem!!
+
+Summary:
+  Total number of entries:	292
+  Added entries:		2
+  Removed entries:		0
+  Changed entries:		2
+
+---------------------------------------------------
+Added entries:
+---------------------------------------------------
+
+f++++++++++++++++++: /etc/systemd/system/snap-proton\x2dvpn-11.mount
+f++++++++++++++++++: /etc/systemd/system/snap-snapd-28254.mount
+
+---------------------------------------------------
+Changed entries:
+---------------------------------------------------
+
+f >.... m ..H      : /etc/passwd
+f >.... m ..H      : /etc/sudoers
+
+---------------------------------------------------
+Detailed information about changes:
+---------------------------------------------------
+
+File: /etc/passwd
+ Size      : 2000                             | 2100
+
+File: /etc/sudoers
+ Size      : 1000                             | 1100

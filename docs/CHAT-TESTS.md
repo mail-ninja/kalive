@@ -180,6 +180,10 @@ Hiroshima-skuffen: linje `watch N · unknown U · unmapped M`. Knapp **watch** o
 
 NOPASSWD for `watch` / `uplink-burst` krever helper + `install-nopasswd-ctl.sh`. Connect-regel: `sudo bash playbooks/auditd-mini.sh`. Timer: `sudo bash playbooks/install-watch-timer.sh`.
 
+**H4c — scoped aide-init** (i treet 2026-09-30)
+
+Confirm aide-init er scoped: den fryser kalived-filer, **ikke** Proton-snap / udev / snapd-mount — de skal fortsatt ligge som WARN etter Confirm.
+
 **H4 — payload-vegg**
 
 Etter H1: `python3 -c "import json,pathlib; p=sorted(pathlib.Path('logs/status').glob('*/protocol.json'))[-1]; d=json.loads(p.read_text()); print(p, list(d)[:20], 'payload' in str(d).lower())"`

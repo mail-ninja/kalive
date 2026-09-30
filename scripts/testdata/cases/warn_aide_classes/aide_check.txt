@@ -1,0 +1,44 @@
+Start timestamp: 2026-09-30 09:37:44 +0200 (AIDE 0.19.3)
+AIDE found differences between database and filesystem!!
+
+Summary:
+  Total number of entries:	292
+  Added entries:		8
+  Removed entries:		0
+  Changed entries:		4
+
+---------------------------------------------------
+Added entries:
+---------------------------------------------------
+
+f++++++++++++++++++: /etc/systemd/system/kalived-watch.service
+f++++++++++++++++++: /etc/systemd/system/kalived-watch.timer
+l++++++++++++++++++: /etc/systemd/system/multi-user.target.wants/snap-proton\x2dvpn-11.mount
+f++++++++++++++++++: /etc/systemd/system/snap-proton\x2dvpn-11.mount
+f++++++++++++++++++: /etc/systemd/system/snap-snapd-28254.mount
+l++++++++++++++++++: /etc/systemd/system/snapd.mounts.target.wants/snap-snapd-28254.mount
+l++++++++++++++++++: /etc/systemd/system/timers.target.wants/kalived-watch.timer
+f++++++++++++++++++: /usr/local/lib/kalived/scripts/kalived-watch.sh
+
+---------------------------------------------------
+Changed entries:
+---------------------------------------------------
+
+f >.... m ..H      : /etc/sudoers.d/kalived
+d =.... m ..       : /etc/systemd/system
+d =.... m ..       : /etc/udev/rules.d
+f >.... m i.H      : /etc/udev/rules.d/70-snap.proton-vpn.rules
+f >.... m ..H      : /usr/sbin/kalived-ctl
+
+---------------------------------------------------
+Detailed information about changes:
+---------------------------------------------------
+
+File: /etc/sudoers.d/kalived
+ Size      : 296                              | 687
+
+File: /etc/udev/rules.d/70-snap.proton-vpn.rules
+ Size      : 7984                             | 8173
+
+File: /usr/sbin/kalived-ctl
+ Size      : 100                              | 200

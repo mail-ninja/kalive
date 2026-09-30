@@ -116,7 +116,7 @@ Timer kjører: `/usr/local/lib/kalived/scripts/kalived-scan.sh --quiet` med `KAL
 | `PERS-SUID` | SUID i home/tmp/opt (unntak chrome-sandbox) |
 | `PERS-DOCKER` | privileged / 0.0.0.0 / docker.sock |
 | `PERS-SYSTEMD` | ExecStart payload / ukjent home-unit |
-| `FIM-AIDE` | AIDE endring i passwd/sudoers/ssh/preload/sudo |
+| `FIM-AIDE` | AIDE-klasse: identity=ALERT; self_sudoers/snap_proton/snap_other/other=WARN; self_helper=INFO. Flere WARN samtidig. |
 | `FIM-DEBSUMS` | mismatch sudo/libc/ssh/systemd |
 | `ROOT-RKH` | rkhunter/chkrootkit etter Kali-allow |
 | `ROOT-LSMOD` | LKM-navn hide/adore/… |
@@ -144,7 +144,7 @@ Alle unntatt merket: **gate = siste `kalived_scan=1` verdict ≠ ALERT/ERROR**.
 | `journald-persistent.sh` | ja | journald 500M/14d | slett drop-in, restart journald |
 | `auditd-mini.sh` | ja | auditd + `99-kalived.rules` | slett rules, `augenrules --load` |
 | `ufw-logging-medium.sh` | ja | `ufw logging medium` | `ufw logging low` |
-| `aide-init.sh` | ja (+ policy). `--force` hopper **ikke** over ALERT. `--force-alert` gjør det. | init/re-baseline AIDE DB | slett `/var/lib/aide/kalived.db.gz` |
+| `aide-init.sh` | ja (+ policy). `--force` hopper **ikke** over ALERT (WARN er lov). `--force-alert` gjør det. Default **scoped** overlay (sudoers+helper+watch). `--all` = full DB; Proton forsvinner da. Confirm kaller **ikke** `--all`. | scoped: `aide-scope.json`. `--all`: kalived.db.gz | slett overlay / db |
 | `install-kalived-helper.sh` | **nei** | kopi root:root `/usr/local/lib/kalived` | slett prefix |
 | `install-scan-timer.sh` | ja | weekly system-timer | `systemctl disable --now kalived-scan.timer` |
 | `docker-hygiene.sh [--prune] [--no-stop]` | ja | stop-idle + dangling prune | `systemctl start docker` |
@@ -160,7 +160,7 @@ Alle unntatt merket: **gate = siste `kalived_scan=1` verdict ≠ ALERT/ERROR**.
 
 **Telefon** (utenfor host-GUI v1): `cep1er-phone-checklist.md`, `iqoo-*`.
 
-Etter bevisst filendring: `aide-init.sh --force` deretter scan. Etter script-endring: `install-kalived-helper.sh`. Ikke lim helper+AIDE foran daglig `kalived-ctl scan`. `--force-alert` bare når siste verdict er ALERT og evidens allerede er lagret.
+Etter bevisst filendring: Confirm aide-init (scoped) deretter scan — Proton-snap forblir åpen WARN. Etter script-endring: `install-kalived-helper.sh`. Ikke lim helper+AIDE foran daglig `kalived-ctl scan`. `--force-alert` bare når siste verdict er ALERT og evidens allerede er lagret. Full rebuild krever `sudo bash playbooks/aide-init.sh --all` (passord, ikke 8787).
 
 ---
 

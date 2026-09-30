@@ -120,10 +120,19 @@ rm -f /tmp/kalived-ban-out.$$ /tmp/kalived-ban-err.$$
 echo "[test] aide-init --force gates ALERT"
 if grep -q -- '--force-alert' "$ROOT/playbooks/aide-init.sh" \
   && grep -q 'kalived_require_not_alert' "$ROOT/playbooks/aide-init.sh" \
-  && grep -q 'FORCE_ALERT' "$ROOT/playbooks/aide-init.sh"; then
-  echo "  OK --force-alert er egen nøkkel; --force alene skipper ikke ALERT"
+  && grep -q 'FORCE_ALERT' "$ROOT/playbooks/aide-init.sh" \
+  && grep -q -- '--all' "$ROOT/playbooks/aide-init.sh"; then
+  echo "  OK --force-alert er egen nøkkel; --force alene skipper ikke ALERT; --all finnes"
 else
   echo "  FAIL aide-init gate"
+  fail=1
+fi
+
+echo "[test] aide_scope.py"
+if python3 "$ROOT/scripts/tests/aide_scope.py"; then
+  echo "  OK aide_scope"
+else
+  echo "  FAIL aide_scope"
   fail=1
 fi
 
