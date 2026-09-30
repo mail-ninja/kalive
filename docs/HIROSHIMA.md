@@ -297,7 +297,7 @@ Filer: `playbooks/isolate-dst.sh`, `isolate-undo.sh`, `kill-pid.sh`, `scripts/li
 
 Rules på vinduet (ingen Jev fra timer): python/shell → unknown = `alert_family`; annen unknown = `candidate`; ellers `noise`. Scan-`verdict.json` overskrives ikke. Isolate bruker fortsatt siste scan-snapshot (dest-IP). Skuff: `watch` + `uplink 30s` (Confirm). `uplink-burst` er tshark på default-rute-iface, max 30 s, `-T fields`, aldri `-i any`.
 
-Timer er opt-in: `sudo bash playbooks/install-watch-timer.sh` (5 min) etter helper. Connect-regel i `auditd-mini.rules` krever `sudo bash playbooks/auditd-mini.sh` for å laste.
+Timer er opt-in: `sudo bash playbooks/install-watch-timer.sh` (5 min) etter helper, eller huke **Egress-watch hvert 5. min** i Settings. Av i Settings setter `watch_timer=false` og `kalived-ctl watch-timer-off`. Confirm «watch» i skuffen sampler fortsatt. Connect-regel i `auditd-mini.rules` krever `sudo bash playbooks/auditd-mini.sh` for å laste.
 
 Filer: `scripts/kalived-watch.sh`, `kalived-uplink.sh`, `scripts/lib/hiroshima_watch.py`, `systemd/kalived-watch.{service,timer}`, `GET /v1/hiroshima/watch`, fixture `scripts/tests/protocol_h4.py`.
 

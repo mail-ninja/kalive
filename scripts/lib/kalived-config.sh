@@ -64,6 +64,7 @@ enums = {
     "scan_sudo_mode": {"prompt", "helper", "never"},
 }
 data = dict(defaults)
+loaded = {}
 if path and os.path.isfile(path):
     try:
         import tomllib
@@ -150,10 +151,13 @@ print(f"CFG_PCAP_MAX_PACKETS={data['pcap_max_packets']}")
 print(f"CFG_NMAP_SVC_PROBE={b(data['nmap_svc_probe'])}")
 print(f"CFG_UFW_DIGEST={b(data['ufw_digest'])}")
 print(f"CFG_WEB_TERMINAL={b(data['web_terminal'])}")
+if "watch_timer" in loaded:
+    print(f"CFG_WATCH_TIMER={b(loaded['watch_timer'])}")
 PY
 )"; then
     return 3
   fi
+  CFG_WATCH_TIMER=""
   eval "$out"
   export CFG_AIDE_INIT_POLICY CFG_SCAN_SUDO_MODE CFG_DOCKER_STOP_IDLE \
     CFG_TIMER_ENABLED CFG_AI_ENABLED CFG_AI_MODEL CFG_AI_AFTER_SCAN CFG_LISTEN_BIND \
@@ -162,6 +166,6 @@ PY
     CFG_NMAP_LOCALHOST CFG_NMAP_PORT_SPEC CFG_HELPER_STALE_CHECK CFG_AIDE_WATCH_HELPER \
     CFG_PROC_INVENTORY CFG_PROC_HIDDEN_CHECK CFG_PROC_IOC_CHECK \
     CFG_PCAP_LOCALHOST CFG_PCAP_DURATION_S CFG_PCAP_MAX_PACKETS CFG_NMAP_SVC_PROBE \
-    CFG_UFW_DIGEST CFG_WEB_TERMINAL
+    CFG_UFW_DIGEST CFG_WEB_TERMINAL CFG_WATCH_TIMER
   return 0
 }

@@ -28,6 +28,7 @@ DEFAULTS = {
     "scan_sudo_mode": "prompt",
     "docker_stop_idle": True,
     "timer_enabled": True,
+    "watch_timer": False,
     "ai_enabled": False,
     "ai_model": "grok-4.6",
     "ai_after_scan": True,

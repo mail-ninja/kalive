@@ -26,6 +26,7 @@ fi
 systemctl daemon-reload
 systemctl enable --now kalived-watch.timer
 systemctl status kalived-watch.timer --no-pager || true
+python3 "$ROOT/scripts/lib/kalived_config.py" set watch_timer true || true
 kalived_changelog "install-watch-timer.sh" \
   "- kalived-watch.timer 5 min. Opt-in. Ringbuffer ~/.config/kalived/hiroshima 0600."
 echo "DONE"

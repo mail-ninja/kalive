@@ -18,6 +18,8 @@ from .desk import router as desk_router
 from .workspace import router as workspace_router
 from .hiroshima import ensure_watch, router as hiroshima_router
 from .memory_routes import router as memory_router
+from .runtime_config import put as config_put
+from .runtime_config import status as config_status
 from .secrets_store import put as secrets_put
 from .secrets_store import status as secrets_status
 from .term import handle_term
@@ -93,6 +95,25 @@ def agent_one(agent_id: str):
     if not a:
         raise HTTPException(status_code=404, detail="unknown agent")
     return a.model_dump()
+
+
+class ConfigBody(BaseModel):
+    values: dict = Field(default_factory=dict)
+
+
+@app.get("/v1/config")
+def get_config():
+    return config_status()
+
+
+@app.put("/v1/config")
+def put_config(body: ConfigBody):
+    try:
+        return config_put(body.values or {})
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except OSError as e:
+        raise HTTPException(status_code=500, detail=f"kunne ikke skrive config: {e}") from e
 
 
 class SecretsBody(BaseModel):

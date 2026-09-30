@@ -8,6 +8,13 @@ if [[ "$(id -u)" -ne 0 ]]; then
 fi
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/.." && pwd)"
+# shellcheck source=lib/kalived-config.sh
+source "$ROOT/scripts/lib/kalived-config.sh"
+kalived_config_load || true
+if [[ "${CFG_WATCH_TIMER:-}" == "0" ]]; then
+  echo "watch_timer=false — hopp over (Settings)"
+  exit 0
+fi
 OWNER="${KALIVED_OWNER:-${SUDO_USER:-void}}"
 OWNER_HOME="${KALIVED_OWNER_HOME:-$(getent passwd "$OWNER" | cut -d: -f6)}"
 export KALIVED_OWNER_HOME="$OWNER_HOME"

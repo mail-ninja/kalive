@@ -16,6 +16,10 @@ docker_stop_idle = true
 # Dokumentasjon / GUI; faktisk timer er systemd kalived-scan.timer
 timer_enabled = true
 
+# Hiroshima H4: 5-min egress-watch. Opt-in. systemd kalived-watch.timer er sannhet.
+# Av i Settings hopper over sampling; Confirm «watch» i skuffen virker fortsatt.
+watch_timer = false
+
 # SpaceXAI-rådgiver. Nøkkelen ligger IKKE her — se ~/.config/kalived/env
 # (XAI_API_KEY). Aldri auto-sudo.
 ai_enabled = false

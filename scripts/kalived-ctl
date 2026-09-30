@@ -15,7 +15,7 @@ export NO_COLOR=1
 # Do not pass caller environment into scripts.
 
 if [[ "$(id -u)" -ne 0 ]]; then
-  echo "bruk: sudo kalived-ctl {scan|api|defs|token-fix|aide-init|rkhunter-setup|isolate-dst|isolate-undo|kill-pid|watch|uplink-burst}" >&2
+  echo "bruk: sudo kalived-ctl {scan|api|defs|token-fix|aide-init|rkhunter-setup|isolate-dst|isolate-undo|kill-pid|watch|uplink-burst|watch-timer-on|watch-timer-off|scan-timer-on|scan-timer-off}" >&2
   echo "daglig: sudo kalived-ctl scan   (exit 0/1/2/3 = CLEAN/WARN/ALERT/ERROR)" >&2
   echo "(Kali sudo PATH mangler /usr/local/sbin — binær ligger i /usr/sbin/kalived-ctl)" >&2
   exit 1
@@ -69,8 +69,36 @@ case "$cmd" in
   uplink-burst)
     exec "$PREFIX/scripts/kalived-uplink.sh"
     ;;
+  watch-timer-on)
+    if [[ ! -f /etc/systemd/system/kalived-watch.timer ]]; then
+      echo "Kjør sudo bash playbooks/install-watch-timer.sh først" >&2
+      exit 2
+    fi
+    systemctl enable --now kalived-watch.timer
+    python3 "$PREFIX/scripts/lib/kalived_config.py" set watch_timer true
+    echo "DONE watch-timer-on"
+    ;;
+  watch-timer-off)
+    systemctl disable --now kalived-watch.timer 2>/dev/null || true
+    python3 "$PREFIX/scripts/lib/kalived_config.py" set watch_timer false
+    echo "DONE watch-timer-off"
+    ;;
+  scan-timer-on)
+    if [[ ! -f /etc/systemd/system/kalived-scan.timer ]]; then
+      echo "Kjør sudo bash playbooks/install-scan-timer.sh først" >&2
+      exit 2
+    fi
+    systemctl enable --now kalived-scan.timer
+    python3 "$PREFIX/scripts/lib/kalived_config.py" set timer_enabled true
+    echo "DONE scan-timer-on"
+    ;;
+  scan-timer-off)
+    systemctl disable --now kalived-scan.timer 2>/dev/null || true
+    python3 "$PREFIX/scripts/lib/kalived_config.py" set timer_enabled false
+    echo "DONE scan-timer-off"
+    ;;
   *)
-    echo "usage: kalived-ctl {scan|api|defs|token-fix|aide-init|rkhunter-setup|isolate-dst|isolate-undo|kill-pid|watch|uplink-burst}" >&2
+    echo "usage: kalived-ctl {scan|api|defs|token-fix|aide-init|rkhunter-setup|isolate-dst|isolate-undo|kill-pid|watch|uplink-burst|watch-timer-on|watch-timer-off|scan-timer-on|scan-timer-off}" >&2
     exit 2
     ;;
 esac

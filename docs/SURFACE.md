@@ -177,6 +177,7 @@ Override: `KALIVED_CONFIG=/sti/til.toml`.
 | `scan_sudo_mode` | `prompt` | `helper` / `never`; live krever fortsatt root |
 | `docker_stop_idle` | true | playbook default; `--no-stop` overstyrer |
 | `timer_enabled` | true | GUI-felt; systemd er sannhet |
+| `watch_timer` | false | H4 egress-watch 5 min. Opt-in. Manglende nøkkel = kjør hvis timer er installert. Settings-huke. |
 | `ai_enabled` | false | SpaceXAI advisor |
 | `ai_model` | `grok-4.6` | |
 | `ai_after_scan` | true | etter interaktiv scan (ikke timer) |
