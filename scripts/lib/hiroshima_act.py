@@ -24,6 +24,17 @@ BROWSER = frozenset(
         "x-www-browser",
     }
 )
+# auditd SYSCALL comm is TASK_COMM_LEN=16 (thread, not process). Label only.
+_THREAD_XAI = frozenset({"grok", "tokio-rt-worker"})
+_THREAD_BROWSER_PREFIX = (
+    "chrome_",
+    "chromium",
+    "threadpool",
+    "crrenderer",
+    "crbrowser",
+    "firefox",
+)
+_THREAD_BROWSER_EXACT = frozenset({"socket thread", "dns resolver"})
 COCKPIT_PORTS = frozenset({5173, 6333, 6379, 8787, 8788, 9100, 9101, 45959, 7878})
 OURS_COMM = frozenset(
     {
@@ -68,15 +79,27 @@ def dst_family(addr: str) -> str:
     return "unknown"
 
 
+def comm_overlay(comm: str) -> str | None:
+    """Process or truncated thread comm → family. None = no label. Never hides the exe."""
+    c = str(comm or "").strip().lower()
+    if not c or c in {"ukjent", "unknown", "—", "-"}:
+        return None
+    if c in _THREAD_XAI:
+        return "xAI"
+    if c in BROWSER or c in _THREAD_BROWSER_EXACT:
+        return "browser"
+    if c.startswith(_THREAD_BROWSER_PREFIX):
+        return "browser"
+    return None
+
+
 def flow_family(comm: str, addr: str, port: int) -> str:
     fam = dst_family(addr)
     if fam != "unknown":
         return fam
-    c = str(comm or "").lower()
-    if c == "grok":
-        return "xAI"
-    if c in BROWSER:
-        return "browser"
+    overlay = comm_overlay(comm)
+    if overlay:
+        return overlay
     if int(port) in COCKPIT_PORTS:
         return "cockpit"
     return "unknown"

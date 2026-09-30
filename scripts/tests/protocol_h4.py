@@ -10,6 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts" / "lib"))
 
+from hiroshima_act import comm_overlay, flow_family  # noqa: E402
 from hiroshima_watch import (  # noqa: E402
     ingest_dir,
     parse_saddr,
@@ -51,6 +52,12 @@ def test_watch(tmp: Path) -> None:
     assert doc["class"] == "alert_family", doc["class"]
     assert doc["unknown"] >= 1, doc
     assert "python3" in (doc.get("suspect") or []), doc.get("suspect")
+    assert "Chrome_ChildIOT" not in (doc.get("suspect") or []), doc.get("suspect")
+    assert "tokio-rt-worker" not in (doc.get("suspect") or []), doc.get("suspect")
+    labeled = {f.get("exe"): f for f in doc.get("flows") or []}
+    assert labeled.get("Chrome_ChildIOT", {}).get("dst_family") == "browser", labeled
+    assert labeled.get("tokio-rt-worker", {}).get("dst_family") == "xAI", labeled
+    assert labeled.get("Chrome_ChildIOT", {}).get("unmapped") is True
     assert doc["unmapped"] >= 1, doc
     p = tmp / ".config" / "kalived" / "hiroshima" / "window.json"
     assert p.is_file()
@@ -81,11 +88,27 @@ def test_sni() -> None:
     print("OK sni-family")
 
 
+def test_thread_labels() -> None:
+    pub = "198.51.100.9"
+    assert comm_overlay("Chrome_ChildIOT") == "browser"
+    assert comm_overlay("ThreadPoolForeg") == "browser"
+    assert comm_overlay("tokio-rt-worker") == "xAI"
+    assert comm_overlay("ukjent") is None
+    assert comm_overlay("python3") is None
+    assert flow_family("Chrome_ChildIOT", pub, 443) == "browser"
+    assert flow_family("ThreadPoolForeg", pub, 0) == "browser"
+    assert flow_family("tokio-rt-worker", pub, 65535) == "xAI"
+    assert flow_family("ukjent", pub, 0) == "unknown"
+    assert flow_family("python3", pub, 443) == "unknown"
+    print("OK thread labels")
+
+
 def main() -> int:
     import tempfile
 
     test_saddr()
     test_sni()
+    test_thread_labels()
     with tempfile.TemporaryDirectory() as d:
         test_watch(Path(d))
     with tempfile.TemporaryDirectory() as d:

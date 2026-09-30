@@ -459,3 +459,9 @@ Format: dato — hva — hvorfor — referanse (finding/rapport).
 
 ### 2026-09-30_0926 — install-kalived-helper.sh
 - scan-kopi til /usr/local/lib/kalived root:root (timer ExecStart). Ingen NOPASSWD mot home.
+
+### 2026-09-30_1004 — install-kalived-helper.sh
+- scan-kopi til /usr/local/lib/kalived root:root (timer ExecStart). Ingen NOPASSWD mot home.
+
+### 2026-09-30_1004 — install-watch-timer.sh
+- kalived-watch.timer 5 min. Opt-in. Ringbuffer ~/.config/kalived/hiroshima 0600.

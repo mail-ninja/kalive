@@ -6,3 +6,19 @@ type=SYSCALL msg=audit(1759219200.000:1): arch=c000003e syscall=42 success=yes e
 time->Tue Sep 30 08:00:01 2026
 type=SOCKADDR msg=audit(1759219201.000:2): saddr=020001BB7F000001
 type=SYSCALL msg=audit(1759219201.000:2): arch=c000003e syscall=42 success=yes exit=0 pid=1 comm="uvicorn" exe="/usr/bin/python3" key="kalived_connect"
+----
+time->Tue Sep 30 08:00:02 2026
+type=SOCKADDR msg=audit(1759219202.000:3): saddr=020001BBC6336409
+type=SYSCALL msg=audit(1759219202.000:3): arch=c000003e syscall=42 success=yes exit=0 pid=10 comm="Chrome_ChildIOT" exe="/usr/lib/chromium/chromium" key="kalived_connect"
+----
+time->Tue Sep 30 08:00:03 2026
+type=SOCKADDR msg=audit(1759219203.000:4): saddr=020001BBC6336409
+type=SYSCALL msg=audit(1759219203.000:4): arch=c000003e syscall=42 success=yes exit=0 pid=11 comm="ThreadPoolForeg" exe="/usr/lib/chromium/chromium" key="kalived_connect"
+----
+time->Tue Sep 30 08:00:04 2026
+type=SOCKADDR msg=audit(1759219204.000:5): saddr=020001BBC6336409
+type=SYSCALL msg=audit(1759219204.000:5): arch=c000003e syscall=42 success=yes exit=0 pid=12 comm="tokio-rt-worker" exe="/home/void/.grok/downloads/grok" key="kalived_connect"
+----
+time->Tue Sep 30 08:00:05 2026
+type=SOCKADDR msg=audit(1759219205.000:6): saddr=020001BBC6336409
+type=SYSCALL msg=audit(1759219205.000:6): arch=c000003e syscall=42 success=yes exit=0 pid=13 key="kalived_connect"

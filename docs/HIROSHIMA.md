@@ -293,7 +293,7 @@ Filer: `playbooks/isolate-dst.sh`, `isolate-undo.sh`, `kill-pid.sh`, `scripts/li
 
 ### H4 — Rolling egress-watch
 
-**I treet 2026-09-30.** `sudo kalived-ctl watch` sampler `ss` ESTAB + `ausearch -k kalived_connect` (siste 10 min). Ringbuffer + `window.json` under `~/.config/kalived/hiroshima/` modus 0600/0700. Vindu er felter: exe, dst-familie, port, n, `unmapped` (IP-familie unknown *før* comm-etikett). Aldri IP/SNI/cmd. `outbound_proc.allow` merker forventet comm — den skjuler ingenting; denne maskinen er forsøkskanin.
+**I treet 2026-09-30.** `sudo kalived-ctl watch` sampler `ss` ESTAB + `ausearch -k kalived_connect` (siste 10 min). Ringbuffer + `window.json` under `~/.config/kalived/hiroshima/` modus 0600/0700. Vindu er felter: exe, dst-familie, port, n, `unmapped` (IP-familie unknown *før* comm-etikett). Aldri IP/SNI/cmd. `outbound_proc.allow` merker forventet comm — den skjuler ingenting; denne maskinen er forsøkskanin. Audit-trådnavn (`Chrome_ChildIOT`, `ThreadPoolForeg`, `tokio-rt-worker`) merkes browser/xAI; `exe` blir stående, `ukjent` forblir unknown.
 
 Rules på vinduet (ingen Jev fra timer): python/shell → unknown = `alert_family`; annen unknown = `candidate`; ellers `noise`. Scan-`verdict.json` overskrives ikke. Isolate bruker fortsatt siste scan-snapshot (dest-IP). Skuff: `watch` + `uplink 30s` (Confirm). `uplink-burst` er tshark på default-rute-iface, max 30 s, `-T fields`, aldri `-i any`.
 

@@ -1,4 +1,6 @@
 # comm names expected on this Kali desktop. Label only — not a proof the host is clean.
+# audit thread comm (16 chars) is labeled in flow_family, not here: Chrome_ChildIOT,
+# ThreadPoolForeg, tokio-rt-worker. exe stays in the watch window.
 grok
 chromium
 chrome

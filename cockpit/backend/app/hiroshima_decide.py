@@ -5,9 +5,15 @@ import ipaddress
 import json
 import os
 import re
+import sys
 import time
 from pathlib import Path
 from typing import Any
+
+_LIB = Path(__file__).resolve().parents[3] / "scripts" / "lib"
+if _LIB.is_dir() and str(_LIB) not in sys.path:
+    sys.path.insert(0, str(_LIB))
+from hiroshima_act import flow_family as flow_family  # noqa: E402
 
 SCHEMA = 2
 RING_REV = 3
@@ -118,19 +124,6 @@ OURS_COMM = frozenset(
     }
 )
 SSID_SEED = {"gal": "tether"}
-BROWSER_COMM = frozenset(
-    {
-        "chromium",
-        "chrome",
-        "chrome_crashpad_handler",
-        "firefox",
-        "firefox-esr",
-        "firefox-bin",
-        "brave",
-        "brave-browser",
-        "x-www-browser",
-    }
-)
 COCKPIT_PORTS = frozenset({5173, 6333, 6379, 8787, 8788, 9100, 9101, 45959, 7878})
 _PAYLOAD_RE = re.compile(
     r"frame\.time|http\.host|dns\.qry|pcapng|authorization:|api_key|--crashpad|\bcmd=",
@@ -392,20 +385,6 @@ def dst_family(addr: str) -> str:
     lan = ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "100.64.0.0/10", "fc00::/7")
     if any(ip in ipaddress.ip_network(n) for n in lan):
         return "private"
-    return "unknown"
-
-
-def flow_family(comm: str, addr: str, port: int) -> str:
-    fam = dst_family(addr)
-    if fam != "unknown":
-        return fam
-    c = str(comm or "").lower()
-    if c == "grok":
-        return "xAI"
-    if c in BROWSER_COMM:
-        return "browser"
-    if int(port) in COCKPIT_PORTS:
-        return "cockpit"
     return "unknown"
 
 
