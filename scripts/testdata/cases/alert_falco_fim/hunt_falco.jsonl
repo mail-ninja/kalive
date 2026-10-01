@@ -1,0 +1,1 @@
+{"rule": "kalived_write_preload", "exe": "python3", "evt.type": "openat", "n": 1}

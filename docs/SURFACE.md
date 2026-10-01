@@ -66,7 +66,7 @@ Ukjent flagg → exit 3.
 | `KALIVED_FIXTURE` / `KALIVED_FROM_DIR` | settes av flagg |
 | `NO_COLOR` | slå av ANSI |
 | `KALIVED_AIDE_INIT_POLICY` | `clean_only` / `allow_known_warn` (default) / `always_prompt` — playbook |
-| `SCAN_VERSION` | 11 (nå) |
+| `SCAN_VERSION` | 12 (nå) |
 
 Timer kjører: `/usr/local/lib/kalived/scripts/kalived-scan.sh --quiet` med `KALIVED_DATA=/home/void/kalived`.
 
@@ -117,6 +117,7 @@ Timer kjører: `/usr/local/lib/kalived/scripts/kalived-scan.sh --quiet` med `KAL
 | `PERS-DOCKER` | privileged / 0.0.0.0 / docker.sock |
 | `PERS-SYSTEMD` | ExecStart payload / ukjent home-unit |
 | `FIM-AIDE` | AIDE-klasse: identity=ALERT; self_sudoers/snap_proton/snap_other/other=WARN; self_helper=INFO. Flere WARN samtidig. |
+| `HOST-FALCO` | Falco-burst + FIM eller nett = ALERT. Falco alene = WARN / candidate. INFO «falco absent» hever ikke. |
 | `FIM-DEBSUMS` | mismatch sudo/libc/ssh/systemd |
 | `ROOT-RKH` | rkhunter/chkrootkit etter Kali-allow |
 | `ROOT-LSMOD` | LKM-navn hide/adore/… |
@@ -125,11 +126,11 @@ Timer kjører: `/usr/local/lib/kalived/scripts/kalived-scan.sh --quiet` med `KAL
 
 ### WARN (hygiene / kjent avvik)
 
-`PERS-SUID` ny i `/usr`, `PERS-DOCKER` socket idle, `PERS-SYSTEMD` spice-vdagent, `FIM-AIDE` systemd/cron mtime, `ROOT-RKH` rkhunter-støy, `ROOT-TAINT`, `ROOT-LSMOD` nye hw-moduler, `ROOT-BPF`, `F-007` dpkg > 30 d, `LOG-AUDIT`/`LOG-JOURNAL`, `NET-DNS` usb0 tether, `PROC-HIDDEN-WEAK` (`/proc`≠`ps` men normal exe), `PCAP-EXTRA` (tshark SYN-ACK uten nmap/ss), `PROC-IOC-REMOTE` (cache, ikke git).
+`PERS-SUID` ny i `/usr`, `PERS-DOCKER` socket idle, `PERS-SYSTEMD` spice-vdagent, `FIM-AIDE` systemd/cron mtime, `ROOT-RKH` rkhunter-støy, `ROOT-TAINT`, `ROOT-LSMOD` nye hw-moduler, `ROOT-BPF`, `F-007` dpkg > 30 d, `LOG-AUDIT`/`LOG-JOURNAL`, `NET-DNS` usb0 tether, `PROC-HIDDEN-WEAK` (`/proc`≠`ps` men normal exe), `PCAP-EXTRA` (tshark SYN-ACK uten nmap/ss), `PROC-IOC-REMOTE` (cache, ikke git), `HOST-FALCO` (Falco-burst alene; candidate). Falco + FIM/nett hever til ALERT.
 
 ### INFO (hever ikke verdict)
 
-Brave sandbox, Proton DNS, SNAP-MISS, timer ikke enabled, auditd-playbook ikke kjørt, `PROC-HIDDEN-NOISE` (raw>0 kept=0), `PROC-HIDDEN-RAW` (gammelt snapshot uten sil), `PCAP-NOISE` / `PCAP-CONFIRM` / `PCAP-MISS`, `NET-UFW-NOISE` (24t BLOCK-støy), `NET-UFW-SCAN` (portscan/flood mot deny-in, ingen listen-treff).
+Brave sandbox, Proton DNS, SNAP-MISS, timer ikke enabled, auditd-playbook ikke kjørt, `PROC-HIDDEN-NOISE` (raw>0 kept=0), `PROC-HIDDEN-RAW` (gammelt snapshot uten sil), `PCAP-NOISE` / `PCAP-CONFIRM` / `PCAP-MISS`, `NET-UFW-NOISE` (24t BLOCK-støy), `NET-UFW-SCAN` (portscan/flood mot deny-in, ingen listen-treff), `HOST-FALCO` «falco absent» (pakke mangler; hever ikke).
 
 UFW-loggen er støy inntil den viser **mønster**: samme kilde mot mange porter, unormal rate, eller treff på noe vi faktisk lytter på. Enkeltblokkerte pakker på en `deny incoming`-boks er default, ikke angrep. Advisor får `ufw_digest`-tall, ikke journalen.
 
@@ -149,6 +150,7 @@ Alle unntatt merket: **gate = siste `kalived_scan=1` verdict ≠ ALERT/ERROR**.
 | `install-scan-timer.sh` | ja | weekly system-timer | `systemctl disable --now kalived-scan.timer` |
 | `docker-hygiene.sh [--prune] [--no-stop]` | ja | stop-idle + dangling prune | `systemctl start docker` |
 | `rkhunter-setup.sh` | ja | apt rkhunter/chkrootkit/debsums, propupd | apt remove |
+| `install-falco-host.sh` | ja (ikke ALERT). Printer `apt-get install -y falco` — kjører **ikke** apt. modern_ebpf, ingen unit enable, ingen gRPC/web. | yaml i `/etc/kalived` | mask `falco.service` |
 | `disable-vendor-rk-cron.sh` | **nei** | slå av Debian-cron/timer | chmod +x / enable timer |
 | `harden-host-sudo.sh` | nei (eldre) | SSH mask, UFW deny, sysctl, AA | se CHANGELOG |
 | `update-threat-defs.sh` | nei (script) | rkhunter `--update` | n/a |

@@ -280,6 +280,13 @@
           >
             {pending === 'uplink-burst' ? 'Confirm uplink 30s' : 'uplink 30s'}
           </button>
+          <button
+            class="rounded-full border border-white/15 px-3 py-1 text-sm disabled:opacity-50"
+            disabled={scanning}
+            onclick={() => confirmRun('falco-burst')}
+          >
+            {pending === 'falco-burst' ? 'Confirm falco 8s' : 'falco 8s'}
+          </button>
           {#if jobNote}
             <span class="text-xs text-clean">{jobNote}</span>
           {/if}

@@ -28,7 +28,7 @@ SUDOERS=/etc/sudoers.d/kalived
 cat > "$SUDOERS" << EOF
 # kalived — NOPASSWD only for root-owned dispatcher. visudo -c on install.
 Defaults!/usr/sbin/kalived-ctl env_reset
-Cmnd_Alias KALIVED_CTL = /usr/sbin/kalived-ctl scan, /usr/sbin/kalived-ctl api, /usr/sbin/kalived-ctl defs, /usr/sbin/kalived-ctl token-fix, /usr/sbin/kalived-ctl aide-init, /usr/sbin/kalived-ctl rkhunter-setup, /usr/sbin/kalived-ctl isolate-dst, /usr/sbin/kalived-ctl isolate-undo, /usr/sbin/kalived-ctl kill-pid, /usr/sbin/kalived-ctl watch, /usr/sbin/kalived-ctl uplink-burst, /usr/sbin/kalived-ctl watch-timer-on, /usr/sbin/kalived-ctl watch-timer-off, /usr/sbin/kalived-ctl scan-timer-on, /usr/sbin/kalived-ctl scan-timer-off
+Cmnd_Alias KALIVED_CTL = /usr/sbin/kalived-ctl scan, /usr/sbin/kalived-ctl api, /usr/sbin/kalived-ctl defs, /usr/sbin/kalived-ctl token-fix, /usr/sbin/kalived-ctl aide-init, /usr/sbin/kalived-ctl rkhunter-setup, /usr/sbin/kalived-ctl isolate-dst, /usr/sbin/kalived-ctl isolate-undo, /usr/sbin/kalived-ctl kill-pid, /usr/sbin/kalived-ctl watch, /usr/sbin/kalived-ctl uplink-burst, /usr/sbin/kalived-ctl falco-burst, /usr/sbin/kalived-ctl watch-timer-on, /usr/sbin/kalived-ctl watch-timer-off, /usr/sbin/kalived-ctl scan-timer-on, /usr/sbin/kalived-ctl scan-timer-off
 ${OWNER} ALL=(root) NOPASSWD: KALIVED_CTL
 EOF
 chmod 440 "$SUDOERS"
@@ -52,7 +52,7 @@ echo "  sudo kalived-ctl api"
 echo "  sudo kalived-ctl defs"
 echo "  sudo kalived-ctl token-fix"
 echo "  sudo kalived-ctl aide-init | rkhunter-setup | isolate-dst | isolate-undo | kill-pid"
-echo "  sudo kalived-ctl watch | uplink-burst | watch-timer-on | watch-timer-off | scan-timer-on | scan-timer-off"
+echo "  sudo kalived-ctl watch | uplink-burst | falco-burst | watch-timer-on | watch-timer-off | scan-timer-on | scan-timer-off"
 echo "Helper-oppdatering fra git krever FORTSATT passord:"
 echo "  sudo bash $ROOT/playbooks/install-kalived-helper.sh"
 echo "DONE"

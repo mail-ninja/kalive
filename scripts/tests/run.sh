@@ -136,6 +136,14 @@ else
   fail=1
 fi
 
+echo "[test] protocol_h5.py"
+if python3 "$ROOT/scripts/tests/protocol_h5.py"; then
+  echo "  OK protocol_h5"
+else
+  echo "  FAIL protocol_h5"
+  fail=1
+fi
+
 echo "[test] testdata urørt"
 after="$(checksum_testdata)"
 if [[ "$before" != "$after" ]]; then

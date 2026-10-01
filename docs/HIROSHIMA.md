@@ -1,6 +1,6 @@
 # Hiroshima-protokollen
 
-Spekk 2026-09-29, status 2026-09-30: **H0–H4 i treet og på verten.** H5 Falco er neste. Scan-sannhet er `logs/status/<stamp>/verdict.json`. Cockpit er klient. Produkt og ambisjon: [../README.md](../README.md).
+Spekk 2026-09-29, status 2026-10-01: **H0–H5 i treet.** H0–H4 på verten; H5 Falco host-burst i git (pakke gated). Scan-sannhet er `logs/status/<stamp>/verdict.json`. Cockpit er klient. Produkt og ambisjon: [../README.md](../README.md).
 
 Kalived er to rom: Arbeid (kode) og Hiroshima (host-SOC på én Kali-laptop). Hiroshima er ikke SIEM, Huntress, LAN-scanner eller sky-EDR.
 
@@ -303,9 +303,13 @@ Timer-oneshot har ingen `HOME` og ingen `SUDO_USER`. `kalived-config.sh` bruker 
 
 Filer: `scripts/kalived-watch.sh`, `kalived-uplink.sh`, `scripts/lib/hiroshima_watch.py`, `systemd/kalived-watch.{service,timer}`, `GET /v1/hiroshima/watch`, fixture `scripts/tests/protocol_h4.py`.
 
-### H5 — Falco på host
+### H5 — Falco på host (i treet 2026-10-01)
 
-Etter H4 grønn. Container-regler av. Alerts inn i samme kandidat-ring.
+`sudo kalived-ctl falco-burst` (~8 s, `FALCO_DUR`, ingen extra argv) → `logs/status/<stamp>/hunt_falco.jsonl` (felt: `rule`, `exe`, `evt.type`, `n`). `check-falco.sh` inn i `verdict.json`. Tom jsonl = ingen finding. Falco alene = WARN / `candidate`. Falco + FIM eller Falco + nett = ALERT. INFO «falco absent» hever ikke. Digest til Jev: rule-id + exe + evt.type. Ingen cmdline, SNI, pcap, IP.
+
+Regler v1 (host only, `defs/falco-host.yaml`, ikke stock `falco_rules.yaml`): memfd/deleted exec, write `ld.so.preload`, python/sh/bash connect unknown, shell fra nettleser, `init_module`/`finit_module` utenfor allow. Container-regler av. `modern_ebpf`. Ingen `falco.service` enable, ingen gRPC/web, ingen 0.0.0.0. Falco skriver **ikke** til Qdrant eller `~/.config/kalived/hiroshima/`.
+
+Playbook `install-falco-host.sh`: gate ikke ALERT; kopierer yaml; disable/mask vendor units; **printer** `apt-get install -y falco` hvis binær mangler (kjører ikke apt). Confirm-knapp «falco 8s». Live ctl krever helper + `install-nopasswd-ctl.sh`. Fixture `scripts/tests/protocol_h5.py`.
 
 ### H6 — Suricata IDS (valgfri)
 
@@ -341,7 +345,7 @@ eve.json på aktiv uplink hvis H4/H5 misser kjente signaturer. Ingen pcap-dump. 
 | 2 | H2 kandidat + graf | `memory.py` kanter, signal-engrams, Mercury-gren | 1 — i treet 2026-09-29 |
 | 3 | H3 env_class + isolate-dst | toml, playbooks, ctl, skuff-retag/Confirm | 1 — i treet 2026-09-29 |
 | 4 | H4 egress-watch | ctl-binær/script, ringbuffer, timer-oneshot | 3 — i treet 2026-09-30 |
-| 5 | H5 Falco host-regler | playbook install, JSON→kandidat | 4 |
+| 5 | H5 Falco host-regler | playbook install, JSON→kandidat | 4 — i treet 2026-10-01 |
 | 6 | H6 Suricata (valgfri) | playbook, eve-ingest | 4 |
 
 Hver PR mergebar alene. Scan-scripts i `/usr/local` oppdateres bare via `install-kalived-helper.sh` etter git-endring.
@@ -366,4 +370,4 @@ Hver PR mergebar alene. Scan-scripts i `/usr/local` oppdateres bare via `install
 
 - `ai_enabled` default for interaktiv scan vs timer: behold config-default `false` for timer; cockpit-H1 kan kalle `decide()` når Gateway-nøkkel finnes (samme som minne-gaten).
 
-H4 er i treet og på verten (2026-09-30). Neste kode er **H5** (Falco host-regler, container av). Helper-kopi av ctl/playbooks krever passord etter git-endring.
+H5 Falco host-burst er i treet (2026-10-01). Pakke/apt og helper-reinstall venter på operator. H6 Suricata er valgfri. Helper-kopi av ctl/playbooks krever passord etter git-endring.

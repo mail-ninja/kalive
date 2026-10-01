@@ -12,7 +12,7 @@ UI: http://127.0.0.1:5173/ · API: :8788 · minne-docker: startes med `sudo syst
 | Tool-engrams dumper hele filer (støy i recall) | Nei | Notert som minne-tuning |
 | Chip-rad build/forge/review/term/crew | Nei, forvirrer UX | Rydd når vi banker UI |
 | WS kutt midt i runde | Delvis fikset (singleton, ingen `--reload`) | Overvåk i testene |
-| Hiroshima Jev/tshark/Mercury | Nei | **H0–H4** [HIROSHIMA.md](HIROSHIMA.md) 2026-09-30. H5 Falco neste. |
+| Hiroshima Jev/tshark/Mercury | Nei | **H0–H5** [HIROSHIMA.md](HIROSHIMA.md) 2026-10-01. H5 Falco i git; live pakke gated. |
 | `repo_edit` treffer feil seksjon | Guard inne (`eeed752`) | Verifiser i UI-test |
 
 **Konklusjon:** ingen rest som må kodes før testing. Stack opp, så kart.
@@ -130,4 +130,4 @@ Når 2 er grønt i UI: Hiroshima-protokoll (Jev-port, tshark-evidens, Mercury-kl
 
 1. Verifiser minne etter korte engrams: «hva var probe-appen?» skal treffe `_probe.html`, ikke en vegg av NOW.md. **GRØNN** (M1–M4).
 2. Auto-preview når `repo_edit` skriver `.html`. **GRØNN** 2026-09-28.
-3. Hiroshima H1–H4: port + ring/graf + env-retag + Confirm isolate/aide + egress-watch. **I treet** 2026-09-30. Neste H5.
+3. Hiroshima H1–H5: port + ring/graf + env-retag + Confirm isolate/aide + egress-watch + Falco host-burst. **I treet** 2026-10-01. Live Falco-pakke gated.

@@ -184,6 +184,12 @@ NOPASSWD for `watch` / `uplink-burst` krever helper + `install-nopasswd-ctl.sh`.
 
 Confirm aide-init er scoped: den fryser kalived-filer, **ikke** Proton-snap / udev / snapd-mount — de skal fortsatt ligge som WARN etter Confirm.
 
+**H5 — Falco host-burst** (i treet 2026-10-01)
+
+Hiroshima-skuffen: knapp **falco 8s** (to klikk). Etter burst: `hunt_falco.jsonl` under siste stamp. Tom jsonl = ingen finding. Falco alene = WARN / `candidate` (slår Gal `env_shift`). Falco + FIM eller Falco + nett = ALERT. Fail: cmdline/SNI/pcap/IP i digest eller ring. Fail: filer under `~/.config/kalived/hiroshima/` fra Falco. Fail: ERROR når falco-pakke mangler (skal være INFO «falco absent», scan forblir WARN/CLEAN).
+
+NOPASSWD: helper + `install-nopasswd-ctl.sh`. Playbook printer apt; kjør ikke uten GO.
+
 **H4 — payload-vegg**
 
 Etter H1: `python3 -c "import json,pathlib; p=sorted(pathlib.Path('logs/status').glob('*/protocol.json'))[-1]; d=json.loads(p.read_text()); print(p, list(d)[:20], 'payload' in str(d).lower())"`

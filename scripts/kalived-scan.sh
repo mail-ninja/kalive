@@ -47,6 +47,8 @@ source "$ROOT/scripts/lib/check-procs.sh"
 source "$ROOT/scripts/lib/check-pcap.sh"
 # shellcheck source=lib/check-ufw-digest.sh
 source "$ROOT/scripts/lib/check-ufw-digest.sh"
+# shellcheck source=lib/check-falco.sh
+source "$ROOT/scripts/lib/check-falco.sh"
 
 usage() {
   cat << 'EOF'
@@ -70,7 +72,7 @@ FIXTURE_DIR=""
 SKIP_HUNT=0
 QUIET=0
 WANT_SUDO=1
-SCAN_VERSION=11
+SCAN_VERSION=12
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -227,10 +229,13 @@ if kalived_is_live; then
     _rk_pid=""
     _proc_pid=""
     _pcap_pid=""
+    _falco_pid=""
     if [[ "${CFG_PCAP_LOCALHOST:-1}" == "1" ]]; then
       "$ROOT/scripts/hunt-pcap.sh" &
       _pcap_pid=$!
     fi
+    "$ROOT/scripts/kalived-falco.sh" &
+    _falco_pid=$!
     if [[ "${CFG_NMAP_LOCALHOST:-1}" == "1" ]]; then
       "$ROOT/scripts/hunt-nmap.sh" &
       _nmap_pid=$!
@@ -254,6 +259,9 @@ if kalived_is_live; then
     fi
     if [[ -n "$_rk_pid" ]]; then
       wait "$_rk_pid" || add_finding ERROR SCAN "hunt-rootkit.sh feilet" "se scan.log"
+    fi
+    if [[ -n "$_falco_pid" ]]; then
+      wait "$_falco_pid" || add_finding WARN SCAN "falco-burst feilet" "se hunt_falco.err"
     fi
   fi
 fi
@@ -307,6 +315,7 @@ run_mod nmap check_nmap
 run_mod helperstale check_helper_stale
 run_mod procs check_procs
 run_mod pcap check_pcap
+run_mod falco check_falco
 
 # PR 2 dummy: SUDO-MISS-INPUT only on live sudo=0 (should not happen — we ERROR earlier).
 if kalived_is_live && [[ "${KALIVED_SUDO_FLAG}" == "0" ]]; then

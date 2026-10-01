@@ -32,7 +32,7 @@ ALERT krever to uavhengige evidens-domener **eller** én hard artefakt (memfd/de
 
 ---
 
-## Hvor vi er (2026-09-30)
+## Hvor vi er (2026-10-01)
 
 | Flate | Status |
 |-------|--------|
@@ -40,7 +40,7 @@ ALERT krever to uavhengige evidens-domener **eller** én hard artefakt (memfd/de
 | Arbeid Port B | I treet: `repo_bash`, HTML auto-preview |
 | Hiroshima H0–H4 | I treet **og** på verten: scan, Jev-port, ring/graf, env-overlay, Confirm-playbooks, 5-min egress-watch |
 | Settings | Maskin (`config.toml`) + Nøkler (`env` 0600) |
-| H5 Falco | Neste kode. Host-regler, container av |
+| H5 Falco | I treet: host-burst `kalived-ctl falco-burst`, custom yaml, gated playbook. Live pakke venter på apt. |
 | H6 Suricata | Valgfri etter H4/H5 |
 | Port C | VM / tale / mobil — destinasjon, ikke neste |
 
@@ -61,7 +61,7 @@ Detaljert «nå»: [docs/NOW.md](docs/NOW.md). Protokoll: [docs/HIROSHIMA.md](do
 | Port / salience | TypeSafe **Jev** via Vercel AI Gateway → Inception **Mercury-2.5** på candidate → rules |
 | Embeddings | lokal MiniLM 384-d (norsk+engelsk), ikke sky |
 | Minne | Kuzu, Qdrant, SQLite, MinIO, Redis — namespace `agent_id` |
-| Sensorer | AIDE, auditd-connect, UFW over nft, rkhunter, chkrootkit, nmap lo, tshark lo-burst, hunt-procs |
+| Sensorer | AIDE, auditd-connect, UFW over nft, rkhunter, chkrootkit, nmap lo, tshark lo-burst, hunt-procs, Falco host-burst |
 | Watch | `ss` ESTAB + `ausearch -k kalived_connect`, felter i `~/.config/kalived/hiroshima/` 0600 |
 | Root | `/usr/sbin/kalived-ctl` → `/usr/local/lib/kalived` `root:root` |
 

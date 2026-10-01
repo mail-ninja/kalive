@@ -468,3 +468,15 @@ Format: dato — hva — hvorfor — referanse (finding/rapport).
 
 ### 2026-09-30_1443 — install-kalived-helper.sh
 - scan-kopi til /usr/local/lib/kalived root:root (timer ExecStart). Ingen NOPASSWD mot home.
+
+### 2026-09-30_1716 — install-kalived-helper.sh
+- scan-kopi til /usr/local/lib/kalived root:root (timer ExecStart). Ingen NOPASSWD mot home.
+
+### 2026-09-30_1748 — aide-init.sh (scoped)
+- overlay /home/void/.config/kalived/aide-scope.json. Fryser kalived-filer, ikke Proton. Gate: WARN force=1 force_alert=0.
+
+### 2026-09-30_1754 — aide-init.sh (scoped)
+- overlay /home/void/.config/kalived/aide-scope.json. Fryser kalived-filer, ikke Proton. Gate: WARN force=1 force_alert=0.
+
+### 2026-10-01 — H5 Falco host-burst (git)
+- `kalived-ctl falco-burst` → `logs/status/<stamp>/hunt_falco.jsonl` (rule, exe, evt.type, n). Custom `defs/falco-host.yaml`. Falco alene WARN/candidate; Falco+FIM/nett ALERT. Playbook printer apt, kjører ikke. Ingen always-on unit, gRPC/web eller Qdrant/hiroshima-skriv.

@@ -32,6 +32,7 @@ RUNS = {
     "kill-pid": ["sudo", "-n", "kalived-ctl", "kill-pid"],
     "watch": ["sudo", "-n", "kalived-ctl", "watch"],
     "uplink-burst": ["sudo", "-n", "kalived-ctl", "uplink-burst"],
+    "falco-burst": ["sudo", "-n", "kalived-ctl", "falco-burst"],
 }
 ACT_PATH = Path.home() / ".config" / "kalived" / "act.json"
 ROLLBACK_PATH = Path.home() / ".config" / "kalived" / "isolate-rollback.json"

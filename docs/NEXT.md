@@ -2,9 +2,9 @@
 
 Skrevet for å **rådføre** før mer kode. Retningen: det feteste *lokale* kodemiljøet vi klarer, med Hiroshima som sikkerhetsrom som vokser. Ikke en omvei rundt SOC-kjernen. Ikke et nytt rammeverk.
 
-**Landet 2026-09-30** (ikke les resten som «ikke startet»): Port A/B, MiniLM+`decide()`, HTML-preview, Hiroshima H0–H4 på verten (scan, ring, Gal=`tether`, Confirm, watch-timer). Hvor vi er: [NOW.md](NOW.md). Produkt: [../README.md](../README.md).
+**Landet 2026-10-01** (ikke les resten som «ikke startet»): Port A/B, MiniLM+`decide()`, HTML-preview, Hiroshima H0–H4 på verten, H5 Falco host-burst i git. Hvor vi er: [NOW.md](NOW.md). Produkt: [../README.md](../README.md).
 
-**Neste kode:** H5 Falco (host-regler, container av). Arbeid-flatene under er delvis inne (venstre konsoll + tre + Monaco + iframe); det som gjenstår der er tettere VS Code-følelse, ikke en ny app.
+**Neste kode:** live Falco-pakke når operator sier ja apt, deretter H6 Suricata (valgfri). Arbeid-flatene under er delvis inne (venstre konsoll + tre + Monaco + iframe); det som gjenstår der er tettere VS Code-følelse, ikke en ny app.
 
 ---
 
@@ -59,13 +59,13 @@ Ingen LangChain. Ingen Semantic Kernel. Samme `run_turn` + WS.
 
 ---
 
-## Hiroshima — H4 i treet, H5 neste
+## Hiroshima — H5 i treet
 
-I dag: burst-scan, fire siler, AIDE-gate, oneshot `kalived-ctl` fra skuffen, signal som SOC-dom, H1–H4 (ring, Gal-overlay, Confirm, rolling watch på verten). Personlig snapshot-SOC + opt-in 5-min egress. Det later ikke som always-on EDR.
+I dag: burst-scan, fire siler, AIDE-gate, oneshot `kalived-ctl` fra skuffen, signal som SOC-dom, H1–H5 (ring, Gal-overlay, Confirm, rolling watch, Falco host-burst). Personlig snapshot-SOC + opt-in 5-min egress. Det later ikke som always-on EDR.
 
-Protokoll: [HIROSHIMA.md](HIROSHIMA.md) (H0–H4, 2026-09-30). Jev porter digest; Mercury på candidate; `signal` forklarer; ctl utfører. Gal (telefon-hotspot) = `tether`. Overlay + Confirm isolate/aide + watch i skuffen. Falco er H5. Scan-kjernen rører vi ikke «fordi UI». Baseline-allow er merkelapp, ikke rent-host-bevis.
+Protokoll: [HIROSHIMA.md](HIROSHIMA.md) (H0–H5, 2026-10-01). Jev porter digest; Mercury på candidate; `signal` forklarer; ctl utfører. Gal (telefon-hotspot) = `tether`. Overlay + Confirm isolate/aide + watch + falco 8s i skuffen. Falco alene = candidate; Falco+FIM/nett = ALERT. Scan-kjernen rører vi ikke «fordi UI». Baseline-allow er merkelapp, ikke rent-host-bevis.
 
-Neste kode: **H5** — Falco host-regler (container-regler av) inn i samme kandidat-ring.
+Neste SOC-kode: **H6** Suricata (valgfri). Live Falco krever helper-reinstall og apt når operator sier ja.
 
 ---
 
@@ -89,7 +89,7 @@ Neste kode: **H5** — Falco host-regler (container-regler av) inn i samme kandi
 3. **Edit** — landet. `repo_edit` / `repo_write` bak haken.
 4. **Preview-kobling** — landet for workspace-HTML. Loopback-app senere.
 5. **Bash** — landet. `repo_bash` bak haken, timeout, cwd=rot.
-6. **Hiroshima** — H0–H4 landet; **H5 Falco** er neste SOC-kode.
+6. **Hiroshima** — H0–H5 landet i git; live Falco-pakke + **H6 Suricata** er neste SOC-kode.
 
 Gjenstår i Arbeid: tettere tre-følelse, ikke ny app. Workspace default `~/kalived`. `build` som eget id.
 

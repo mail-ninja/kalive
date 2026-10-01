@@ -1,0 +1,1 @@
+{"rule": "kalived_memfd_exec", "exe": "python3", "evt.type": "execve", "n": 1}

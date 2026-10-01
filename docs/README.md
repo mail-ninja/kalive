@@ -4,9 +4,9 @@ Kalived er to rom: **Arbeid** (kodemiljø) og **Hiroshima** (lokal host-SOC). St
 
 | Fil | Les når |
 |-----|---------|
-| [NOW.md](NOW.md) | **Hvor vi er** — 2026-09-30, H4 på verten, H5 neste |
-| [HIROSHIMA.md](HIROSHIMA.md) | SOC-protokoll H0–H6. H0–H4 i treet og på host |
-| [NEXT.md](NEXT.md) | Neste bygg. H5 Falco. Arbeid-flater delvis landet |
+| [NOW.md](NOW.md) | **Hvor vi er** — 2026-10-01, H5 Falco i git |
+| [HIROSHIMA.md](HIROSHIMA.md) | SOC-protokoll H0–H6. H0–H5 i treet; H0–H4 på host |
+| [NEXT.md](NEXT.md) | Neste bygg. Live Falco-pakke / H6. Arbeid-flater delvis landet |
 | [SURFACE.md](SURFACE.md) | Scan-kontrakt, CLI-flagg, finding-IDs, `:8787` |
 | [COCKPIT.md](COCKPIT.md) | `:5173` / `:8788` — flater, agenter, HTTP |
 | [MEMORY.md](MEMORY.md) | Fem lag, MiniLM, Jev-gate |

@@ -1,0 +1,77 @@
+# kalived H5 — host-only rules. Never include stock falco_rules.yaml.
+# Output to jsonl is rule / exe / evt.type / n only (see falco_burst.py).
+# Container conditions are absent on purpose.
+
+- macro: kalived_shell
+  condition: proc.name in (bash, sh, dash, zsh, fish)
+
+- macro: kalived_interp
+  condition: proc.name in (python, python3, python3.11, python3.12, python3.13, python3.14, sh, bash, dash)
+
+- macro: kalived_browser_parent
+  condition: >
+    proc.pname in (firefox, firefox-esr, chromium, chrome, brave, brave-browser, x-www-browser)
+    or proc.pexepath contains firefox
+    or proc.pexepath contains chrom
+    or proc.pexepath contains brave
+
+- macro: kalived_loopback_rip
+  condition: fd.rip = "127.0.0.1" or fd.rip = "::1" or fd.rip = "0.0.0.0"
+
+- macro: kalived_private_rip
+  condition: >
+    kalived_loopback_rip
+    or fd.rip startswith "10."
+    or fd.rip startswith "192.168."
+    or fd.rip startswith "172.16."
+    or fd.rip startswith "172.17."
+    or fd.rip startswith "172.18."
+    or fd.rip startswith "100.64."
+
+- macro: kalived_lkm_allow
+  condition: proc.name in (modprobe, insmod, rmmod, kmod, systemd-udevd, udevd, systemd, falco)
+
+- rule: kalived_memfd_exec
+  desc: exec from memfd
+  condition: spawned_process and proc.exepath startswith "/memfd:"
+  output: memfd exec exe=%proc.exepath evt=%evt.type
+  priority: CRITICAL
+  tags: [host, kalived, memfd]
+
+- rule: kalived_deleted_exec
+  desc: exec of a deleted binary
+  condition: spawned_process and proc.exepath contains "(deleted)"
+  output: deleted exec exe=%proc.exepath evt=%evt.type
+  priority: CRITICAL
+  tags: [host, kalived, deleted]
+
+- rule: kalived_write_preload
+  desc: write or create /etc/ld.so.preload
+  condition: evt.type in (open, openat, openat2, creat) and fd.name = "/etc/ld.so.preload"
+  output: preload write exe=%proc.exepath evt=%evt.type
+  priority: CRITICAL
+  tags: [host, kalived, preload]
+
+- rule: kalived_interp_connect
+  desc: python/sh/bash connect to a non-private dest (unknown)
+  condition: >
+    evt.type = connect and evt.dir = <
+    and kalived_interp
+    and not kalived_private_rip
+  output: interp connect exe=%proc.exepath evt=%evt.type
+  priority: WARNING
+  tags: [host, kalived, connect]
+
+- rule: kalived_shell_from_browser
+  desc: shell spawned from a browser
+  condition: spawned_process and kalived_shell and kalived_browser_parent
+  output: browser-shell exe=%proc.exepath evt=%evt.type
+  priority: CRITICAL
+  tags: [host, kalived, browser]
+
+- rule: kalived_lkm_load
+  desc: init_module/finit_module outside allow-list of loaders
+  condition: evt.type in (init_module, finit_module) and not kalived_lkm_allow
+  output: lkm load exe=%proc.exepath evt=%evt.type
+  priority: CRITICAL
+  tags: [host, kalived, lkm]
