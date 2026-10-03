@@ -28,3 +28,7 @@ grpc:
 load_plugins: []
 libs_logger:
   enabled: false
+
+# Falco 0.45 dropped --modern-ebpf. Default kind is kmod (/dev/falco0).
+engine:
+  kind: modern_ebpf

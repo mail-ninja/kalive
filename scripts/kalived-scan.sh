@@ -262,7 +262,7 @@ if kalived_is_live; then
     fi
     if [[ -n "$_falco_pid" ]]; then
       if ! wait "$_falco_pid"; then
-        if grep -qi 'falco rules rejected' "$OUT/hunt_falco.txt" 2>/dev/null; then
+        if grep -qiE 'falco rules rejected|falco engine failed' "$OUT/hunt_falco.txt" 2>/dev/null; then
           :
         else
           add_finding WARN SCAN "falco-burst feilet" "se hunt_falco.err"

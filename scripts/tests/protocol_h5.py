@@ -291,6 +291,9 @@ def test_tree() -> None:
     assert "fd.rip startswith" not in host
     assert "evt.dir" not in host
     assert "falco rules rejected" in burst
+    assert "falco engine failed" in burst
+    assert "engine.kind=modern_ebpf" in burst
+    assert "kind: modern_ebpf" in conf
     assert "kalived_latest_scan_dir" not in burst
     assert "falco_rules.yaml" not in conf
     assert "/etc/falco/falco_rules" not in host

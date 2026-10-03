@@ -22,6 +22,12 @@ check_falco() {
       "hunt_falco.err"
     return 0
   fi
+  if [[ -f "$note" ]] && grep -qi 'falco engine failed' "$note"; then
+    add_finding INFO HOST-FALCO "falco engine failed" \
+      "modern_ebpf startet ikke (kmod /dev/falco0 eller scap_init). Burst bruker engine.kind=modern_ebpf, ikke stock kmod." \
+      "hunt_falco.err"
+    return 0
+  fi
   if [[ ! -f "$jsonl" ]]; then
     if kalived_is_live; then
       add_finding INFO HOST-FALCO "falco-burst ikke i snapshotet" \

@@ -492,3 +492,9 @@ Format: dato — hva — hvorfor — referanse (finding/rapport).
 
 ### 2026-10-03 — H5 Falco makro (git)
 - `spawned_process` definert i defs/falco-host.yaml (ikke stock falco_rules.yaml). Burst mints ny stamp. falco rc≠0 / Undefined macro → exit 1 + INFO «falco rules rejected». Gate hopper over fixture-ALERT.
+
+### 2026-10-03 — H5 Falco engine.kind (git)
+- Falco 0.45 har ikke `--modern-ebpf`; default `kind` er kmod (`/dev/falco0`). `defs/falco.yaml` + burst `-o engine.kind=modern_ebpf`. Driver/scap_init → INFO «falco engine failed», ikke «rules rejected».
+
+### 2026-10-03_2007 — install-kalived-helper.sh
+- scan-kopi til /usr/local/lib/kalived root:root (timer ExecStart). Ingen NOPASSWD mot home.

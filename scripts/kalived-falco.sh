@@ -86,7 +86,9 @@ args=(-c "$TMPCONF" -r "$RULES"
   -o syslog_output.enabled=false
   -o http_output.enabled=false
   -o file_output.enabled=false
-  -o stdout_output.enabled=true)
+  -o stdout_output.enabled=true
+  -o engine.kind=modern_ebpf
+  -M "$DUR")
 help="$(falco --help 2>&1 || true)"
 if grep -q -- '--modern-ebpf' <<<"$help"; then
   args+=(--modern-ebpf)
@@ -100,19 +102,35 @@ timeout "$((DUR + 3))" falco "${args[@]}" > "$RAW" 2>"$ERR"
 rc=$?
 set -e
 
-reject=0
+rules_reject=0
+engine_fail=0
 if grep -qi 'Undefined macro' "$ERR" 2>/dev/null; then
-  reject=1
+  rules_reject=1
 fi
-# 0 = falco exited; 124/143/137 = timeout killed a running burst (expected).
+if grep -qiE 'LOAD_ERR|error compiling' "$ERR" 2>/dev/null; then
+  rules_reject=1
+fi
+if grep -qiE '/dev/falco0|falco module is loaded|scap_init|ring buffer' "$ERR" 2>/dev/null; then
+  engine_fail=1
+fi
+# 0 = falco -M done; 124/143/137 = timeout killed a running burst (expected).
 if [[ "$rc" -ne 0 && "$rc" -ne 124 && "$rc" -ne 143 && "$rc" -ne 137 ]]; then
-  reject=1
+  if [[ "$rules_reject" -eq 0 ]]; then
+    engine_fail=1
+  fi
 fi
-if [[ "$reject" -eq 1 ]]; then
+if [[ "$rules_reject" -eq 1 ]]; then
   echo "falco rules rejected rc=$rc" > "$NOTE"
   : > "$JSONL"
   rm -f "$RAW"
   echo "[*] falco rules rejected rc=$rc — se $ERR" >&2
+  exit 1
+fi
+if [[ "$engine_fail" -eq 1 ]]; then
+  echo "falco engine failed rc=$rc" > "$NOTE"
+  : > "$JSONL"
+  rm -f "$RAW"
+  echo "[*] falco engine failed rc=$rc — se $ERR" >&2
   exit 1
 fi
 
