@@ -480,3 +480,15 @@ Format: dato — hva — hvorfor — referanse (finding/rapport).
 
 ### 2026-10-01 — H5 Falco host-burst (git)
 - `kalived-ctl falco-burst` → `logs/status/<stamp>/hunt_falco.jsonl` (rule, exe, evt.type, n). Custom `defs/falco-host.yaml`. Falco alene WARN/candidate; Falco+FIM/nett ALERT. Playbook printer apt, kjører ikke. Ingen always-on unit, gRPC/web eller Qdrant/hiroshima-skriv.
+
+### 2026-10-01_1036 — install-kalived-helper.sh
+- scan-kopi til /usr/local/lib/kalived root:root (timer ExecStart). Ingen NOPASSWD mot home.
+
+### 2026-10-03_1403 — install-kalived-helper.sh
+- scan-kopi til /usr/local/lib/kalived root:root (timer ExecStart). Ingen NOPASSWD mot home.
+
+### 2026-10-03_1403 — install-falco-host.sh
+- regler kopiert. falco-pakke mangler — apt ikke kjørt. units disable/mask forsøkt.
+
+### 2026-10-03 — H5 Falco makro (git)
+- `spawned_process` definert i defs/falco-host.yaml (ikke stock falco_rules.yaml). Burst mints ny stamp. falco rc≠0 / Undefined macro → exit 1 + INFO «falco rules rejected». Gate hopper over fixture-ALERT.

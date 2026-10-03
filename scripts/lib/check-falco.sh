@@ -16,6 +16,12 @@ check_falco() {
       "hunt_falco.txt"
     return 0
   fi
+  if [[ -f "$note" ]] && grep -qi 'falco rules rejected' "$note"; then
+    add_finding INFO HOST-FALCO "falco rules rejected" \
+      "Host-regler lastet ikke (Undefined macro / falco rc≠0). Se hunt_falco.err. Ikke stock falco_rules.yaml." \
+      "hunt_falco.err"
+    return 0
+  fi
   if [[ ! -f "$jsonl" ]]; then
     if kalived_is_live; then
       add_finding INFO HOST-FALCO "falco-burst ikke i snapshotet" \

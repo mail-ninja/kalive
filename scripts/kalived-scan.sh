@@ -261,7 +261,13 @@ if kalived_is_live; then
       wait "$_rk_pid" || add_finding ERROR SCAN "hunt-rootkit.sh feilet" "se scan.log"
     fi
     if [[ -n "$_falco_pid" ]]; then
-      wait "$_falco_pid" || add_finding WARN SCAN "falco-burst feilet" "se hunt_falco.err"
+      if ! wait "$_falco_pid"; then
+        if grep -qi 'falco rules rejected' "$OUT/hunt_falco.txt" 2>/dev/null; then
+          :
+        else
+          add_finding WARN SCAN "falco-burst feilet" "se hunt_falco.err"
+        fi
+      fi
     fi
   fi
 fi

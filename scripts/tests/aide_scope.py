@@ -170,7 +170,7 @@ def _fake_data(verdict: str) -> Path:
     td = Path(tempfile.mkdtemp())
     stamp = td / "logs" / "status" / "2026-01-01_000000"
     stamp.mkdir(parents=True)
-    (stamp / "meta.txt").write_text("kalived_scan=1\n", encoding="utf-8")
+    (stamp / "meta.txt").write_text("kalived_scan=1\nsudo=1\n", encoding="utf-8")
     (stamp / "verdict.json").write_text(
         json.dumps({"verdict": verdict, "exit_code": 2 if verdict == "ALERT" else 1, "findings": []}) + "\n",
         encoding="utf-8",

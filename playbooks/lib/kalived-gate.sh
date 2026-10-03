@@ -2,10 +2,12 @@
 # Shared gate for mutating playbooks. Source after ROOT is set.
 
 kalived_latest_scan_dir() {
-  local d best="" best_meta="" base="${KALIVED_DATA:-$ROOT}"
+  local d best="" base="${KALIVED_DATA:-$ROOT}"
   for d in "$base"/logs/status/*/; do
     [[ -f "$d/meta.txt" && -f "$d/verdict.json" ]] || continue
     grep -q '^kalived_scan=1' "$d/meta.txt" 2>/dev/null || continue
+    grep -q '^fixture=1' "$d/meta.txt" 2>/dev/null && continue
+    grep -q '^sudo=1' "$d/meta.txt" 2>/dev/null || continue
     if [[ -z "$best" || "$d" > "$best" ]]; then
       best="$d"
     fi
@@ -25,8 +27,8 @@ kalived_require_not_alert() {
   echo "GATE: latest=$dir verdict=$verdict"
   case "$verdict" in
     ALERT|ERROR)
-      echo "GATE FAIL: siste scan er $verdict — ikke installer auditd/AIDE på denne tilstanden." >&2
-      echo "  (aide-init: --force hopper ikke over ALERT; bruk --force-alert bare etter evidens er lagret)" >&2
+      echo "GATE FAIL: siste live scan er $verdict — ikke kjør muterende playbook på denne tilstanden." >&2
+      echo "  (fixture-stamps i logs/status/ teller ikke. aide-init: --force hopper ikke over ALERT.)" >&2
       return 2
       ;;
     CLEAN|WARN)

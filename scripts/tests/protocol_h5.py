@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -230,6 +231,54 @@ def test_dry(tmp: Path) -> None:
     print("OK dry burst no hiroshima write")
 
 
+def test_new_stamp(tmp: Path) -> None:
+    env = os.environ.copy()
+    env["KALIVED_FALCO_DRY"] = "1"
+    env.pop("KALIVED_OUT", None)
+    env["KALIVED_DATA"] = str(tmp)
+    env["HOME"] = str(tmp / "home")
+    env["KALIVED_OWNER_HOME"] = str(tmp / "home")
+    r = subprocess.run(
+        ["bash", str(ROOT / "scripts" / "kalived-falco.sh")],
+        cwd=str(ROOT),
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert r.returncode == 0, (r.returncode, r.stderr)
+    stamps = list((tmp / "logs" / "status").glob("*/hunt_falco.jsonl"))
+    assert len(stamps) == 1, stamps
+    assert stamps[0].parent.name != "2026-09-30_175433"
+    assert stamps[0].stat().st_size == 0
+    print("OK dry mints new stamp", stamps[0].parent.name)
+
+
+def test_validate() -> None:
+    host = ROOT / "defs" / "falco-host.yaml"
+    conf = ROOT / "defs" / "falco.yaml"
+    falco = shutil.which("falco")
+    if not falco:
+        print("skip falco -V (no binary)")
+        return
+    r = subprocess.run(
+        [falco, "-c", str(conf), "-V", str(host)],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    blob = (r.stdout or "") + (r.stderr or "")
+    assert r.returncode == 0, blob
+    assert "Undefined macro" not in blob
+    compact = blob.replace(" ", "")
+    assert '"successful":true' in compact
+    assert '"warnings":[]' in compact
+    assert '"errors":[]' in compact
+    assert "falco_rules.yaml" not in blob
+    print("OK falco -V")
+
+
 def test_tree() -> None:
     host = (ROOT / "defs" / "falco-host.yaml").read_text(encoding="utf-8")
     conf = (ROOT / "defs" / "falco.yaml").read_text(encoding="utf-8")
@@ -237,6 +286,12 @@ def test_tree() -> None:
     ctl = (ROOT / "scripts" / "kalived-ctl").read_text(encoding="utf-8")
     hiro = (ROOT / "cockpit" / "backend" / "app" / "hiroshima.py").read_text(encoding="utf-8")
     burst = (ROOT / "scripts" / "kalived-falco.sh").read_text(encoding="utf-8")
+    assert "- macro: spawned_process" in host
+    assert "evt.type in (execve, execveat)" in host
+    assert "fd.rip startswith" not in host
+    assert "evt.dir" not in host
+    assert "falco rules rejected" in burst
+    assert "kalived_latest_scan_dir" not in burst
     assert "falco_rules.yaml" not in conf
     assert "/etc/falco/falco_rules" not in host
     assert "/etc/falco/falco_rules" not in burst
@@ -276,10 +331,13 @@ def main() -> int:
     test_empty()
     test_findings()
     test_tree()
+    test_validate()
     with tempfile.TemporaryDirectory() as d:
         test_port(Path(d))
     with tempfile.TemporaryDirectory() as d:
         test_dry(Path(d))
+    with tempfile.TemporaryDirectory() as d:
+        test_new_stamp(Path(d))
     return 0
 
 

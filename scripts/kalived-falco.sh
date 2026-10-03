@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Host Falco burst (~8s, same window as tshark). Writes hunt_falco.jsonl under the scan stamp.
+# Host Falco burst (~8s, same window as tshark). Writes hunt_falco.jsonl under a stamp.
+# Scan sets KALIVED_OUT. Standalone ctl mints a new stamp (never reuse an old scan).
 # Never ~/.config/kalived/hiroshima/. Never Qdrant. Never cmdline/SNI/pcap.
 # Confirm: sudo kalived-ctl falco-burst
 set -euo pipefail
@@ -7,40 +8,20 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/.." && pwd)"
 # shellcheck source=lib/kalived-config.sh
 source "$ROOT/scripts/lib/kalived-config.sh"
-# shellcheck source=../playbooks/lib/kalived-gate.sh
-source "$ROOT/playbooks/lib/kalived-gate.sh" 2>/dev/null || true
 
 if [[ "$(id -u)" -ne 0 && "${KALIVED_FALCO_DRY:-0}" != "1" ]]; then
   echo "bruk: sudo kalived-ctl falco-burst" >&2
   exit 1
 fi
 
-latest_out() {
-  local d best="" base="${KALIVED_DATA:-$ROOT}"
-  if [[ -n "${KALIVED_OUT:-}" ]]; then
-    printf '%s' "$KALIVED_OUT"
-    return 0
-  fi
-  if command -v kalived_latest_scan_dir >/dev/null 2>&1; then
-    best="$(kalived_latest_scan_dir || true)"
-    if [[ -n "$best" ]]; then
-      printf '%s' "$best"
-      return 0
-    fi
-  fi
-  for d in "$base"/logs/status/*/; do
-    [[ -f "$d/verdict.json" ]] || continue
-    if [[ -z "$best" || "$d" > "$best" ]]; then
-      best="$d"
-    fi
-  done
-  printf '%s' "$best"
-}
-
-OUT="${KALIVED_OUT:-$(latest_out)}"
-if [[ -z "$OUT" ]]; then
+if [[ -n "${KALIVED_OUT:-}" ]]; then
+  OUT="$KALIVED_OUT"
+else
   STAMP="$(date +%Y-%m-%d_%H%M%S)"
   OUT="${KALIVED_DATA:-$ROOT}/logs/status/$STAMP"
+  if [[ -e "$OUT" ]]; then
+    OUT="${OUT}_$$"
+  fi
 fi
 mkdir -p "$OUT"
 NOTE="$OUT/hunt_falco.txt"
@@ -118,8 +99,24 @@ set +e
 timeout "$((DUR + 3))" falco "${args[@]}" > "$RAW" 2>"$ERR"
 rc=$?
 set -e
-echo "duration_s=$DUR rc=$rc rules=$RULES" > "$NOTE"
 
+reject=0
+if grep -qi 'Undefined macro' "$ERR" 2>/dev/null; then
+  reject=1
+fi
+# 0 = falco exited; 124/143/137 = timeout killed a running burst (expected).
+if [[ "$rc" -ne 0 && "$rc" -ne 124 && "$rc" -ne 143 && "$rc" -ne 137 ]]; then
+  reject=1
+fi
+if [[ "$reject" -eq 1 ]]; then
+  echo "falco rules rejected rc=$rc" > "$NOTE"
+  : > "$JSONL"
+  rm -f "$RAW"
+  echo "[*] falco rules rejected rc=$rc — se $ERR" >&2
+  exit 1
+fi
+
+echo "duration_s=$DUR rc=$rc rules=$RULES" > "$NOTE"
 python3 "$LIB" aggregate "$RAW" "$JSONL" >/dev/null
 rm -f "$RAW"
 # raw can contain cmdline from Falco stdout — drop it after aggregate

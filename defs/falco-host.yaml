@@ -2,6 +2,11 @@
 # Output to jsonl is rule / exe / evt.type / n only (see falco_burst.py).
 # Container conditions are absent on purpose.
 
+# Stock falco_rules.yaml names this spawned_process. Defined here so we never load stock.
+# Falco 0.45 drops enter events; omit direction filter so -V stays clean.
+- macro: spawned_process
+  condition: (evt.type in (execve, execveat))
+
 - macro: kalived_shell
   condition: proc.name in (bash, sh, dash, zsh, fish)
 
@@ -16,17 +21,12 @@
     or proc.pexepath contains brave
 
 - macro: kalived_loopback_rip
-  condition: fd.rip = "127.0.0.1" or fd.rip = "::1" or fd.rip = "0.0.0.0"
+  condition: (fd.rip in (127.0.0.1, "::1", 0.0.0.0))
 
 - macro: kalived_private_rip
   condition: >
-    kalived_loopback_rip
-    or fd.rip startswith "10."
-    or fd.rip startswith "192.168."
-    or fd.rip startswith "172.16."
-    or fd.rip startswith "172.17."
-    or fd.rip startswith "172.18."
-    or fd.rip startswith "100.64."
+    (kalived_loopback_rip
+     or fd.rnet in ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "100.64.0.0/10"))
 
 - macro: kalived_lkm_allow
   condition: proc.name in (modprobe, insmod, rmmod, kmod, systemd-udevd, udevd, systemd, falco)
@@ -55,7 +55,7 @@
 - rule: kalived_interp_connect
   desc: python/sh/bash connect to a non-private dest (unknown)
   condition: >
-    evt.type = connect and evt.dir = <
+    evt.type = connect
     and kalived_interp
     and not kalived_private_rip
   output: interp connect exe=%proc.exepath evt=%evt.type

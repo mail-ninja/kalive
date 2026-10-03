@@ -34,11 +34,16 @@ systemctl mask falco.service 2>/dev/null || true
 
 if ! command -v falco >/dev/null 2>&1; then
   cat >&2 << 'EOF'
-Falco-pakke mangler. Når operator sier ja apt (ikke i denne runden uten GO):
+Falco ligger ikke i Kali-apt. Når operator sier ja (tredjeparts-repo + pakke):
 
-  sudo apt-get install -y falco
+  curl -fsSL https://falco.org/repo/falcosecurity-packages.asc | sudo gpg --dearmor -o /usr/share/keyrings/falco-archive-keyring.gpg
+  echo "deb [signed-by=/usr/share/keyrings/falco-archive-keyring.gpg] https://download.falco.org/packages/deb stable main" | sudo tee /etc/apt/sources.list.d/falcosecurity.list
+  sudo apt-get update -y
+  sudo env FALCO_FRONTEND=noninteractive FALCO_DRIVER_CHOICE=none FALCOCTL_ENABLED=no apt-get install -y falco
+  sudo systemctl disable --now falco.service falco-modern-bpf.service falco-kmod.service falcoctl-artifact-follow.service
+  sudo systemctl mask falco.service falco-modern-bpf.service falcoctl-artifact-follow.service
 
-Ikke enable falco.service. Ikke gRPC/web. Burst:
+Ikke enable unit. Ikke gRPC/web. Burst:
 
   sudo kalived-ctl falco-burst
 
