@@ -73,7 +73,11 @@ def test_watch_chown_owner() -> None:
     cfg = (ROOT / "scripts" / "lib" / "kalived-config.sh").read_text(encoding="utf-8")
     assert "kalived_chown_owner_dir" in watch
     assert "kalived_chown_owner_dir" in uplink
+    falco = (ROOT / "scripts" / "kalived-falco.sh").read_text(encoding="utf-8")
+    assert "kalived_chown_owner_0600" in falco
     assert 'chown -R "${owner}:${owner}"' in cfg
+    assert 'chmod 0600' in cfg
+    assert 'chown "${owner}:${owner}"' in cfg
     assert "if [[ -n \"${SUDO_USER:-}\" ]]; then\n  chown" not in watch
     assert "if [[ -n \"${SUDO_USER:-}\" ]]; then\n  chown" not in uplink
     unit = (ROOT / "systemd" / "kalived-watch.service").read_text(encoding="utf-8")

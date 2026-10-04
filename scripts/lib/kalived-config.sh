@@ -45,6 +45,23 @@ kalived_chown_owner_dir() {
   chown -R "${owner}:${owner}" "$dest"
 }
 
+# Single file: owner:owner 0600 (Falco jsonl/txt/err; cockpit/void must read).
+kalived_chown_owner_0600() {
+  local f="$1"
+  local owner="${KALIVED_OWNER:-${SUDO_USER:-void}}"
+  [[ -e "$f" ]] || return 0
+  if [[ -z "$owner" || "$owner" == "root" ]]; then
+    echo "WARN: skip chown $f (owner=${owner:-empty})" >&2
+    return 0
+  fi
+  if ! id -u "$owner" >/dev/null 2>&1; then
+    echo "WARN: skip chown, unknown owner $owner" >&2
+    return 0
+  fi
+  chown "${owner}:${owner}" "$f"
+  chmod 0600 "$f"
+}
+
 # Sets CFG_* exports. Returns 3 on invalid enum/bind.
 kalived_config_load() {
   local path py

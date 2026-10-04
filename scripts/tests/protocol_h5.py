@@ -226,6 +226,9 @@ def test_dry(tmp: Path) -> None:
     jsonl = out / "hunt_falco.jsonl"
     assert jsonl.is_file()
     assert jsonl.stat().st_size == 0
+    assert jsonl.stat().st_mode & 0o777 == 0o600
+    note = out / "hunt_falco.txt"
+    assert note.is_file() and note.stat().st_mode & 0o777 == 0o600
     assert not any(hiro.iterdir()), list(hiro.iterdir())
     assert not (out / "hunt_falco_raw.jsonl").exists()
     print("OK dry burst no hiroshima write")
@@ -293,6 +296,8 @@ def test_tree() -> None:
     assert "falco rules rejected" in burst
     assert "falco engine failed" in burst
     assert "engine.kind=modern_ebpf" in burst
+    assert "kalived_chown_owner_0600" in burst
+    assert "_falco_own" in burst
     assert "kind: modern_ebpf" in conf
     assert "kalived_latest_scan_dir" not in burst
     assert "falco_rules.yaml" not in conf

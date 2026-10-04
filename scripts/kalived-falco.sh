@@ -31,6 +31,17 @@ ERR="$OUT/hunt_falco.err"
 LIB="$ROOT/scripts/lib/falco_burst.py"
 RULES="$ROOT/defs/falco-host.yaml"
 CONF="$ROOT/defs/falco.yaml"
+_falco_own() {
+  kalived_chown_owner_0600 "$NOTE"
+  kalived_chown_owner_0600 "$JSONL"
+  kalived_chown_owner_0600 "$ERR"
+}
+TMPCONF=""
+cleanup() {
+  rm -f "$TMPCONF"
+  _falco_own
+}
+trap cleanup EXIT
 
 # Refuse H4 watch dir.
 case "$OUT" in
@@ -69,8 +80,6 @@ if [[ ! -f /sys/kernel/btf/vmlinux ]]; then
 fi
 
 TMPCONF="$(mktemp /tmp/kalived-falco.XXXXXX.yaml)"
-cleanup() { rm -f "$TMPCONF"; }
-trap cleanup EXIT
 {
   cat "$CONF"
   echo
