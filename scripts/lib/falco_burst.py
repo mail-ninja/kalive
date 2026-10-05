@@ -130,8 +130,11 @@ def load_jsonl(path: Path) -> list[dict[str, Any]]:
     return rows
 
 
+_SEV_RANK = {"INFO": 1, "WARN": 2, "ALERT": 3, "ERROR": 4}
+
+
 def _finding_ids(findings_path: Path) -> dict[str, str]:
-    """id → severity from findings.jsonl."""
+    """id → highest severity among all rows (WARN is not overwritten by a later INFO)."""
     out: dict[str, str] = {}
     if not findings_path.is_file():
         return out
@@ -140,8 +143,13 @@ def _finding_ids(findings_path: Path) -> dict[str, str]:
             rec = json.loads(line)
         except json.JSONDecodeError:
             continue
-        if isinstance(rec, dict) and rec.get("id"):
-            out[str(rec["id"])] = str(rec.get("severity") or "")
+        if not isinstance(rec, dict) or not rec.get("id"):
+            continue
+        sid = str(rec["id"])
+        sev = str(rec.get("severity") or "")
+        prev = out.get(sid, "")
+        if _SEV_RANK.get(sev, 0) >= _SEV_RANK.get(prev, 0):
+            out[sid] = sev
     return out
 
 

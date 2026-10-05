@@ -50,8 +50,19 @@ fi
   echo '### cron'
   crontab -l 2>&1 || true
   echo '### autostart grep'
-  grep -riE 'keylog|logkeys|pynput|evtest' \
-    "$HOME/.config/autostart" /etc/xdg/autostart 2>/dev/null || echo none
+  _home="${KALIVED_OWNER_HOME:-${HOME:-}}"
+  _paths=()
+  if [[ -n "$_home" && -d "$_home/.config/autostart" ]]; then
+    _paths+=("$_home/.config/autostart")
+  fi
+  if [[ -d /etc/xdg/autostart ]]; then
+    _paths+=("/etc/xdg/autostart")
+  fi
+  if [[ ${#_paths[@]} -gt 0 ]]; then
+    grep -riE 'keylog|logkeys|pynput|evtest' "${_paths[@]}" 2>/dev/null || echo none
+  else
+    echo none
+  fi
   echo '### non-localhost TCP'
   ss -tln | awk 'NR>1 {print $4}' | grep -vE '127\.0\.0\.1:|\[::1\]:' || echo 'OK none'
 } | tee "$OUT/${KALIVED_OUT:+keylog_}summary.txt"

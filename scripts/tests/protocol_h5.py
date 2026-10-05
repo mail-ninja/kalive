@@ -15,6 +15,7 @@ sys.path.insert(0, str(ROOT / "cockpit" / "backend"))
 
 from falco_burst import (  # noqa: E402
     ALLOWED,
+    _finding_ids,
     aggregate,
     digest_rows,
     findings_from_rows,
@@ -110,6 +111,28 @@ def test_findings() -> None:
     )
     assert quiet[0]["severity"] == "WARN", quiet
     print("OK findings WARN/ALERT/INFO")
+
+
+def test_dual_all_warn_rows(tmp: Path) -> None:
+    findings = tmp / "findings.jsonl"
+    findings.write_text(
+        json.dumps({"severity": "WARN", "id": "FIM-AIDE", "title": "self_sudoers"})
+        + "\n"
+        + json.dumps({"severity": "WARN", "id": "FIM-AIDE", "title": "snap_proton"})
+        + "\n"
+        + json.dumps({"severity": "INFO", "id": "FIM-AIDE", "title": "self_helper"})
+        + "\n",
+        encoding="utf-8",
+    )
+    ids = _finding_ids(findings)
+    assert ids.get("FIM-AIDE") == "WARN", ids
+    recs = findings_from_rows(
+        [{"rule": "kalived_interp_connect", "exe": "python3.14", "evt.type": "connect", "n": 2}],
+        ids=ids,
+    )
+    assert recs[0]["severity"] == "ALERT", recs
+    assert "Falco + FIM" in recs[0]["title"], recs[0]["title"]
+    print("OK dual uses WARN rows, not last INFO")
 
 
 def _snap(tmp: Path, *, rows: list[dict] | None, findings: list[dict], verdict: str) -> Path:
@@ -257,6 +280,28 @@ def test_new_stamp(tmp: Path) -> None:
     print("OK dry mints new stamp", stamps[0].parent.name)
 
 
+def test_keylog_home_unset(tmp: Path) -> None:
+    env = os.environ.copy()
+    env.pop("HOME", None)
+    env["KALIVED_OUT"] = str(tmp)
+    env["KALIVED_OWNER_HOME"] = str(tmp)
+    (tmp / ".config" / "autostart").mkdir(parents=True)
+    r = subprocess.run(
+        ["bash", str(ROOT / "scripts" / "keylogscan.sh")],
+        cwd=str(ROOT),
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    summary = tmp / "keylog_summary.txt"
+    assert r.returncode == 0, (r.returncode, r.stderr)
+    text = summary.read_text(encoding="utf-8", errors="replace")
+    assert "### autostart grep" in text, text
+    assert "### non-localhost TCP" in text, text
+    print("OK keylogscan HOME unset finishes summary")
+
+
 def test_validate() -> None:
     host = ROOT / "defs" / "falco-host.yaml"
     conf = ROOT / "defs" / "falco.yaml"
@@ -346,6 +391,10 @@ def main() -> int:
         test_dry(Path(d))
     with tempfile.TemporaryDirectory() as d:
         test_new_stamp(Path(d))
+    with tempfile.TemporaryDirectory() as d:
+        test_dual_all_warn_rows(Path(d))
+    with tempfile.TemporaryDirectory() as d:
+        test_keylog_home_unset(Path(d))
     return 0
 
 
