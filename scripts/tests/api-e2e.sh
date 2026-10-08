@@ -14,7 +14,8 @@ if [[ "${1:-}" == "--live" ]]; then
   BASE="http://127.0.0.1:8787"
   _owner="${SUDO_USER:-$(id -un)}"
   if [[ "$(id -u)" -eq 0 && "$_owner" == "root" ]]; then
-    _owner=void
+    echo "live e2e: kjør som operator (ikke root uten SUDO_USER)" >&2
+    exit 1
   fi
   _home="$(getent passwd "$_owner" | cut -d: -f6)"
   _tokf="${_home}/.config/kalived/api.token"

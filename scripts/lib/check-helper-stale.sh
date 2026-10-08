@@ -7,7 +7,10 @@ check_helper_stale() {
   local src="${KALIVED_DATA:-$ROOT}"
   # When scan runs from helper, ROOT is prefix; DATA is git tree.
   if [[ "$ROOT" == "$prefix" ]]; then
-    src="${KALIVED_DATA:-/home/void/kalived}"
+    src="${KALIVED_DATA:-}"
+    if [[ -z "$src" ]]; then
+      src="$(kalived_owner_home)/kalived"
+    fi
   fi
   if [[ ! -d "$prefix/scripts" ]]; then
     add_finding INFO HELPER-STALE "helper-prefix mangler (kjør install-kalived-helper.sh)" "" "helper"

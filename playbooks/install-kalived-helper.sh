@@ -32,7 +32,7 @@ chown -R root:root "$PREFIX"
 find "$PREFIX" -type d -exec chmod 755 {} \;
 find "$PREFIX" -type f -exec chmod 644 {} \;
 chmod 755 "$PREFIX/scripts/"*.sh "$PREFIX/scripts/"*.py "$PREFIX/scripts/lib/"*.py "$PREFIX/playbooks/"*.sh "$PREFIX/playbooks/lib/"*.sh 2>/dev/null || true
-# No NOPASSWD on /home/void/kalived.
+# No NOPASSWD on the git tree (user-writable = root).
 echo "Helper: $PREFIX (root:root)"
 ls -ld "$PREFIX" "$PREFIX/scripts/kalived-scan.sh"
 kalived_changelog "install-kalived-helper.sh" \

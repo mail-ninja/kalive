@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Install ~/.config/kalived/config.toml from example if missing.
-# Run: sudo bash playbooks/install-config.sh   (or uten sudo som void)
+# Run: sudo bash playbooks/install-config.sh   (eller uten sudo som operator)
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 USER_NAME="${SUDO_USER:-$(id -un)}"

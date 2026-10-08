@@ -15,16 +15,18 @@ from app.hiroshima_decide import (  # noqa: E402
     port,
 )
 
-FIX = Path(__file__).resolve().parent / "fixtures" / "h1-gal"
+FIX = Path(__file__).resolve().parent / "fixtures" / "h1-tether"
 LIVE = ROOT / "logs" / "status" / "2026-09-29_112349"
 
 
-def check(snap: Path, label: str) -> None:
+def check(snap: Path, label: str, *, ssid: str | None = "Hotspot", klass: str | None = "tether") -> None:
     d = digest_from_snapshot(snap)
     assert d["protocol"] == "hiroshima", label
     env = d.get("env") or {}
-    assert env.get("ssid") == "Gal", (label, env)
-    assert env.get("class") == "tether", (label, env)
+    if ssid is not None:
+        assert env.get("ssid") == ssid, (label, env)
+    if klass is not None:
+        assert env.get("class") == klass, (label, env)
     blob = json.dumps(d)
     assert "frame.time" not in blob
     assert "http.host" not in blob
@@ -47,7 +49,7 @@ def check(snap: Path, label: str) -> None:
 def main() -> int:
     check(FIX, "fixture")
     if LIVE.is_dir() and (LIVE / "verdict.json").is_file():
-        check(LIVE, "live-snapshot")
+        check(LIVE, "live-snapshot", ssid=None, klass=None)
     else:
         print("skip live-snapshot")
     return 0

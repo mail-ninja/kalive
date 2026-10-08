@@ -57,7 +57,7 @@ if [[ "$STOP" == "1" ]]; then
   systemctl is-active docker docker.socket 2>&1 || true
 fi
 
-echo "void docker-gruppe: $(getent group docker || true)"
+echo "docker-gruppe: $(getent group docker || true)"
 kalived_changelog "docker-hygiene.sh" \
   "- F-005: behold docker-gruppe. stop-idle=$STOP prune=$PRUNE. Marker /etc/kalived/docker-stop-idle. Start: systemctl start docker"
 echo "DONE"

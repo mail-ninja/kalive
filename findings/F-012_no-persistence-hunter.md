@@ -9,8 +9,7 @@
 ## Observasjon
 
 Persistens (cron, systemd-user, `ld.so.preload`, authorized_keys, deleted execs) ble sjekket
-én gang i `reports/2026-08-13_hermetic-kali-and-cep1er.md` /
-`logs/status/2026-08-13_1019_hermetic/persistence.txt`. Ingen `scripts/hunt-persistence.sh`.
+som one-shot i august 2026. Ingen `scripts/hunt-persistence.sh` den gangen.
 
 ## Anbefalt handling
 

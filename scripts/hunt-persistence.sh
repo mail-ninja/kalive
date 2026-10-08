@@ -13,7 +13,7 @@ echo "[*] hunt-persistence → $OUT" >&2
 
 {
   echo "=== user crontabs ==="
-  for u in root void postgres; do
+  for u in root $(getent passwd | awk -F: '$3>=1000 && $3<65534 {print $1}'); do
     echo "-- $u --"
     crontab -u "$u" -l 2>&1 || true
   done

@@ -45,7 +45,7 @@ SAMPLE = {
         "proc.cmdline": "python3 -c 'import socket; socket.connect((\"198.51.100.9\",443))'",
         "evt.type": "execve",
         "fd.rip": "198.51.100.9",
-        "fd.sip": "10.125.19.203",
+        "fd.sip": "192.168.43.10",
         "fd.sni": "evil.example.com",
         "container.id": "host",
     },
@@ -174,7 +174,7 @@ def test_port(tmp: Path) -> None:
         findings=[{"severity": "WARN", "id": "HOST-FALCO", "title": "Falco candidate"}],
         verdict="WARN",
     )
-    (only / "nm_active.txt").write_text("Gal:00000000-0000-0000-0000-000000000000:802-11-wireless:wlan0\n")
+    (only / "nm_active.txt").write_text("Hotspot:00000000-0000-0000-0000-000000000000:802-11-wireless:wlan0\n")
     d1 = digest_from_snapshot(only)
     assert d1["falco"] == only_rows, d1["falco"]
     _assert_clean({"falco": d1["falco"]}, "only-digest", rows=True)

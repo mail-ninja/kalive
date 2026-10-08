@@ -17,7 +17,7 @@ from app.hiroshima_decide import (  # noqa: E402
     stamp_graph,
 )
 
-FIX = Path(__file__).resolve().parent / "fixtures" / "h1-gal"
+FIX = Path(__file__).resolve().parent / "fixtures" / "h1-tether"
 MEMFD = Path(__file__).resolve().parent / "fixtures" / "h2-memfd"
 LIVE = ROOT / "logs" / "status" / "2026-09-29_112349"
 
@@ -26,7 +26,7 @@ def _blob(doc: dict) -> str:
     return json.dumps(doc, ensure_ascii=False)
 
 
-def check_gal(snap: Path, label: str) -> dict:
+def check_tether(snap: Path, label: str) -> dict:
     proto = port(snap, live=False)
     blob = _blob(proto)
     assert proto["class"] == "env_shift", (label, proto["class"])
@@ -42,6 +42,7 @@ def check_gal(snap: Path, label: str) -> dict:
         assert all(x.get("dst_family") for x in flows), (label, flows)
         assert all(x.get("exe") for x in flows), (label, flows)
     assert "203.0.113.9" not in blob
+    assert "192.168.43" not in blob
     assert "10.125.19" not in blob
     assert "34.107" not in blob
     assert "--crashpad" not in blob
@@ -83,9 +84,9 @@ def check_graph(proto: dict) -> None:
 
 
 def main() -> int:
-    gal = check_gal(FIX, "fixture")
+    gal = check_tether(FIX, "fixture")
     if LIVE.is_dir() and (LIVE / "verdict.json").is_file():
-        live = check_gal(LIVE, "live-snapshot")
+        live = check_tether(LIVE, "live-snapshot")
         check_graph(live)
     else:
         check_graph(gal)

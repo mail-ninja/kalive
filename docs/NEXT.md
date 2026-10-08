@@ -1,22 +1,20 @@
-# Neste bygg — forslag
+# Neste bygg
 
-Skrevet for å **rådføre** før mer kode. Retningen: det feteste *lokale* kodemiljøet vi klarer, med Hiroshima som sikkerhetsrom som vokser. Ikke en omvei rundt SOC-kjernen. Ikke et nytt rammeverk.
+Retningen: det feteste *lokale* kodemiljøet vi klarer, med Hiroshima som sikkerhetsrom som allerede ser. Ikke en omvei rundt SOC-kjernen. Ikke et nytt rammeverk.
 
-**Landet 2026-10-01** (ikke les resten som «ikke startet»): Port A/B, MiniLM+`decide()`, HTML-preview, Hiroshima H0–H4 på verten, H5 Falco host-burst i git. Hvor vi er: [NOW.md](NOW.md). Produkt: [../README.md](../README.md).
-
-**Neste kode:** live Falco-pakke når operator sier ja apt, deretter H6 Suricata (valgfri). Arbeid-flatene under er delvis inne (venstre konsoll + tre + Monaco + iframe); det som gjenstår der er tettere VS Code-følelse, ikke en ny app.
+H0–H5 er i treet og på verten. H6 Suricata er valgfri destinasjon. **Neste kode er Arbeid-editoren.**
 
 ---
 
-## Tre flater i Arbeid
+## Arbeid — tre flater
 
-I dag: chat til venstre, Monaco/iframe + PTY til høyre. Det er for flatt. Målet er tre *tydelige* jobber:
+I dag: chat til venstre, Monaco/iframe + PTY til høyre. Loopen virker (les → patch → `repo_bash` → preview). Det er for flatt mot UFO-målet.
 
 ```
 ┌──────────────────────────┬─────────────────────┐
 │  3. cli                  │  1. kode            │
-│  samtale + plan + tools  │  filtre + Monaco    │
-│  (orchestrator)          │  VS Code-ish, tynt  │
+│  samtale + plan + tools  │  tre + Monaco       │
+│  (orchestrator)          │  på disk            │
 │                          ├─────────────────────┤
 │                          │  2. preview         │
 │                          │  iframe av bygget   │
@@ -24,48 +22,42 @@ I dag: chat til venstre, Monaco/iframe + PTY til høyre. Det er for flatt. Måle
          PTY nederst eller bak «term» — passord der
 ```
 
-### 1. Kode — filtre + Monaco
+### 1. Kode
 
-Ikke Theia. Ikke full VS Code. En **tydelig** trevisning av workspace (default `~/kalived`, byttbar) og Monaco på fila du står i. Åpne / lagre / diff. Agenten (`build` eller `forge`) leser og patcher *filer på disk*, ikke bare canvas-buffer.
+Ikke Theia. Ikke full VS Code. Tydelig tre av workspace (default `~/kalived`, byttbar) og Monaco på fila du står i. Åpne / lagre / diff. `build` leser og patcher *filer på disk*.
 
-Mindre komplisert enn VS Code betyr: ingen extension-host, ingen marketplace, ingen workspace-trust-dialog-helvete. Tastevaner der de er billige (Monaco).
+### 2. Preview
 
-### 2. Preview — iframe som viser fremgangen
+Når bygget har noe å se (HTML, loopback-dev-server, statisk export), fyrer preview. Workspace-HTML er inne. Loopback-app med treffsikre reloads er neste sjikt. Ikke 0.0.0.0, ikke tilfeldig CDN.
 
-Ikke en tom ramme. Når bygget *har* noe å se (HTML, lokal dev-server på loopback, statisk export), fyrer preview automatisk. `iframe_write` + `/v1/desk/preview` er v0. «UFO» her betyr: treffsikre reloads, loopback-URL, klikk-for-fokus, ikke tilfeldig CDN, ikke 0.0.0.0.
+### 3. Cli
 
-Preview er **resultat**. Cli er **arbeidet**.
+Grok Build-flaten: du skriver hva som skal skje, orchestratoren planlegger, kaller tools, viser kort, fortsetter til oppgaven er ferdig, **stopper**. PTY er ved siden av for sudo.
 
-### 3. Cli — der samtalen skjer
-
-Dette er Grok Build / Claude Code / Gemini CLI-flaten: du skriver hva som skal skje, orchestratoren planlegger, kaller tools, viser kort (read / edit / grep / bash), fortsetter til oppgaven er ferdig, **stopper**.
-
-Ikke en svart xterm med LLM-tekst. Transkript med struktur. PTY er ved siden av for sudo og ting du vil taste selv.
-
-Ny agent **`build`**: eier repo-loopen. `crew` kan sende én oppgave hit. `forge` eier canvas/preview. `term` eier PTY-linjen.
-
-Foreslåtte tools (repo-rot, aldri hele `$HOME` som default):
+Tools som `build` har i dag (cwd = workspace-rot, aldri hele `$HOME` som default):
 
 | Tool | |
 |------|--|
 | `repo_glob` `repo_grep` `repo_read` | se |
-| `repo_write` `repo_edit` | patch; vis diff i cli |
-| `repo_bash` | cwd=rot, timeout, ingen `sudo -S` |
-| `repo_git` | status/diff/log; commit bare med bekreftelse |
+| `repo_edit` | patch på disk; vis diff |
+| `repo_bash` | én kommando, timeout, ingen `sudo` |
+| `ping` | health |
 
-Haken «agent får kjøre» = write/bash. Les er fritt. Oneshot per oppgave, maks ~24 runder. Rutine = cron.
+Haken «agent får kjøre» = edit/bash. Les er fritt. Oneshot per oppgave. Ingen LangChain. Samme `run_turn` + WS.
 
-Ingen LangChain. Ingen Semantic Kernel. Samme `run_turn` + WS.
+Ikke i treet ennå: `repo_write` som eget tool, `repo_git` (status/diff/commit bak bekreftelse). Commit i dag går via `repo_bash` når haken er på; `git push` er nektet i koden.
+
+Landet i Arbeid: cli-v1, tre+Monaco, edit, HTML-preview, bash. Gjenstår: tettere tre-følelse, preview som følger en lokal app, cli som føles som ett sted å sitte.
 
 ---
 
-## Hiroshima — H5 i treet
+## Hiroshima — vedlikehold, ikke neste feature
 
-I dag: burst-scan, fire siler, AIDE-gate, oneshot `kalived-ctl` fra skuffen, signal som SOC-dom, H1–H5 (ring, Gal-overlay, Confirm, rolling watch, Falco host-burst). Personlig snapshot-SOC + opt-in 5-min egress. Det later ikke som always-on EDR.
+Burst-scan, fire siler, scoped AIDE, oneshot `kalived-ctl` fra skuffen, `signal` som SOC-dom, H1–H5. Personlig snapshot-SOC + opt-in 5-min egress. Det later ikke som always-on EDR.
 
-Protokoll: [HIROSHIMA.md](HIROSHIMA.md) (H0–H5, 2026-10-01). Jev porter digest; Mercury på candidate; `signal` forklarer; ctl utfører. Gal (telefon-hotspot) = `tether`. Overlay + Confirm isolate/aide + watch + falco 8s i skuffen. Falco alene = candidate; Falco+FIM/nett = ALERT. Scan-kjernen rører vi ikke «fordi UI». Baseline-allow er merkelapp, ikke rent-host-bevis.
+Jev porter digest; Mercury på candidate; `signal` forklarer; ctl utfører. Telefon-hotspot = `tether` / `env_shift`. Falco alene = candidate; Falco+FIM/nett = ALERT. Scan-kjernen røres ikke «fordi UI».
 
-Neste SOC-kode: **H6** Suricata (valgfri). Live Falco krever helper-reinstall og apt når operator sier ja.
+Valgfritt senere: Kuzu-tidslinje over stamps og Confirm; H6 Suricata på aktiv uplink.
 
 ---
 
@@ -74,25 +66,8 @@ Neste SOC-kode: **H6** Suricata (valgfri). Live Falco krever helper-reinstall og
 - Nytt FastAPI-prosjekt
 - Strangle `:8787`
 - Theia / Electron
-- Auto-commit til `kalive`
+- Auto-commit til remote
 - Agent som eier `sudo` uten xterm
 - Docker rundt UI
 - Åpne preview mot internett
-- Bygge alle tre flatene og antimalware i samme PR
-
----
-
-## Faser (Arbeid — 1–5 landet)
-
-1. **Cli-v1** — landet. `build` + glob/grep/read, transkript.
-2. **Kode-tre** — landet. Monaco på disk.
-3. **Edit** — landet. `repo_edit` / `repo_write` bak haken.
-4. **Preview-kobling** — landet for workspace-HTML. Loopback-app senere.
-5. **Bash** — landet. `repo_bash` bak haken, timeout, cwd=rot.
-6. **Hiroshima** — H0–H5 landet i git; live Falco-pakke + **H6 Suricata** er neste SOC-kode.
-
-Gjenstår i Arbeid: tettere tre-følelse, ikke ny app. Workspace default `~/kalived`. `build` som eget id.
-
----
-
-Etter 2026-09-24-kritikken: [REVIEW.md](REVIEW.md). Agentkonsoll = venstre; `build` eier repo-loopen; policy-gate er kode. Jev er i minne-gaten. Whisper er ikke neste.
+- H6 og editor i samme runde

@@ -9,7 +9,7 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/.." && pwd)"
 # shellcheck source=lib/kalived-gate.sh
 source "$HERE/lib/kalived-gate.sh"
-OWNER_HOME="${KALIVED_OWNER_HOME:-$(getent passwd "${SUDO_USER:-void}" | cut -d: -f6)}"
+OWNER_HOME="${KALIVED_OWNER_HOME:-$(getent passwd "${SUDO_USER:-${KALIVED_OWNER:-$(id -un)}}" | cut -d: -f6)}"
 RB="${OWNER_HOME}/.config/kalived/isolate-rollback.json"
 if [[ ! -f "$RB" ]]; then
   echo "ingen rollback — ingenting å angre"

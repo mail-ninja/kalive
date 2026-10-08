@@ -15,7 +15,11 @@ if [[ "${CFG_WATCH_TIMER:-}" == "0" ]]; then
   echo "watch_timer=false — hopp over (Settings)"
   exit 0
 fi
-OWNER="${KALIVED_OWNER:-${SUDO_USER:-void}}"
+OWNER="$(kalived_owner_name)"
+if [[ -z "$OWNER" ]]; then
+  echo "KALIVED_OWNER eller SUDO_USER kreves" >&2
+  exit 1
+fi
 OWNER_HOME="${KALIVED_OWNER_HOME:-$(getent passwd "$OWNER" | cut -d: -f6)}"
 export KALIVED_OWNER_HOME="$OWNER_HOME"
 DEST="${OWNER_HOME}/.config/kalived/hiroshima"

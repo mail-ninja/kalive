@@ -1,7 +1,0 @@
-=== estab proc ===
-pid=1 comm=chromium cwd=/home/void exe=/bin/chromium
-pid=1 comm=grok cwd=/home/void exe=/bin/grok
-pid=1 comm=MainThread cwd=/home/void exe=/bin/MainThread
-pid=1 comm=chromium cwd=/home/void exe=/bin/chromium
-pid=1 comm=firefox-esr cwd=/home/void exe=/bin/firefox-esr
-pid=1 comm=uvicorn cwd=/home/void exe=/bin/uvicorn

@@ -13,7 +13,7 @@ ROOT="$(cd "$HERE/.." && pwd)"
 source "$HERE/lib/kalived-gate.sh"
 kalived_require_not_alert || exit 2
 
-OWNER_HOME="${KALIVED_OWNER_HOME:-$(getent passwd "${SUDO_USER:-void}" | cut -d: -f6)}"
+OWNER_HOME="${KALIVED_OWNER_HOME:-$(getent passwd "${SUDO_USER:-${KALIVED_OWNER:-$(id -un)}}" | cut -d: -f6)}"
 DATA="${KALIVED_DATA:-$OWNER_HOME/kalived}"
 ACT="${OWNER_HOME}/.config/kalived/act.json"
 RB="${OWNER_HOME}/.config/kalived/isolate-rollback.json"

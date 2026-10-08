@@ -15,13 +15,15 @@ if [[ ! -x /usr/local/lib/kalived/scripts/kalived-scan.sh ]]; then
   echo "Kjør playbooks/install-kalived-helper.sh først" >&2
   exit 1
 fi
+if [[ -z "${SUDO_USER:-}" || "${SUDO_USER}" == "root" ]]; then
+  echo "Kjør via sudo fra operator-konto (SUDO_USER)." >&2
+  exit 1
+fi
 install -m 644 "$ROOT/systemd/kalived-scan.service" /etc/systemd/system/kalived-scan.service
 install -m 644 "$ROOT/systemd/kalived-scan.timer" /etc/systemd/system/kalived-scan.timer
-# Rewrite data dir owner if SUDO_USER set
-if [[ -n "${SUDO_USER:-}" ]]; then
-  sed -i "s|^Environment=KALIVED_OWNER=.*|Environment=KALIVED_OWNER=${SUDO_USER}|" /etc/systemd/system/kalived-scan.service
-  sed -i "s|^Environment=KALIVED_DATA=.*|Environment=KALIVED_DATA=/home/${SUDO_USER}/kalived|" /etc/systemd/system/kalived-scan.service
-fi
+sed -i "s|^Environment=KALIVED_OWNER=.*|Environment=KALIVED_OWNER=${SUDO_USER}|" /etc/systemd/system/kalived-scan.service
+home="$(getent passwd "$SUDO_USER" | cut -d: -f6)"
+sed -i "s|^Environment=KALIVED_DATA=.*|Environment=KALIVED_DATA=${home}/kalived|" /etc/systemd/system/kalived-scan.service
 systemctl daemon-reload
 systemctl enable --now kalived-scan.timer
 systemctl status kalived-scan.timer --no-pager || true

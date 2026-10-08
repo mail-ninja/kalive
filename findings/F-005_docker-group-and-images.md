@@ -8,9 +8,9 @@
 
 ## Observasjon
 
-- `void` er i **docker**-gruppen → praktisk root-ekvivalent (socket access).
-- Docker daemon kjører, **0 containers**, men **48 images** (mange `<none>` dangling, flere ~10GB `aegir-*`).
-- Bridges: `docker0`, `agent-hub_default` (linkdown).
+- Operator er i **docker**-gruppen → praktisk root-ekvivalent (socket access).
+- Docker daemon kan kjøre med dangling images og gamle prosjekt-lag.
+- Bridges: `docker0` og prosjekt-nett (linkdown når idle).
 - `net.ipv4.ip_forward=1` typisk pga. Docker.
 
 ## Risiko

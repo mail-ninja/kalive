@@ -1,52 +1,61 @@
 # kalived
 
-Lokalt kodemiljø og personlig host-SOC på én Kali-laptop (`void@kali`). To rom, samme UI, bare loopback.
+Lokalt kodemiljø og personlig host-SOC på samme laptop. Ett UI. Bare loopback.
 
-**Arbeid** er en Grok Build-aktig cockpit: tre, Monaco, preview, agentkonsoll og PTY. Agenten leser og patcher filer på disk.
+**Arbeid** er rommet du sitter i: samtale som leser og patcher filer på disk, tre og Monaco, preview av det som ble bygget, PTY når du selv skal taste. Agenten jobber i workspace. Nøklene dine. Ingen sky-IDE.
 
-**Hiroshima** svarer på: *er denne maskinen allerede kompromittert?* Burst-scan + rullende egress-watch. CLEAN / WARN / ALERT / ERROR. Sensorene eier sannheten; modellene porterer og forklarer; du Confirm-er isolate/kill.
+**Hiroshima** svarer på det andre spørsmålet: *er denne maskinen allerede kompromittert?* Burst-scan og valgfri rullende egress-watch. CLEAN / WARN / ALERT / ERROR. Sensorene eier sannheten. Modellene porterer og forklarer. Du Confirm-er isolate og kill.
 
-Dette er **ikke** Huntress, SIEM, LAN-skanner eller sky-EDR. Alt lytter på `127.0.0.1`.
+Dette er ikke Huntress, ikke SIEM, ikke LAN-skanner og ikke sky-EDR. Alt lytter på `127.0.0.1`.
 
-Repo: [github.com/mail-ninja/kalive](https://github.com/mail-ninja/kalive) (`git remote kalive`). `origin` er et eldre `wallE`-tre — ikke bland.
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Arbeid                              │  Hiroshima (skuff)   │
+│  cli · tre · Monaco · preview · PTY  │  verdict · ring      │
+│  build-agent mot workspace           │  Confirm-playbooks   │
+└─────────────────────────────────────────────────────────────┘
+         Vite :5173  →  FastAPI :8788  →  kalived-ctl (root)
+```
 
 ---
 
-## Mål og ambisjon
+## Ambisjon
 
-UFO-listen er bevisst høy:
+Lista er bevisst høy.
 
-1. Et kodemiljø det er verdt å sitte i — samtale som *gjør* jobben, kode og preview som henger sammen, lokalt, dine nøkler.
-2. En vert så nær innsynsfri som en laptop kan være: trackere på *verten*, keyloggere, rootkits, malware, bakdører. Finn og fjern. Ikke late som EDR-i-skyen.
+1. **Et kodemiljø det er verdt å sitte i.** Grok Build-følelse uten å sende repoet til en sky-IDE. Du skriver hva som skal skje. Orchestratoren planlegger, leser, viser diff, kjører test, oppdaterer preview, stopper. Samme vindu. Dine nøkler. Din disk.
+2. **En vert så nær innsynsfri som en laptop kan være.** Trackere på *verten*, keyloggere, rootkits, malware, bakdører. Finn dem. Fjern dem. Late ikke som EDR-i-skyen.
 
-Ærlig tak (v1):
+Det er destinasjonen. v1 er ærlig om taket og om avstanden dit.
 
-- Nettleser-cookies og HTTPS-trackere eies av Brave/uBO. Watch ser familie/port, ikke cookie-jar.
-- Skjult LKM som lyver i `/proc` krever uavhengig evidens (AIDE, taint, senere Falco).
+**Arbeid i dag:** loopen virker. Klikk-telleren (`docs/_probe.html`) og minne-statuslinjen er kjørt gjennom den: les → patch → `repo_bash` → HTML-preview. Det er fortsatt et stykke unna UFO-editoren — tre flater som føles som *ett* sted å sitte, preview som følger en lokal app, cli som planlegger og stopper rent.
+
+**Hiroshima i dag:** burst-scan, Falco 8 s, scoped AIDE-freeze, opt-in 5-min egress-watch. Den *ser*. Den rydder ikke alene.
+
+v1-taket:
+
+- Nettleser-cookies og HTTPS-trackere eies av nettleseren og uBlock. Watch ser familie og port, ikke cookie-jar.
+- Et skjult LKM som lyver i `/proc` krever uavhengig evidens (AIDE, taint, Falco).
 - Firmware ligger utenfor v1.
-- Telefon som gateway (SSID **Gal**, F-010) er operasjonell risiko på *nettet*, ikke automatisk innbrudd på PC-en.
-
-Denne Kali-en er **forsøkskanin**. Prosjektet startet fordi operator mistenkte kluss. `baselines/machine/` og `outbound_proc.allow` er merkelapper for forventet støy, ikke bevis for rent host. Alt mistenkelig skal synes og kunne fjernes.
+- Telefon som gateway er operasjonell risiko på *nettet*. Det er `tether` / `env_shift`, ikke automatisk innbrudd på PC-en.
 
 ALERT krever to uavhengige evidens-domener **eller** én hard artefakt (memfd/deleted + nett, fake kworker, `ld.so.preload`, extra UID 0, nmap≠ss bekreftet av tshark).
 
+Baseline-filer under `baselines/machine/` er merkelapper for forventet støy, ikke attest på rent host. Alt mistenkelig skal synes og kunne fjernes.
+
+Leserekkefølge: denne fila → [docs/NOW.md](docs/NOW.md) → [docs/HIROSHIMA.md](docs/HIROSHIMA.md). Neste bygg: [docs/NEXT.md](docs/NEXT.md).
+
 ---
 
-## Hvor vi er (2026-10-01)
+## Hvor koden er (2026-10)
 
-| Flate | Status |
-|-------|--------|
-| Arbeid Port A | I treet: agentkonsoll, mappetre, Monaco på disk, minne-gate |
-| Arbeid Port B | I treet: `repo_bash`, HTML auto-preview |
-| Hiroshima H0–H4 | I treet **og** på verten: scan, Jev-port, ring/graf, env-overlay, Confirm-playbooks, 5-min egress-watch |
-| Settings | Maskin (`config.toml`) + Nøkler (`env` 0600) |
-| H5 Falco | I treet: host-burst `kalived-ctl falco-burst`, custom yaml, gated playbook. Live pakke venter på apt. |
-| H6 Suricata | Valgfri etter H4/H5 |
-| Port C | VM / tale / mobil — destinasjon, ikke neste |
-
-Live scan `2026-09-30_093742`: WARN (AIDE sudoers-drop-in, lsmod vs gammel freeze, chkrootkit-støy på Chromium `/tmp`). Gal = `tether` / `env_shift`. Watch-timer enabled, `audit=ok`, vindu `void:void` 0600.
-
-Detaljert «nå»: [docs/NOW.md](docs/NOW.md). Protokoll: [docs/HIROSHIMA.md](docs/HIROSHIMA.md).
+| Flate | I treet |
+|-------|---------|
+| Arbeid | Agentkonsoll (`build`), mappetre, Monaco på disk, `repo_*` + `repo_bash`, HTML-preview, PTY-skuff, MiniLM + Jev-gate |
+| Hiroshima H0–H5 | Scan, digest-port, ring + Kuzu-graf, miljøklasse, Confirm-playbooks, 5-min egress-watch, Falco host-burst |
+| Settings | Maskin (`config.toml`) og nøkler (`env` 0600) |
+| H6 Suricata | Valgfri, ikke påbegynt |
+| Port C | Sandbox-VM, tale, mobil — destinasjon |
 
 ---
 
@@ -56,43 +65,43 @@ Detaljert «nå»: [docs/NOW.md](docs/NOW.md). Protokoll: [docs/HIROSHIMA.md](do
 |-----|-----|
 | UI | Svelte 5 + Vite `127.0.0.1:5173` |
 | API | FastAPI / uvicorn `127.0.0.1:8788`, én WebSocket |
-| Gammel SOC-API | stdlib `:8787` (`sudo kalived-ctl api`) — urørt, ikke strangled |
-| Chat | SpaceXAI / xAI `grok-4.6` (default) |
-| Port / salience | TypeSafe **Jev** via Vercel AI Gateway → Inception **Mercury-2.5** på candidate → rules |
-| Embeddings | lokal MiniLM 384-d (norsk+engelsk), ikke sky |
-| Minne | Kuzu, Qdrant, SQLite, MinIO, Redis — namespace `agent_id` |
+| Eldre SOC-API | stdlib `:8787` (`sudo kalived-ctl api`) — urørt |
+| Chat | SpaceXAI / xAI, default `grok-4.6` |
+| Port | TypeSafe **Jev** (Vercel AI Gateway) → Inception **Mercury-2.5** på candidate → rules |
+| Embeddings | lokal MiniLM 384-d |
+| Minne | Kuzu, Qdrant, SQLite, MinIO, Redis — namespace per `agent_id` |
 | Sensorer | AIDE, auditd-connect, UFW over nft, rkhunter, chkrootkit, nmap lo, tshark lo-burst, hunt-procs, Falco host-burst |
-| Watch | `ss` ESTAB + `ausearch -k kalived_connect`, felter i `~/.config/kalived/hiroshima/` 0600 |
-| Root | `/usr/sbin/kalived-ctl` → `/usr/local/lib/kalived` `root:root` |
+| Watch | `ss` ESTAB + `ausearch -k kalived_connect` → felter i `~/.config/kalived/hiroshima/` 0600 |
+| Root | `/usr/sbin/kalived-ctl` → `/usr/local/lib/kalived` (`root:root`) |
 
 Ingen LangChain. Ingen Semantic Kernel. Orkestrering = FastAPI + tools + `decide()`.
 
 ---
 
-## Tre trær (ikke bland)
+## Tre trær
 
 | Tre | Sti | Rolle |
 |-----|-----|--------|
-| **Git / data** | `~/kalived` | kode, `logs/status/`, findings |
-| **Secrets** | `~/.config/kalived/` | `config.toml`, `env`, `api.token`, `env_class.toml`, minne, watch-vindu — **ikke git**, 0600/0700 |
-| **Root-runtime** | `/usr/local/lib/kalived` + `/usr/sbin/kalived-ctl` | det timer og NOPASSWD kjører |
+| Git / data | workspace (`~/kalived` som default) | kode, `logs/status/`, findings |
+| Secrets | `~/.config/kalived/` | `config.toml`, `env`, `api.token`, `env_class.toml`, minne, watch — **ikke git**, 0600/0700 |
+| Root-runtime | `/usr/local/lib/kalived` + `/usr/sbin/kalived-ctl` | det timer og NOPASSWD kjører |
 
-Live scan **må** være root. NOPASSWD mot home-scripts er en bakdør. NOPASSWD er bare `kalived-ctl`-verb. Oppdatering av helper krever passord:
+Live scan må være root. NOPASSWD mot home-scripts er en bakdør. NOPASSWD er bare `kalived-ctl`-verb. Helper oppdateres med passord:
 
 ```bash
 sudo bash playbooks/install-kalived-helper.sh
 sudo bash playbooks/install-nopasswd-ctl.sh   # nye ctl-verb
-sudo bash playbooks/aide-init.sh --force      # scoped: kalived-filer, ikke Proton; nektes ved ALERT
+sudo bash playbooks/aide-init.sh --force      # scoped: kalived-filer, ikke VPN-snap
 sudo kalived-ctl scan
 ```
 
-`HELPER-STALE` = helper bak git. Ikke innbrudd.
+`HELPER-STALE` betyr at helper ligger bak git. Ikke innbrudd.
 
 ---
 
-## Slik du fyrer det opp
+## Start
 
-Cockpit:
+Cockpit (Vite + API; minne-compose hvis Docker kjører):
 
 ```bash
 cd ~/kalived && bash cockpit/scripts/up.sh
@@ -100,7 +109,7 @@ cd ~/kalived && bash cockpit/scripts/up.sh
 # API http://127.0.0.1:8788/v1/health
 ```
 
-Minne-docker (qdrant/redis/minio, loopback) — valgfritt; sqlite/kuzu lever uten:
+Minne-docker (Qdrant / Redis / MinIO, loopback) — sqlite og Kuzu lever uten:
 
 ```bash
 sudo systemctl start docker.socket docker.service
@@ -113,22 +122,18 @@ Daglig SOC:
 sudo kalived-ctl scan
 ```
 
-Watch (opt-in, Settings eller):
+Exit: `0` CLEAN · `1` WARN · `2` ALERT · `3` ERROR. Sannheten er `echo $?` og `logs/status/<stamp>/verdict.json`. `protocol.json` forklarer; den overskriver ikke.
+
+Watch (opt-in):
 
 ```bash
-sudo bash playbooks/install-watch-timer.sh    # 5 min
-sudo kalived-ctl watch                        # én sample nå
+sudo bash playbooks/install-watch-timer.sh
+sudo kalived-ctl watch
 ```
 
-Gammel SOC-GUI:
+Eldre SOC-GUI: `sudo kalived-ctl api` → `http://127.0.0.1:8787`.
 
-```bash
-sudo kalived-ctl api    # http://127.0.0.1:8787
-```
-
-Exit scan: `0` CLEAN · `1` WARN · `2` ALERT · `3` ERROR. Sannheten er `echo $?` og `logs/status/<stamp>/verdict.json`. `protocol.json` forklarer; den overskriver ikke.
-
-`kalived-ctl`: `scan` `api` `defs` `token-fix` `aide-init` `rkhunter-setup` `isolate-dst` `isolate-undo` `kill-pid` `watch` `uplink-burst` `watch-timer-on/off` `scan-timer-on/off`.
+`kalived-ctl`: `scan` `api` `defs` `token-fix` `aide-init` `rkhunter-setup` `isolate-dst` `isolate-undo` `kill-pid` `watch` `uplink-burst` `falco-burst` `watch-timer-on/off` `scan-timer-on/off`. Ingen ekstra argv.
 
 ---
 
@@ -137,32 +142,34 @@ Exit scan: `0` CLEAN · `1` WARN · `2` ALERT · `3` ERROR. Sannheten er `echo $
 | Rom | Hvor | Hva |
 |-----|------|-----|
 | **Arbeid** | `:5173` | `build`-loop: konsoll, tre, Monaco, iframe, `repo_bash`, PTY |
-| **Hiroshima** | rosa skuff | `verdict.json` + `protocol.json` + ring + watch. Scan/watch/isolate bak Confirm. Trenger ikke `:8787`. |
-| **Settings** | fanen | **Maskin** → `config.toml` (watch-timer, skip_rootkit, …). **Nøkler** → `env` 0600. UI får aldri full nøkkel tilbake. |
+| **Hiroshima** | skuff | `verdict.json` + `protocol.json` + ring + watch. Scan/watch/isolate bak Confirm |
+| **Settings** | fanen | Maskin → `config.toml`. Nøkler → `env` 0600. UI får aldri full nøkkel tilbake |
 
-Agenter husker på **`agent_id`**. `build` eier repo-loopen. `signal` forklarer SOC. Isolasjon = namespace.
+Agenter husker på `agent_id`. `build` eier repo-loopen. `signal` forklarer SOC.
 
-**Minne, én runde:** MiniLM henter → **Jev** (ellers Mercury, ellers rules) velger `keep`/`act` → Grok svarer → **samme `decide()`** merker engramet. [docs/MEMORY.md](docs/MEMORY.md), [docs/JEV.md](docs/JEV.md).
+**Minne, én runde:** MiniLM henter → Jev (ellers Mercury, ellers rules) velger `keep`/`act` → Grok svarer → samme `decide()` merker engramet. [docs/MEMORY.md](docs/MEMORY.md), [docs/JEV.md](docs/JEV.md).
 
 **Hiroshima-protokoll:** sensorer → siler + miljøklasse → digest → Jev (`noise` \| `env_shift` \| `candidate` \| `alert_family`) → Mercury bare på candidate/alert → `signal` forklarer → ctl etter Confirm. Payload, pcap, full URL, SNI og journal går ikke til skyen.
 
-Gal (telefon-hotspot) er `tether`. Det er `env_shift`, ikke ALERT.
+Miljøklasse (`home` / `travel` / `tether`) settes av overlay og heuristikk, ikke av signal-agenten. Telefon-hotspot er `tether`. Nytt hotell-SSID er `travel`. Begge blir `env_shift` i porten.
 
 ---
 
-## Hva scannen og watch gjør
+## Scan og watch
 
-Scan (oneshot): collect → persistens → tshark lo + nmap localhost + rkhunter/chkrootkit + `/proc` → baselines → `verdict.json`. Fire siler. INFO hever ikke verdict. Scanner **ikke** LAN, **ikke** telefonen.
+Scan (oneshot): collect → persistens → tshark lo + nmap localhost + rkhunter/chkrootkit + `/proc` + Falco-burst → baselines → `verdict.json`. Fire siler. INFO hever ikke. Scanner ikke LAN og ikke telefonen.
 
-Watch (rullende): `connect()`-audit + `ss` ESTAB. Vindu: exe, dst-familie, port, n, `unmapped`. Aldri IP/SNI/cmd. python/shell mot unknown = `alert_family`. Isolate bruker fortsatt dest-IP fra siste **scan**-snapshot.
+Watch (rullende): `connect()`-audit + `ss` ESTAB. Vindu: exe, dest-familie, port, n, `unmapped`. Aldri IP/SNI/cmd. python/shell mot unknown = `alert_family`. Isolate bruker dest-IP fra siste **scan**-snapshot.
 
-WARN = hygiene (AIDE etter egen install, stale lsmod-freeze, kjent chkrootkit-støy). ALERT = noe å løse, ikke whitelist uten evidens i snapshotet.
+Falco: host-regler i `defs/falco-host.yaml` (ikke stock). `engine.kind=modern_ebpf`. Burst ~8 s. Tom jsonl = ingen finding. Falco alene = WARN/candidate. Falco + FIM eller Falco + nett = ALERT. Dual leser høyeste severity per funn-id. Pakke mangler = INFO, scan hever ikke. Ingen always-on unit.
+
+WARN er hygiene (AIDE etter egen install, gammel lsmod-freeze, kjent chkrootkit-støy, VPN-snap). ALERT er noe å løse.
 
 ---
 
 ## Secrets og modeller
 
-`~/.config/kalived/env` — `XAI_API_KEY` (SpaceXAI / `api.x.ai`, default `grok-4.6`), `INCEPTION_API_KEY`, `AI_GATEWAY_API_KEY` (Jev), `HF_TOKEN`. Git-token er git, ikke chat. Aldri i repoet.
+`~/.config/kalived/env` — `XAI_API_KEY`, `INCEPTION_API_KEY`, `AI_GATEWAY_API_KEY` (Jev), `HF_TOKEN`. Git-token er git, ikke chat. Aldri i repoet.
 
 Passord skrives i **xterm**. `sudo -S` og `echo pw | sudo` er forbudt i tools.
 
@@ -176,6 +183,7 @@ python3 scripts/tests/protocol_h1.py
 python3 scripts/tests/protocol_h3.py
 python3 scripts/tests/protocol_h4.py
 cockpit/backend/.venv/bin/python3 scripts/tests/protocol_h2.py
+python3 scripts/tests/protocol_h5.py
 ```
 
 Paste-tester: [docs/CHAT-TESTS.md](docs/CHAT-TESTS.md). `logs/` er ikke i git.
@@ -186,10 +194,10 @@ Paste-tester: [docs/CHAT-TESTS.md](docs/CHAT-TESTS.md). `logs/` er ikke i git.
 
 | Fil | |
 |-----|--|
-| [docs/README.md](docs/README.md) | kart over docs |
+| [docs/README.md](docs/README.md) | kart |
 | [docs/NOW.md](docs/NOW.md) | hvor vi er |
+| [docs/NEXT.md](docs/NEXT.md) | neste bygg (Arbeid-editor, valgfri H6) |
 | [docs/HIROSHIMA.md](docs/HIROSHIMA.md) | SOC-protokoll H0–H6 |
-| [docs/NEXT.md](docs/NEXT.md) | neste bygg (H5, Arbeid-flater) |
 | [docs/SURFACE.md](docs/SURFACE.md) | scan-kontrakt, CLI, findings |
 | [docs/COCKPIT.md](docs/COCKPIT.md) | `:5173` / `:8788` |
 | [docs/MEMORY.md](docs/MEMORY.md) · [docs/JEV.md](docs/JEV.md) | minne-gate |
@@ -203,20 +211,21 @@ Paste-tester: [docs/CHAT-TESTS.md](docs/CHAT-TESTS.md). `logs/` er ikke i git.
 |------|-----|
 | `cockpit/` | Svelte 5 + FastAPI |
 | `scripts/kalived-scan.sh` | SOC-orkestrator |
-| `scripts/kalived-watch.sh` | H4 egress-sample |
+| `scripts/kalived-watch.sh` | egress-sample |
+| `scripts/kalived-falco.sh` | host-burst |
 | `scripts/lib/check-*.sh` | detektorer |
 | `prompts/playbooks/` | signal / build / forge / … |
 | `playbooks/` | muterende install (gate: ikke ALERT) |
-| `baselines/` | kjent-godt — mistenkt på denne verten |
-| `defs/` | allowlists + IOC |
-| `api/` | gammel `:8787` |
+| `baselines/` | kjent-godt — merkelapp, ikke rent-host |
+| `defs/` | allowlists, IOC, Falco-yaml |
+| `api/` | eldre `:8787` |
 
 ---
 
 ## Hva vi ikke bygger oppå dette
 
-- Ett tre der alt kjører som void uten root
-- NOPASSWD på `~/kalived/scripts`
+- Ett tre der alt kjører som vanlige bruker uten root
+- NOPASSWD på workspace-scripts
 - GUI som reparser `ss` i stedet for `verdict.json`
 - Auto-kille / auto-ban / LLM-sudo
 - Full prosessliste, pcap eller journal til skyen
@@ -225,4 +234,6 @@ Paste-tester: [docs/CHAT-TESTS.md](docs/CHAT-TESTS.md). `logs/` er ikke i git.
 - CrowdSec, Wazuh, Zeek, fail2ban mens SSH er masked
 - Always-on `tshark -i any`
 - 0.0.0.0-lyttere
-- Love 100 % tracker-/rootkit-fri
+- Love 100 % tracker- og rootkit-fri
+
+Apache-2.0. Se [LICENSE](LICENSE).

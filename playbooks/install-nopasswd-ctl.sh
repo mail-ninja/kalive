@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # NOPASSWD kun for /usr/local/sbin/kalived-ctl + faste subkommandoer.
-# IKKE NOPASSWD på /home/void/kalived (user-writable = root).
+# IKKE NOPASSWD på git-treet (user-writable = root).
 # Run once with password: sudo bash playbooks/install-nopasswd-ctl.sh
 set -euo pipefail
 if [[ "$(id -u)" -ne 0 ]]; then
@@ -8,7 +8,11 @@ if [[ "$(id -u)" -ne 0 ]]; then
   exit 1
 fi
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-OWNER="${SUDO_USER:-void}"
+OWNER="${SUDO_USER:-${KALIVED_OWNER:-}}"
+if [[ -z "$OWNER" || "$OWNER" == "root" ]]; then
+  echo "Kjør via sudo fra operator-konto (SUDO_USER må være satt)." >&2
+  exit 1
+fi
 
 if [[ ! -x /usr/local/lib/kalived/scripts/kalived-scan.sh ]]; then
   echo "Kjør playbooks/install-kalived-helper.sh først (én gang med passord)." >&2

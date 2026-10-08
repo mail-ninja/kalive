@@ -11,7 +11,7 @@ ROOT="$(cd "$HERE/.." && pwd)"
 # shellcheck source=lib/kalived-gate.sh
 source "$HERE/lib/kalived-gate.sh"
 kalived_require_not_alert || exit 2
-OWNER_HOME="${KALIVED_OWNER_HOME:-$(getent passwd "${SUDO_USER:-void}" | cut -d: -f6)}"
+OWNER_HOME="${KALIVED_OWNER_HOME:-$(getent passwd "${SUDO_USER:-${KALIVED_OWNER:-$(id -un)}}" | cut -d: -f6)}"
 ACT="${OWNER_HOME}/.config/kalived/act.json"
 HELPER="$ROOT/scripts/lib/hiroshima_act.py"
 if [[ ! -f "$ACT" ]]; then

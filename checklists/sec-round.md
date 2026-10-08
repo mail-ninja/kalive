@@ -12,7 +12,7 @@ Bruk denne hver gang. Kryss av og pek til ny snapshot under `logs/status/`.
 - [x] TCP LISTEN utenfor localhost: ingen (2026-09-17_1443)
 - [x] SSH: masked / inactive (2026-09-17)
 - [x] Docker: 0 containers (daemon on — F-005)
-- [x] Aktive nettverk 2026-09-17: eth0 192.168.10.73 + ProtonVPN proton0
+- [x] Aktive nettverk 2026-09-17: kablet + ProtonVPN proton0
 
 ## Med sudo (når passord tilgjengelig)
 
@@ -32,7 +32,7 @@ Bruk denne hver gang. Kryss av og pek til ny snapshot under `logs/status/`.
 - [ ] F-002 fail2ban (hvis remote auth)
 - [ ] F-005 Docker policy / prune (stop-when-idle; behold gruppen)
 - [ ] F-007 Oppdateringer (WARN hvis dpkg > 30 dager; ingen unattended-upgrades)
-- [ ] F-010 Kompromittert telefon-tether (ren nettvei) (`apt update` / full-upgrade dato notert)
+- [ ] F-010 Telefon-tether (ren nettvei) (`apt update` / full-upgrade dato notert)
 - [ ] F-011–F-019 gap-tickets (orkestrator, hunt, outbound, auditd, AIDE, timer, UFW-log, rkhunter, AA-unconfined)
 
 ## Periodisk

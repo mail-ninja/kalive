@@ -1,10 +1,10 @@
 # Minne — skriving, uthenting, Jev
 
-Slik det **faktisk** kjører 2026-09-28. Start: `bash cockpit/scripts/up.sh` (docker for Qdrant/Redis/MinIO).
+Start: `bash cockpit/scripts/up.sh` (docker for Qdrant/Redis/MinIO). sqlite og Kuzu lever uten Docker.
 
 ## Fem lag, én UUID
 
-Hver episode får `memory_id`. Det er limet. Ingen synk-tabell, ingen utenlandsk nøkkel på tvers av motorer: **samme streng** er sqlite-rad, Kuzu-node, Qdrant-punkt, MinIO-nøkkel `engrams/<id>.json`, Redis-melding.
+Hver episode får `memory_id`. Samme streng er sqlite-rad, Kuzu-node, Qdrant-punkt, MinIO-nøkkel `engrams/<id>.json`, Redis-melding.
 
 | Lag | Motor | Rolle | Join |
 |---|---|---|---|
@@ -16,26 +16,27 @@ Hver episode får `memory_id`. Det er limet. Ingen synk-tabell, ingen utenlandsk
 
 Isolasjon: `agent_id` (egen sqlite/kuzu/collection/bucket/kanal). `build` ser ikke `signal`. Disk vinner ved konflikt med minne.
 
-Kuzu-kanter kopieres **ikke** inn i Qdrant. Vektorer er likhet, ikke topologi. Konteksten til en relasjon ligger på kanten: `props.memory_id` (episoden som skapte den) og `props.turn_id` (samme chat-runde). Sqlite får en denormalisert `paths[]` så `recall()` ser fila uten Cypher.
+Kuzu-kanter kopieres ikke inn i Qdrant. Vektorer er likhet, ikke topologi. Kanten har `props.memory_id` og `props.turn_id`. Sqlite har denormalisert `paths[]` så `recall()` ser fila uten Cypher.
 
 ```
 agent:build --OWNS--> {memory_id}
 path:docs/_probe.html --EDITED|READ|RAN|MENTIONED--> {memory_id}
 {memory_id} --ABOUT--> path:docs/_probe.html
-{chat_id} --USED--> {tool_id}          # samme turn_id
+{chat_id} --USED--> {tool_id}
+scan:{stamp} --USED--> detector:{id}
+proc:{exe} --CONNECTED--> dst:{family}
 ```
 
-**Embedder:** `paraphrase-multilingual-MiniLM-L12-v2` (lokal fastembed/ONNX). `KALIVED_EMBED_MODEL` overstyrer.
+**Embedder:** `paraphrase-multilingual-MiniLM-L12-v2` (lokal fastembed/ONNX). `KALIVED_EMBED_MODEL` overstyrer. Lastes lazy.
 
 ## Hva som skjer i en runde
 
 ```
 du skriver
-    → recall() MiniLM + sqlite  (kandidater; hopp over decide-logger og støy)
+    → recall() MiniLM + sqlite
     → decide() Jev, ellers Mercury-2.5, ellers rules
          keep (noul) per treff · act = use_memory | read_disk | both
     → Grok ser minne-blokk; use_memory fjerner tools
-         (ask + eksisterende chat-svar tvinger use_memory; grep/read hoppes i recall)
     → svar + korte tool-engrams (uten Jev)
     → DONE
     → decide() én gang til på slutt-engramet: kind + persist_hot
@@ -44,30 +45,27 @@ du skriver
 Logg: `minne-gate: N treff (beste X) act=… src=jev+rules|mercury+rules|rules`.
 Etter svaret: `minne-skriv: fact|artifact|noise|decision persist=0–1 src=…`.
 
-Verifisert uthenting 2026-09-28 08:26: `src=jev+rules` `act=both` `n=4`, ingen tools, riktig `_probe.html`.
+Hiroshima bruker samme adapter med annet question-sett, namespace `signal`. `kind=decide` hoppes i recall.
 
-Hiroshima bruker **samme adapter** med annet question-sett, namespace `signal`. Spekk: [HIROSHIMA.md](HIROSHIMA.md). `kind=decide` hoppes i recall der også.
+## Jev på skriving og uthenting
 
-## Brukes Jev/Mercury på skriving *og* uthenting?
-
-**Samme `decide()`-adapter begge veier.** MiniLM finner like episoder. Jev (ellers Mercury, ellers rules) sier hva som *betyr noe*.
+Samme `decide()` begge veier. MiniLM finner like episoder. Jev (ellers Mercury, ellers rules) sier hva som betyr noe.
 
 | Sted | Jev/Mercury | Hvorfor |
 |---|---|---|
-| Uthenting | **ja** | keep/act — «er dette relevant *nå*?» |
-| Slutt-engram (chat) | **ja, én gang** | salience / kind: fact vs støy |
-| Hvert `repo_read` | **nei** | for tregt; korte engrams holder |
-| MiniLM-vektor | **nei** | Jev rangerer ikke embeddings |
-| Hiroshima-port (H1+) | **ja, én gang per scan-vindu** | `class` / `ours` / `dual` / `playbook` på redigert digest. Se [HIROSHIMA.md](HIROSHIMA.md) |
+| Uthenting | ja | keep/act |
+| Slutt-engram (chat) | ja, én gang | salience / kind |
+| Hvert `repo_read` | nei | for tregt |
+| MiniLM-vektor | nei | Jev rangerer ikke embeddings |
+| Hiroshima-port | ja, én gang per vindu | `class` / `ours` / `dual` / `playbook` |
 
-Skrive-policy: Noul `persist_hot` + Choice `kind` = `fact|artifact|noise|decision`. `noise` lagres likevel, men `recall()` dropper den når `persist_hot < 0.35`. Mutasjon og `_probe.html` kan ikke merkes `noise` (rules-veto, persist minst 0.75). `kind=decide`-logger (selve gaten) går ikke inn i prompten.
-
-Hiroshima senere: samme `decide()`, andre questions (støy / kandidat / ALERT).
+Skrive-policy: Noul `persist_hot` + Choice `kind` = `fact|artifact|noise|decision`. `noise` lagres, men `recall()` dropper den når `persist_hot < 0.35`. Mutasjon og `_probe.html` kan ikke merkes `noise` (rules-veto). `kind=decide`-logger går ikke inn i prompten.
 
 ## Ønsket slutt
 
-- `src=jev+rules` som normal, Mercury når 429, rules når begge nede.
-- Recall uten ritual-README.
-- Skriv: korte, taggede engrams. Ingen vegg av fil-JSON.
-- TTL / «glem denne runden».
-- Graf: fil `--EDITED-->` episode. **I treet:** `ABOUT` / `EDITED` / `READ` / `USED`, `turn_id` på runden, `paths[]` i sqlite. TTL / «glem» gjenstår.
+- `src=jev+rules` som normal, Mercury ved 429, rules når begge nede
+- Recall uten ritual-README
+- Korte, taggede engrams
+- TTL / «glem denne runden»
+- Graf: fil `--EDITED-->` episode — **i treet** (`ABOUT` / `EDITED` / `READ` / `USED`). TTL gjenstår
+- Hiroshima-tidslinje: stamp → funn → Confirm-playbook, uten å gjøre minne til orakel

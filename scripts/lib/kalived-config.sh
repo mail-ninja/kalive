@@ -30,10 +30,24 @@ kalived_config_path() {
   printf '%s' "$(kalived_owner_home)/.config/kalived/config.toml"
 }
 
+# Non-root owner for chown. Never default a personal username.
+kalived_owner_name() {
+  local owner="${KALIVED_OWNER:-${SUDO_USER:-}}"
+  if [[ -z "$owner" || "$owner" == "root" ]]; then
+    if [[ "$(id -u)" -ne 0 ]]; then
+      owner="$(id -un)"
+    else
+      owner=""
+    fi
+  fi
+  printf '%s' "$owner"
+}
+
 # Timer has KALIVED_OWNER, no SUDO_USER. Never leave secrets root:root.
 kalived_chown_owner_dir() {
   local dest="$1"
-  local owner="${KALIVED_OWNER:-${SUDO_USER:-void}}"
+  local owner
+  owner="$(kalived_owner_name)"
   if [[ -z "$owner" || "$owner" == "root" ]]; then
     echo "WARN: skip chown $dest (owner=${owner:-empty})" >&2
     return 0
@@ -45,10 +59,11 @@ kalived_chown_owner_dir() {
   chown -R "${owner}:${owner}" "$dest"
 }
 
-# Single file: owner:owner 0600 (Falco jsonl/txt/err; cockpit/void must read).
+# Single file: owner:owner 0600 (Falco jsonl/txt/err; cockpit must read).
 kalived_chown_owner_0600() {
   local f="$1"
-  local owner="${KALIVED_OWNER:-${SUDO_USER:-void}}"
+  local owner
+  owner="$(kalived_owner_name)"
   [[ -e "$f" ]] || return 0
   if [[ -z "$owner" || "$owner" == "root" ]]; then
     echo "WARN: skip chown $f (owner=${owner:-empty})" >&2

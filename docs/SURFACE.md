@@ -1,24 +1,22 @@
-# kalived — operatorflate (scan/CLI/:8787)
+# Scan-kontrakt (CLI / findings / :8787)
 
-Kontrakt for **scan, findings, config og den gamle API-en**. Overordnet produkt og cockpit: [README.md](../README.md), [COCKPIT.md](COCKPIT.md), neste steg [NEXT.md](NEXT.md).
+Kontrakt for **scan, findings, config og den eldre API-en**. Produkt og cockpit: [README.md](../README.md), [COCKPIT.md](COCKPIT.md). Protokoll: [HIROSHIMA.md](HIROSHIMA.md).
 
-Skrevet 2026-09-17 etter fase 8 CLEAN; GUI 2026-09-23; H4/watch 2026-09-30.
-
-Cockpit (`:5173` / `:8788`) er en **klient** av `verdict.json`, `protocol.json` og `kalived-ctl`. Den er ikke et nytt deteksjonslag. `:8787` er urørt stdlib-API. Protokoll: [HIROSHIMA.md](HIROSHIMA.md). Produkt: [../README.md](../README.md).
+Cockpit (`:5173` / `:8788`) er klient av `verdict.json`, `protocol.json` og `kalived-ctl`. Den er ikke et nytt deteksjonslag.
 
 ---
 
 ## 1. Hva systemet er
 
-Host-SOC for én Kali-workstation (`void@kali`). Mål: avgjøre om maskinen **allerede er kompromittert**, med tydelig CLEAN / WARN / ALERT. Burst-scan + opt-in rolling egress-watch (H4).
+Host-SOC for én workstation. Avgjøre om maskinen **allerede er kompromittert**: CLEAN / WARN / ALERT / ERROR. Burst-scan + opt-in rolling egress-watch.
 
-Live scan **krever root**. Testdata og `--fixture` krever ikke root.
+Live scan **krever root**. Testdata og `--fixture` krever ikke.
 
-Baseline på denne verten er **mistenkt** (forsøkskanin). `baselines/machine/` og `outbound_proc.allow` er merkelapper, ikke rent-host-bevis. Kjent-godt snapshot-peker: `baselines/machine/prev_snapshot.txt`.
+`baselines/machine/` og `outbound_proc.allow` er merkelapper, ikke rent-host-bevis.
 
 ---
 
-## 2. Verdict-kontrakt (GUI-sannhet)
+## 2. Verdict-kontrakt
 
 | Felt | Verdi |
 |------|--------|
@@ -28,30 +26,24 @@ Baseline på denne verten er **mistenkt** (forsøkskanin). `baselines/machine/` 
 | `exit_code` | 0 / 1 / 2 / 3 |
 | `sudo` | 0 \| 1 |
 | `findings[]` | `{severity, id, title, detail, source}` |
-| `baseline_ref` | kjente machine-baselines + `prev_snapshot.txt` |
-| Banner | bokmål, rød/gul/grønn; `notify-send` på ALERT/ERROR (ikke `--fixture`) |
+| `baseline_ref` | machine-baselines + `prev_snapshot.txt` |
 | Aggregering | ERROR > ALERT > WARN > CLEAN (INFO hever ikke) |
 
-`reports/<stamp>_scan.md` = kopi av `VERDICT.md`.
+`reports/<stamp>_scan.md` = kopi av `VERDICT.md`. `protocol.json` forklarer; overskriver ikke.
 
 ---
 
-## 3. CLI — inngangspunkter som finnes
+## 3. CLI
 
-### 3.1 `sudo ./scripts/kalived-scan.sh`
+### 3.1 `sudo kalived-ctl scan` → `kalived-scan.sh --quiet`
 
 | Flagg | Effekt |
 |-------|--------|
 | *(ingen)* | live collect + hunt + rootkit + sjekker |
-| `--sudo` | tving sudo-re-exec (default live) |
-| `--from-dir DIR` | evaluer kopi av historisk snapshot; skriver ikke i DIR |
-| `--fixture DIR` | som from-dir + testmodus (ingen live ss/ps) |
-| `--skip-hunt` | hopp over hunt-persistence/keylog/rootkit; sjekker filer som finnes |
-| `--quiet` | banner på stderr, JSON på stdout; `NO_COLOR=1`. **Default for `kalived-ctl scan`** |
-| `--help` | brukstekst |
-| `--accept-alert-suppress` | **stub** — ignoreres |
-
-Ukjent flagg → exit 3.
+| `--from-dir DIR` | evaluer kopi av historisk snapshot |
+| `--fixture DIR` | som from-dir + testmodus |
+| `--skip-hunt` | hopp over hunt; sjekker filer som finnes |
+| `--quiet` | banner på stderr, JSON på stdout. **Default for ctl** |
 
 **Miljø:**
 
@@ -60,31 +52,29 @@ Ukjent flagg → exit 3.
 | `KALIVED_DATA` | logs/reports (default = kode-root) |
 | `KALIVED_OUT` | tvungen snapshot-mappe |
 | `KALIVED_STAMP` | tvungen stamp |
-| `KALIVED_SUDO` | 1 når root |
-| `KALIVED_OWNER` | chown etter root-scan og watch-ingest (timer: `void`) |
+| `KALIVED_OWNER` | chown etter root-scan og watch (`SUDO_USER`) |
 | `KALIVED_OWNER_HOME` | config/window-sti når systemd mangler `HOME` |
-| `KALIVED_FIXTURE` / `KALIVED_FROM_DIR` | settes av flagg |
-| `NO_COLOR` | slå av ANSI |
-| `KALIVED_AIDE_INIT_POLICY` | `clean_only` / `allow_known_warn` (default) / `always_prompt` — playbook |
-| `SCAN_VERSION` | 12 (nå) |
+| `KALIVED_AIDE_INIT_POLICY` | `clean_only` / `allow_known_warn` (default) / `always_prompt` |
+| `SCAN_VERSION` | 12 |
 
-Timer kjører: `/usr/local/lib/kalived/scripts/kalived-scan.sh --quiet` med `KALIVED_DATA=/home/void/kalived`.
+Timer: `/usr/local/lib/kalived/scripts/kalived-scan.sh --quiet` med `KALIVED_DATA` = operatorens workspace.
 
 ### 3.2 Andre scripts
 
 | Script | Sudo | Hva |
 |--------|------|-----|
-| `collect-baseline.sh` | ja for ufw/nft/aa | rå dump; kalles av scan |
+| `collect-baseline.sh` | ja for ufw/nft/aa | rå dump |
 | `hunt-persistence.sh` | ja | cron/systemd/preload/suid/docker/input |
 | `hunt-rootkit.sh` | ja | rkhunter/chkrootkit/debsums/lsmod/taint |
-| `keylogscan.sh` | ja for lsof | heuristikk |
+| `keylogscan.sh` | ja for lsof | heuristikk; tåler ubundet `HOME` |
+| `kalived-falco.sh` | ja | host-burst ~8 s |
+| `kalived-watch.sh` | ja | H4-sample |
 | `update-threat-defs.sh` | ja | rkhunter `--update` + `defs/feeds.d/` |
 | `tests/run.sh` | nei | fixture-tester |
-| `adb-phone-scan.sh` | nei | **utenfor** host-scan (telefon) |
 
 ---
 
-## 4. Finding-ID-er (GUI-rader)
+## 4. Finding-ID-er
 
 ### ALERT (løses, ikke whitelist uten evidens)
 
@@ -99,197 +89,103 @@ Timer kjører: `/usr/local/lib/kalived/scripts/kalived-scan.sh --quiet` med `KAL
 | `NET-UFW-HIT` | UFW BLOCK/ALLOW mot lyttende port med `IN≠lo` |
 | `NET-NFT-NAT` | REDIRECT/DNAT/TPROXY utenom Docker-MASQ |
 | `NET-PROMISC` | PROMISC på ikke-lo |
-| `NET-DNS` | privat NS ≠ gw (unntak Proton 10.2.0.1) |
+| `NET-DNS` | privat NS ≠ gw (unntak kjent VPN-DNS) |
 | `NET-ESTAB` | ncat/bash/ukjent python ESTAB ut |
 | `PROC-TMPNET` | cwd /tmp+/dev/shm + ESTAB |
 | `PROC-DELETED` / `PROC-MEMFD` | deleted/memfd exe |
 | `PROC-INPUT` | ukjent holder av `/dev/input/event*` |
-| `PROC-NAME` | ngrok/anydesk/… (supplement) |
-| `PROC-HIDDEN` | sil 4: PID lever, usynlig for `ps`/`ps -eT`, exe deleted/memfd |
+| `PROC-HIDDEN` | sil 4: PID lever, usynlig for `ps`, exe deleted/memfd |
 | `PROC-FAKEKTH` | sil 4: `[kworker…]` men PPID≠2 eller userspace-exe |
 | `PROC-COMMEXE` | sil 4: comm≠exe på tmp/shm/home |
-| `PROC-IOC` | `defs/ioc/process-names.txt` |
 | `PERS-UID0` | extra UID 0 |
 | `PERS-PRELOAD` | ld.so.preload eller ukjent LD_PRELOAD |
 | `PERS-AUTHKEYS` | nøkkelmateriale i authorized_keys |
-| `PERS-CRON` / `PERS-RC` / `PERS-UDEV` / `PERS-AUTOSTART` | curl\|sh /tmp |
 | `PERS-SUID` | SUID i home/tmp/opt (unntak chrome-sandbox) |
 | `PERS-DOCKER` | privileged / 0.0.0.0 / docker.sock |
-| `PERS-SYSTEMD` | ExecStart payload / ukjent home-unit |
-| `FIM-AIDE` | AIDE-klasse: identity=ALERT; self_sudoers/snap_proton/snap_other/other=WARN; self_helper=INFO. Flere WARN samtidig. |
-| `HOST-FALCO` | Falco-burst + FIM eller nett = ALERT. Falco alene = WARN / candidate. INFO «falco absent» hever ikke. |
+| `FIM-AIDE` | identity=ALERT; self_sudoers/snap_*/other=WARN; self_helper=INFO |
+| `HOST-FALCO` | Falco + FIM eller nett = ALERT. Falco alene = WARN/candidate |
 | `FIM-DEBSUMS` | mismatch sudo/libc/ssh/systemd |
-| `ROOT-RKH` | rkhunter/chkrootkit etter Kali-allow |
-| `ROOT-LSMOD` | LKM-navn hide/adore/… |
-| `ROOT-PROC-SS` | LISTEN i /proc/net/tcp, ikke i ss |
-| `SCAN` | orchestrator/python/modulkrasj (ofte ERROR) |
+| `ROOT-RKH` | rkhunter/chkrootkit etter kali-allow |
+| `SCAN` | orchestrator-krasj (ofte ERROR) |
 
-### WARN (hygiene / kjent avvik)
+### WARN (hygiene)
 
-`PERS-SUID` ny i `/usr`, `PERS-DOCKER` socket idle, `PERS-SYSTEMD` spice-vdagent, `FIM-AIDE` systemd/cron mtime, `ROOT-RKH` rkhunter-støy, `ROOT-TAINT`, `ROOT-LSMOD` nye hw-moduler, `ROOT-BPF`, `F-007` dpkg > 30 d, `LOG-AUDIT`/`LOG-JOURNAL`, `NET-DNS` usb0 tether, `PROC-HIDDEN-WEAK` (`/proc`≠`ps` men normal exe), `PCAP-EXTRA` (tshark SYN-ACK uten nmap/ss), `PROC-IOC-REMOTE` (cache, ikke git), `HOST-FALCO` (Falco-burst alene; candidate). Falco + FIM/nett hever til ALERT.
+AIDE etter egen install (sudoers, VPN-snap, Falco-units), `ROOT-LSMOD` nye hw-moduler, `ROOT-RKH` kjent støy, `PROC-HIDDEN-WEAK`, `PCAP-EXTRA`, `HOST-FALCO` candidate. Falco + FIM/nett hever til ALERT (høyeste severity per id).
 
-### INFO (hever ikke verdict)
+### INFO (hever ikke)
 
-Brave sandbox, Proton DNS, SNAP-MISS, timer ikke enabled, auditd-playbook ikke kjørt, `PROC-HIDDEN-NOISE` (raw>0 kept=0), `PROC-HIDDEN-RAW` (gammelt snapshot uten sil), `PCAP-NOISE` / `PCAP-CONFIRM` / `PCAP-MISS`, `NET-UFW-NOISE` (24t BLOCK-støy), `NET-UFW-SCAN` (portscan/flood mot deny-in, ingen listen-treff), `HOST-FALCO` «falco absent» (pakke mangler; hever ikke).
-
-UFW-loggen er støy inntil den viser **mønster**: samme kilde mot mange porter, unormal rate, eller treff på noe vi faktisk lytter på. Enkeltblokkerte pakker på en `deny incoming`-boks er default, ikke angrep. Advisor får `ufw_digest`-tall, ikke journalen.
+Brave sandbox, VPN-DNS, `PROC-HIDDEN-NOISE`, `PCAP-NOISE`, `NET-UFW-NOISE`, `HOST-FALCO` absent/rejected/engine failed.
 
 ---
 
-## 5. Playbooks (muterende) — GUI Confirm-knapper
+## 5. Playbooks (Confirm)
 
-Alle unntatt merket: **gate = siste `kalived_scan=1` verdict ≠ ALERT/ERROR**.
+Gate = siste `kalived_scan=1` verdict ≠ ALERT/ERROR, med mindre merket.
 
-| Playbook | Gate | Effekt | Rollback |
-|----------|------|--------|----------|
-| `journald-persistent.sh` | ja | journald 500M/14d | slett drop-in, restart journald |
-| `auditd-mini.sh` | ja | auditd + `99-kalived.rules` | slett rules, `augenrules --load` |
-| `ufw-logging-medium.sh` | ja | `ufw logging medium` | `ufw logging low` |
-| `aide-init.sh` | ja (+ policy). `--force` hopper **ikke** over ALERT (WARN er lov). `--force-alert` gjør det. Default **scoped** overlay (sudoers+helper+watch). `--all` = full DB; Proton forsvinner da. Confirm kaller **ikke** `--all`. | scoped: `aide-scope.json`. `--all`: kalived.db.gz | slett overlay / db |
-| `install-kalived-helper.sh` | **nei** | kopi root:root `/usr/local/lib/kalived` | slett prefix |
-| `install-scan-timer.sh` | ja | weekly system-timer | `systemctl disable --now kalived-scan.timer` |
-| `docker-hygiene.sh [--prune] [--no-stop]` | ja | stop-idle + dangling prune | `systemctl start docker` |
-| `rkhunter-setup.sh` | ja | apt rkhunter/chkrootkit/debsums, propupd | apt remove |
-| `install-falco-host.sh` | ja (ikke ALERT). Printer `apt-get install -y falco` — kjører **ikke** apt. modern_ebpf, ingen unit enable, ingen gRPC/web. | yaml i `/etc/kalived` | mask `falco.service` |
-| `disable-vendor-rk-cron.sh` | **nei** | slå av Debian-cron/timer | chmod +x / enable timer |
-| `harden-host-sudo.sh` | nei (eldre) | SSH mask, UFW deny, sysctl, AA | se CHANGELOG |
-| `update-threat-defs.sh` | nei (script) | rkhunter `--update` | n/a |
-| `run-auditd-then-aide.sh` | via barn | fase 4–5 | |
-| `run-timer-and-docker.sh` | via barn | fase 6–7 | |
-| `run-fase8-rootkit.sh` | via barn | fase 8 | |
+| Playbook | Gate | Effekt |
+|----------|------|--------|
+| `auditd-mini.sh` | ja | auditd + `99-kalived.rules` |
+| `aide-init.sh` | ja | default **scoped** (sudoers+helper+watch). `--all` = full DB (gjemmer VPN-snap). Confirm kaller ikke `--all`. `--force` tillater WARN; hopper ikke over ALERT |
+| `install-kalived-helper.sh` | nei | kopi `root:root` `/usr/local/lib/kalived` |
+| `install-scan-timer.sh` | ja | ukentlig timer |
+| `install-watch-timer.sh` | ja | 5 min egress |
+| `rkhunter-setup.sh` | ja | apt rkhunter/chkrootkit/debsums |
+| `install-falco-host.sh` | ja | printer tredjeparts-apt; kjører den ikke. Masker units |
+| `isolate-dst.sh` / `isolate-undo.sh` | ja | UFW deny-out mot unknown dest fra scan-snapshot |
+| `kill-pid.sh` | ja | exe-match, ikke ours |
 
-**Ikke installer:** fail2ban (`playbooks/install-fail2ban.md` kun tekst). SSH masked.
-
-**Telefon** (utenfor host-GUI v1): `cep1er-phone-checklist.md`, `iqoo-*`.
-
-Etter bevisst filendring: Confirm aide-init (scoped) deretter scan — Proton-snap forblir åpen WARN. Etter script-endring: `install-kalived-helper.sh`. Ikke lim helper+AIDE foran daglig `kalived-ctl scan`. `--force-alert` bare når siste verdict er ALERT og evidens allerede er lagret. Full rebuild krever `sudo bash playbooks/aide-init.sh --all` (passord, ikke 8787).
+Etter script-endring: helper-install. Etter bevisst filendring: scoped aide-init, deretter scan. `--force-alert` bare når evidens allerede er lagret.
 
 ---
 
-## 6. Runtime-config (`config.toml`) — **finnes**
+## 6. Runtime-config (`config.toml`)
 
-Fil: `~/.config/kalived/config.toml` (ikke i git).  
-Eksempel: `config/kalived.toml.example`.  
-Install: `sudo bash playbooks/install-config.sh`.  
-Parser: `scripts/lib/kalived-config.sh`. Ugyldig enum / `listen_bind` ≠ loopback → scan **ERROR exit 3**.  
-Override: `KALIVED_CONFIG=/sti/til.toml`.
+Fil: `~/.config/kalived/config.toml` (ikke i git). Eksempel: `config/kalived.toml.example`. Ugyldig enum / `listen_bind` ≠ loopback → scan ERROR exit 3.
 
 | Nøkkel | Default | Merknad |
 |--------|---------|---------|
-| `aide_init_policy` | `allow_known_warn` | `clean_only` / `always_prompt` |
-| `scan_sudo_mode` | `prompt` | `helper` / `never`; live krever fortsatt root |
-| `docker_stop_idle` | true | playbook default; `--no-stop` overstyrer |
-| `timer_enabled` | true | GUI-felt; systemd er sannhet |
-| `watch_timer` | false | H4 egress-watch 5 min. Opt-in. Manglende nøkkel = kjør hvis timer er installert. Settings-huke. |
-| `ai_enabled` | false | SpaceXAI advisor |
+| `aide_init_policy` | `allow_known_warn` | |
+| `watch_timer` | false | H4 5 min. Opt-in |
+| `ai_enabled` | false | |
 | `ai_model` | `grok-4.6` | |
-| `ai_after_scan` | true | etter interaktiv scan (ikke timer) |
-| `listen_bind` | `127.0.0.1` | kun loopback; **ikke** `0.0.0.0` |
-| `listen_port` | 8787 | 1–65535 |
-| `apparmor_enforce_selected` | false | F-019 |
-| `nmap_localhost` | true | TCP-scan kun 127.0.0.1, parallelt med rkhunter |
-| `nmap_port_spec` | `"-"` | nmap `-p` (siffer/`,`/`-`). Ikke CIDR/host |
-| `helper_stale_check` | true | WARN helper ≠ git-tre |
-| `aide_watch_helper` | true | AIDE på helper scripts/prompts + ctl |
-| `proc_inventory` | true | ps /proc pstree lsof parallelt med nmap/rk |
-| `proc_hidden_check` | true | sil 4 på skjulte PID (ikke raw `/proc`−`ps`) |
-| `proc_ioc_check` | true | `defs/ioc/process-names.txt` |
-| `pcap_localhost` | true | tshark lo-burst parallelt med nmap |
+| `listen_bind` | `127.0.0.1` | **ikke** `0.0.0.0` |
+| `nmap_localhost` | true | bare 127.0.0.1 |
+| `pcap_localhost` | true | tshark lo-burst |
 | `pcap_duration_s` | 8 | 1–30 |
-| `pcap_max_packets` | 4000 | 1–20000 |
-| `nmap_svc_probe` | true | `-sV` kun på allerede åpne porter |
-| `ufw_digest` | true | 24t journal → `ufw_digest.json` (ikke rå logg) |
+| `helper_stale_check` | true | WARN helper ≠ git |
 
 ---
 
-## 7. HTTP-endepunkter — **finnes** (loopback)
+## 7. Eldre HTTP `:8787`
 
-Start: `sudo kalived-ctl api` (etter `playbooks/install-nopasswd-ctl.sh`).  
-Token: `~/.config/kalived/api.token` eid av **void** (ikke root). Bearer eller `X-Kalived-Token`.  
-OpenAPI: `api/openapi.yaml`. Bind fra config; **ikke** `0.0.0.0`.
+`sudo kalived-ctl api`. Token: `~/.config/kalived/api.token` 0600. OpenAPI: `api/openapi.yaml`. Bind fra config; ikke `0.0.0.0`.
 
-| Metode | Sti | Mapper til |
-|--------|-----|------------|
-| GET | `/` | HTML-UI (token i nettleser) |
-| GET | `/static/app.css` `/static/app.js` | UI-assets |
-| GET | `/v1/meta` | nøkler/enums (ingen hemmeligheter) |
-| GET | `/v1/health` | prosess oppe |
-| GET | `/v1/term` | PTY-status (`root` hvis API er sudo) |
-| GET | `/v1/term/ws` | WebSocket xterm PTY (token i query). **Samme uid som API** — `sudo kalived-ctl api` = root-shell på hosten. Kun loopback. |
-| GET | `/v1/verdict/latest` | siste `verdict.json` |
-| GET | `/v1/snapshots` | `logs/status/*` |
-| GET | `/v1/snapshots/{stamp}` | snapshot + VERDICT.md |
-| POST | `/v1/scan` | `kalived-scan.sh` (sudo/polkit) |
-| GET | `/v1/findings` | aggregert ID-katalog |
-| GET | `/v1/config` | `config.toml` |
-| PUT | `/v1/config` | skriv tillatte nøkler |
-| POST | `/v1/playbooks/{name}` | Confirm + gate |
-| POST | `/v1/defs/update` | `update-threat-defs.sh` |
-| GET | `/v1/defs/feeds` | `defs/feeds.d/` |
-| POST | `/v1/ai/advise` | SpaceXAI, redacted verdict.json. Body: `{stamp?, ask?}`. Ikke root. |
-
-Auth: token i `~/.config/kalived/api.token` modus 0600. AI får aldri sudo.
+Primær GUI er cockpit `:5173`. `:8787` er urørt stdlib-UI.
 
 ---
 
-## 8. Defs / oppdateringer
+## 8. Defs
 
 | Sti | Rolle |
 |-----|--------|
-| `defs/VERSION` | 1 |
-| `defs/kali-allow/rkhunter-allow.txt` | FP-strenger |
-| `defs/kali-allow/chkrootkit-allow.txt` | FP-strenger |
-| `defs/feeds.d/rkhunter.feed` | enabled — `rkhunter --update` |
-| `defs/feeds.d/*.example` | URLhaus, CISA KEV, The Register (news, aldri auto-ALERT) |
-| `defs/ioc/` | tom stub |
-| `baselines/machine/*` | suid, lsmod, input holders, preload allow, systemd allow |
-| `baselines/aide.sha256` | AIDE-DB checksum |
+| `defs/VERSION` | 2 |
+| `defs/falco-host.yaml` | host-regler (ikke stock) |
+| `defs/falco.yaml` | `engine.kind=modern_ebpf`, plugins av |
+| `defs/kali-allow/` | rkhunter/chkrootkit FP |
+| `defs/feeds.d/` | rkhunter `--update`; examples er aldri auto-ALERT |
+| `defs/ioc/` | process-names, tshark-noise-ports |
+| `baselines/machine/*` | suid, lsmod, preload, systemd |
 
-`sudo ./scripts/update-threat-defs.sh` — aldri `eval` av nedlastet innhold.
+`sudo kalived-ctl defs` — aldri `eval` av nedlastet innhold.
 
 ---
 
-## 9. Tester (GUI skal ikke erstatte)
+## 9. Tester
 
 ```bash
 ./scripts/tests/run.sh
 ```
 
-Fixtures: `alert_listen_ncat`, `alert_uid0`, `alert_ufw_8000`, `alert_preload`, `alert_deleted`, `alert_ncat_estab`, `alert_suid_tmp`, `alert_docker_publish`, `alert_rkhunter`, `chkrootkit_debian_fp`, `clean_full_root`.
+Fixtures under `scripts/testdata/cases/` (ALERT, WARN, CLEAN, Falco empty/absent/rejected). GUI erstatter ikke denne suiten.
 
----
-
-## 10. Host-tilstand (etter 180808)
-
-| Komponent | Tilstand |
-|-----------|----------|
-| UFW | deny in, tomme user-regler, logging medium |
-| SSH | masked |
-| auditd | active, kalived_* |
-| journald | persistent |
-| AIDE | 225 entries, NO differences |
-| timer | enabled, ukentlig |
-| docker.socket | inactive (start: `systemctl start docker`) |
-| docker-gruppe | void beholdt |
-| rkhunter/chkrootkit | installert; vendor-cron av |
-| fail2ban | ikke installert |
-
-**Åpne hygiene:** F-005 gruppe=root-ekvivalent (mitigert stop-idle), F-019 AppArmor unconfined, F-002 fail2ban utsatt, F-007 manuell apt, disk 95 %, vmware SUID-wrapper.
-
----
-
-## 11. GUI
-
-**Primær:** cockpit `http://127.0.0.1:5173` → FastAPI `:8788`. Hiroshima-skuffen leser siste scan fra disk og kan starte `kalived-ctl scan`. Se [COCKPIT.md](COCKPIT.md).
-
-**Gammel SOC-GUI (finnes, urørt):** tynn HTML på `http://127.0.0.1:8787/` servert av `kalived-api`. Samme `config.toml` og `verdict.json`. Ingen nye detektorer.
-
-```bash
-sudo kalived-ctl api
-# nettleser: http://127.0.0.1:8787
-# token: cat ~/.config/kalived/api.token
-```
-
-Faner der: Status, Innstillinger, Playbooks, Råd. Mutasjon krever API som root.
-
-Advisor: `prompts/advisor.md` er ops-personlighet. Signal er `prompts/playbooks/signal.md`. Cockpit-agenter: `crew`/`forge`/`review`/`term` + `signal`.
+Host-tilstand leses fra siste `verdict.json`, ikke fra denne fila.

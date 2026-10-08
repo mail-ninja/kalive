@@ -11,7 +11,7 @@ Hvis **noen** G1–G10 feiler: **stopp rebuild**, etterforsk, ikke «aksepter» 
 ## Kommandoer (i rekkefølge)
 
 ```bash
-cd /home/void/kalived
+cd ~/kalived
 
 # A+B. Collect som root (ufw/nft/aa-status inkludert)
 sudo ./scripts/collect-baseline.sh
@@ -33,7 +33,7 @@ mkdir -p "$MAN"
   if [ -e /etc/ld.so.preload ]; then cat /etc/ld.so.preload; else echo absent; fi
   echo "=== ssh ==="
   systemctl is-active ssh; systemctl is-enabled ssh 2>&1 || true
-  echo "=== authorized_keys void ==="
+  echo "=== authorized_keys (operator) ==="
   wc -l ~/.ssh/authorized_keys 2>/dev/null || echo none
   echo "=== uid0 ==="
   awk -F: '$3==0 {print}' /etc/passwd
@@ -65,7 +65,7 @@ Alle må være sanne. Dette er ALERT-klasse med *dagens* verktøy.
 | G2 | `ssh` inactive og masked (eller minst inactive+disabled) |
 | G3 | UFW active, default deny incoming, tomme user-regler (sudo-dump) |
 | G4 | `/etc/ld.so.preload` fraværende/tom |
-| G5 | Ingen `authorized_keys` med nøkler for void/root |
+| G5 | Ingen `authorized_keys` med nøkler for operator/root |
 | G6 | Ingen ekstra UID 0 i `/etc/passwd` |
 | G7 | Ingen deleted executables (modulo kjent browser-FP dokumentert) |
 | G8 | `lsof /dev/input/event*`: COMMAND ⊆ {systemd-logind / systemd-l, Xorg, upowerd}. Tastatur-noder (event0/event8) er ALERT-sensitive; lid/power (`upowerd`) er allowlistet. Ukjent holder på **hvilken som helst** event* stopper rebuild |

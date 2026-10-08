@@ -127,7 +127,7 @@ OURS_COMM = frozenset(
         "container",
     }
 )
-SSID_SEED = {"gal": "tether"}
+SSID_SEED: dict[str, str] = {}
 COCKPIT_PORTS = frozenset({5173, 6333, 6379, 8787, 8788, 9100, 9101, 45959, 7878})
 _PAYLOAD_RE = re.compile(
     r"frame\.time|http\.host|dns\.qry|pcapng|authorization:|api_key|--crashpad|\bcmd=",
@@ -226,8 +226,6 @@ def write_env_overlay(ssid: str, klass: str) -> dict[str, str]:
         raise ValueError("ugyldig ssid")
     cur = load_env_overlay()
     cur[ssid] = klass
-    if not any(k.lower() == "gal" for k in cur):
-        cur["Gal"] = "tether"
     lines = ["# kalived env class. chmod 600. Ikke git.", "[ssid]"]
     for k in sorted(cur, key=str.lower):
         key = k if re.fullmatch(r"[A-Za-z0-9_-]+", k) else json.dumps(k)

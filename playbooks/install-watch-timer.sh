@@ -15,18 +15,20 @@ if [[ ! -x /usr/local/lib/kalived/scripts/kalived-watch.sh ]]; then
   echo "Kjør playbooks/install-kalived-helper.sh først" >&2
   exit 1
 fi
+if [[ -z "${SUDO_USER:-}" || "${SUDO_USER}" == "root" ]]; then
+  echo "Kjør via sudo fra operator-konto (SUDO_USER)." >&2
+  exit 1
+fi
 install -m 644 "$ROOT/systemd/kalived-watch.service" /etc/systemd/system/kalived-watch.service
 install -m 644 "$ROOT/systemd/kalived-watch.timer" /etc/systemd/system/kalived-watch.timer
-if [[ -n "${SUDO_USER:-}" ]]; then
-  sed -i "s|^Environment=KALIVED_OWNER=.*|Environment=KALIVED_OWNER=${SUDO_USER}|" /etc/systemd/system/kalived-watch.service
-  home="$(getent passwd "$SUDO_USER" | cut -d: -f6)"
-  sed -i "s|^Environment=KALIVED_OWNER_HOME=.*|Environment=KALIVED_OWNER_HOME=${home}|" /etc/systemd/system/kalived-watch.service
-  sed -i "s|^Environment=KALIVED_DATA=.*|Environment=KALIVED_DATA=${home}/kalived|" /etc/systemd/system/kalived-watch.service
-  if grep -q '^Environment=HOME=' /etc/systemd/system/kalived-watch.service; then
-    sed -i "s|^Environment=HOME=.*|Environment=HOME=${home}|" /etc/systemd/system/kalived-watch.service
-  else
-    sed -i "/^Environment=NO_COLOR=/a Environment=HOME=${home}" /etc/systemd/system/kalived-watch.service
-  fi
+sed -i "s|^Environment=KALIVED_OWNER=.*|Environment=KALIVED_OWNER=${SUDO_USER}|" /etc/systemd/system/kalived-watch.service
+home="$(getent passwd "$SUDO_USER" | cut -d: -f6)"
+sed -i "s|^Environment=KALIVED_OWNER_HOME=.*|Environment=KALIVED_OWNER_HOME=${home}|" /etc/systemd/system/kalived-watch.service
+sed -i "s|^Environment=KALIVED_DATA=.*|Environment=KALIVED_DATA=${home}/kalived|" /etc/systemd/system/kalived-watch.service
+if grep -q '^Environment=HOME=' /etc/systemd/system/kalived-watch.service; then
+  sed -i "s|^Environment=HOME=.*|Environment=HOME=${home}|" /etc/systemd/system/kalived-watch.service
+else
+  sed -i "/^Environment=NO_COLOR=/a Environment=HOME=${home}" /etc/systemd/system/kalived-watch.service
 fi
 systemctl daemon-reload
 systemctl enable --now kalived-watch.timer

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import pwd
 import secrets
 import subprocess
 import sys
@@ -13,8 +14,36 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 ROOT = Path(os.environ.get("KALIVED_ROOT", Path(__file__).resolve().parent.parent))
-OWNER = os.environ.get("KALIVED_OWNER") or os.environ.get("SUDO_USER") or os.environ.get("USER") or "void"
-HOME = Path(os.environ.get("KALIVED_OWNER_HOME") or f"/home/{OWNER}")
+
+
+def _owner() -> str:
+    for key in ("KALIVED_OWNER", "SUDO_USER", "USER"):
+        v = os.environ.get(key) or ""
+        if v and v != "root":
+            return v
+    try:
+        name = pwd.getpwuid(os.getuid()).pw_name
+    except KeyError:
+        name = ""
+    if name and name != "root":
+        return name
+    return "kalived"
+
+
+OWNER = _owner()
+
+
+def _home(owner: str) -> Path:
+    env = os.environ.get("KALIVED_OWNER_HOME")
+    if env:
+        return Path(env)
+    try:
+        return Path(pwd.getpwnam(owner).pw_dir)
+    except KeyError:
+        return Path.home()
+
+
+HOME = _home(OWNER)
 DATA = Path(os.environ.get("KALIVED_DATA", ROOT))
 CONFIG_PATH = Path(os.environ.get("KALIVED_CONFIG", HOME / ".config/kalived/config.toml"))
 TOKEN_PATH = Path(os.environ.get("KALIVED_API_TOKEN", HOME / ".config/kalived/api.token"))

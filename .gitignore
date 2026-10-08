@@ -2,7 +2,7 @@
 logs/
 *.log
 scans/
-reports/*_scan.md
+reports/
 
 # Secrets — aldri commit
 .env

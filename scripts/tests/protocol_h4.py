@@ -20,7 +20,7 @@ from hiroshima_watch import (  # noqa: E402
 )
 
 FIX = Path(__file__).resolve().parent / "fixtures" / "h4-watch"
-GAL = Path(__file__).resolve().parent / "fixtures" / "h1-gal"
+TETHER = Path(__file__).resolve().parent / "fixtures" / "h1-tether"
 
 
 def _assert_clean(doc: dict, label: str) -> None:
@@ -70,15 +70,15 @@ def test_watch(tmp: Path) -> None:
     print("OK watch", doc["class"], "unknown", doc["unknown"], "unmapped", doc["unmapped"])
 
 
-def test_gal(tmp: Path) -> None:
+def test_tether(tmp: Path) -> None:
     os.environ["HOME"] = str(tmp)
     os.environ["KALIVED_OWNER_HOME"] = str(tmp)
-    doc = ingest_dir(GAL, iface="wlan0", audit_status="missing")
-    _assert_clean(doc, "h4-gal")
+    doc = ingest_dir(TETHER, iface="wlan0", audit_status="missing")
+    _assert_clean(doc, "h4-tether")
     assert doc["unknown"] == 0, doc
     assert doc["class"] == "noise", doc["class"]
     assert doc.get("audit") == "missing"
-    print("OK gal-watch unknown=0 class=noise unmapped", doc.get("unmapped"))
+    print("OK tether-watch unknown=0 class=noise unmapped", doc.get("unmapped"))
 
 
 def test_sni() -> None:
@@ -112,7 +112,7 @@ def main() -> int:
     with tempfile.TemporaryDirectory() as d:
         test_watch(Path(d))
     with tempfile.TemporaryDirectory() as d:
-        test_gal(Path(d))
+        test_tether(Path(d))
     return 0
 
 

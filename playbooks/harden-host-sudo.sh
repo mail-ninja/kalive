@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Host hardening for kalived workstation.
-# Run: sudo bash /home/void/kalived/playbooks/harden-host-sudo.sh
+# Run: sudo bash playbooks/harden-host-sudo.sh
 # Idempotent-ish. Logs to remediation/.
 
 set -euo pipefail
@@ -11,7 +11,8 @@ if [[ "$(id -u)" -ne 0 ]]; then
 fi
 
 STAMP="$(date +%Y-%m-%d_%H%M)"
-ROOT="/home/void/kalived"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+OWNER="${SUDO_USER:-${KALIVED_OWNER:-}}"
 LOGDIR="$ROOT/logs/status/${STAMP}_harden"
 mkdir -p "$LOGDIR" "$ROOT/logs/ufw" "$ROOT/remediation"
 exec > >(tee -a "$LOGDIR/harden.log") 2>&1
@@ -112,7 +113,9 @@ systemctl is-enabled open-vm-tools virtualbox-guest-utils ssh apparmor ufw 2>&1 
   echo "- Log: logs/status/${STAMP}_harden/"
 } >> "$ROOT/remediation/CHANGELOG.md"
 
-chown -R void:void "$ROOT/logs" "$ROOT/remediation/CHANGELOG.md" 2>/dev/null || true
+if [[ -n "$OWNER" && "$OWNER" != "root" ]] && id -u "$OWNER" >/dev/null 2>&1; then
+  chown -R "${OWNER}:${OWNER}" "$ROOT/logs" "$ROOT/remediation/CHANGELOG.md" 2>/dev/null || true
+fi
 
 echo ""
 echo "=== DONE ==="

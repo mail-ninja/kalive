@@ -69,7 +69,7 @@ ufw_digest = true
 
 # Hiroshima-protokoll (H1+). Spekk: docs/HIROSHIMA.md
 # Overlay for SSID-klasse ligger i ~/.config/kalived/env_class.toml (ikke git).
-# Gal = tether (telefon-hotspot). Ny SSID auto-merkes travel|tether; ALERT krever dual-source.
+# Telefon-hotspot = tether. Ny SSID auto-merkes travel|tether; ALERT krever dual-source.
 # protocol_after_scan = true
 # env_class_auto = true
 

@@ -17,7 +17,7 @@ type=SYSCALL msg=audit(1759219203.000:4): arch=c000003e syscall=42 success=yes e
 ----
 time->Tue Sep 30 08:00:04 2026
 type=SOCKADDR msg=audit(1759219204.000:5): saddr=020001BBC6336409
-type=SYSCALL msg=audit(1759219204.000:5): arch=c000003e syscall=42 success=yes exit=0 pid=12 comm="tokio-rt-worker" exe="/home/void/.grok/downloads/grok" key="kalived_connect"
+type=SYSCALL msg=audit(1759219204.000:5): arch=c000003e syscall=42 success=yes exit=0 pid=12 comm="tokio-rt-worker" exe="/home/operator/.grok/downloads/grok" key="kalived_connect"
 ----
 time->Tue Sep 30 08:00:05 2026
 type=SOCKADDR msg=audit(1759219205.000:6): saddr=020001BBC6336409

@@ -1,7 +1,8 @@
-# kalived cockpit — plan (galskap inn fra dag 1)
+# kalived cockpit — plan
 
-Svelte er **ikke** pannekaker. Det er en UI-compiler (små bundles, mindre magi enn React).  
-Security-API på `:8787` ligger. Dette er **agent-laget**. Dagens GUI flyttes ikke — den **embeds** som skuffen **Hiroshima**.
+Historisk byggplan. Sannhet for *hvor koden er*: [../docs/NOW.md](../docs/NOW.md). Neste steg: [../docs/NEXT.md](../docs/NEXT.md). Overflate: [../docs/COCKPIT.md](../docs/COCKPIT.md).
+
+Svelte er UI-compiler (små bundles). Security-API på `:8787` ligger urørt. Dette er **agent-laget**. Hiroshima er native skuff i Svelte, ikke iframe av `:8787`.
 
 ## Målbilde
 

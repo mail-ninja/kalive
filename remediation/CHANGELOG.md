@@ -54,30 +54,25 @@ Format: dato — hva — hvorfor — referanse (finding/rapport).
 
 ### 2026-08-13 ~10:15 — continue harden (user-level + playbook)
 
-- Context: user reported iQOO phone compromised live days ago; PC often tethered via phone (now usb0).
+- Context: phone-as-gateway (usb0 tether) treated as untrusted net (F-010).
 - Killed again: xcape, gvfsd-network, gvfsd-dnssd, obexd.
 - User autostart override: ~/.config/autostart/xcape-super-key-bind.desktop (Hidden=true).
 - Added: playbooks/harden-host-sudo.sh (SSH mask, guest-utils off, sysctl, UFW, AppArmor, xcape system disable).
 - Report: reports/2026-08-13_continue-hardening.md
 - **Awaiting sudo run of harden-host-sudo.sh**
 
-### 2026-08-13 ~10:19 — hermetic check (Kali + cep1er path)
+### 2026-08-13 ~10:19 — hermetic check (Kali + USB-tether)
 
-- Clarified: tether via **cep1er** (not iQOO); open guest WiFi; iQOO off/PIN locked later.
+- Tether via USB phone gateway on open guest WiFi. Phone-as-gw is env_shift, not PC-ALERT.
 - Kali: **no non-localhost listeners**, SSH off, no reverse-shell patterns, no deleted exes, 0 authorized_keys.
 - UFW enabled (default DROP in config), AppArmor active.
-- Phone gateway 192.168.57.4: only **:53 DNS** open of probed set; ADB 5555 closed.
-- Report: reports/2026-08-13_hermetic-kali-and-cep1er.md
+- Phone gateway: only **:53 DNS** open of probed set; ADB 5555 closed.
 - Snapshot: logs/status/2026-08-13_1019_hermetic/
 - Still pending: sudo harden-host-sudo.sh (guest-utils, sysctl, mask ssh, etc.)
 
-### 2026-08-13 — master plan (Kali + cep1er + iQOO)
+### 2026-08-13 — master plan (Kali + tether)
 
-- Topology confirmed: open guest WiFi → cep1er → USB tether → Kali (not iQOO).
-- Plans written:
-  - playbooks/cep1er-phone-checklist.md
-  - playbooks/iqoo-access-or-reset-plan.md
-  - reports/2026-08-13_master-plan.md
+- Topology: open guest WiFi → phone USB-tether → Kali.
 - Kali harden still needs: sudo bash playbooks/harden-host-sudo.sh
 
 ### 2026-08-13_1028 — harden-host-sudo.sh
@@ -103,21 +98,20 @@ Format: dato — hva — hvorfor — referanse (finding/rapport).
 - lsof /dev/input: only logind+Xorg(+upower) — clean
 - no reverse shells, deleted exes, ld.so.preload
 - AppArmor 117 profiles; sysctl hardened
-- Phone gw 192.168.57.4: only :53 open (ADB 5555 closed)
+- Phone gw: only :53 open of probed set (ADB 5555 closed)
 - Report: reports/2026-08-13_full-root-pc.md
 - Snapshot: logs/status/2026-08-13_1034_full_root/
 
-### 2026-08-13 — cep1er checklist progress
+### 2026-08-13 — tether-phone checklist
 
-- A1 USB-debugging: user reported complete (was ON → addressed as A1)
+- USB-debugging was ON → turned off / revoked (operator).
 
-### 2026-08-13_1548 — cep1er ADB scan
+### 2026-08-13_1548 — ADB scan of tether phone
 
-- tools/adb (Google platform-tools); device ZTE Z2472 authorized
-- 20 third-party apps; no spy/RAT keywords; a11y enabled empty; device admin empty
-- Report: reports/2026-08-13_cep1er-adb-scan.md
+- tools/adb (Google platform-tools); device authorized
+- Third-party apps reviewed; no spy/RAT keywords; a11y empty; device admin empty
 - Snapshot: logs/status/2026-08-13_1548_adb_phone/
-- USER ACTION: turn USB debugging OFF + revoke authorizations
+- USER ACTION: USB debugging OFF + revoke authorizations
 
 ### 2026-08-13_1632 — harden-host-sudo.sh
 - SSH disabled/masked
@@ -132,16 +126,15 @@ Format: dato — hva — hvorfor — referanse (finding/rapport).
 
 - No VPN/tunnel/proxy middleware on host
 - Dual default routes: usb0 metric 100 wins over wlan0 metric 600
-- wlan0 has captive portal: https://gjest.ihelse.net/guest/guest_splashpage.php
+- wlan0 has captive portal: captive-portal (gjestenett)
 - ping/https fail via wlan0 until portal auth; tether works because phone already authorized
 - Report: reports/2026-08-13_wifi-vs-tether-diagnosis.md
 
-### 2026-08-13 — iQOO primary incident plan
+### 2026-08-13 — phone-as-gateway incident
 
-- User: cep1er factory-reset yesterday; out of picture
-- iQOO: live hack observed; unknown boot PIN; ~200 odd strings in security settings; voices heard after SIM removed (implies WiFi/remote mic, not just cellular)
-- All authenticator/2FA on iQOO → account lockout elsewhere
-- Plan: playbooks/iqoo-2fa-lockout-and-wipe.md (recover accounts without phone → wipe iQOO → new 2FA)
+- One phone used as USB-tether treated as untrusted gateway (F-010).
+- Separate device taken out of the topology (factory-reset / off-net).
+- 2FA recovery and wipe handled off-repo.
 
 ## 2026-09-17 — fase 0 + rebuild start
 
@@ -163,7 +156,7 @@ Format: dato — hva — hvorfor — referanse (finding/rapport).
 - Operator: `sudo ufw delete allow 8000` (v4+v6).
 - Scan CLEAN; ufw-user-input tom; nft uten dport 8000. **F-020 fixed.**
 - Freeze: `baselines/machine/SOURCE.txt` + `prev_snapshot.txt` → 151255.
-- Residual støy: keylogscan self-grep på scriptnavn (fikset i script etterpå). Snapshot-`ls` i collect er før chown (ser root; etter scan er eier void).
+- Residual støy: keylogscan self-grep på scriptnavn (fikset i script etterpå). Snapshot-`ls` i collect er før chown (ser root; etter scan er eier operator).
 
 ### 2026-09-17 — persistensjakt + utgående heuristikk
 
@@ -199,7 +192,7 @@ Format: dato — hva — hvorfor — referanse (finding/rapport).
 
 ### 2026-09-17 — timer + docker-hygiene (kode, venter sudo)
 
-- Helper `/usr/local/lib/kalived` root:root (ingen NOPASSWD mot home). System-timer weekly, SuccessExitStatus=1 2, logger til KALIVED_DATA=/home/void/kalived.
+- Helper `/usr/local/lib/kalived` root:root (ingen NOPASSWD mot home). System-timer weekly, SuccessExitStatus=1 2, logger til KALIVED_DATA=$KALIVED_DATA.
 - Docker: behold gruppe; `--stop-idle` disable socket+service når 0 containere; `--prune` kun dangling. Modell: playbooks/docker-access-model.md
 - Kjør: `sudo bash playbooks/run-timer-and-docker.sh` deretter `sudo ./scripts/kalived-scan.sh`
 
@@ -217,7 +210,7 @@ Format: dato — hva — hvorfor — referanse (finding/rapport).
 
 ### 2026-09-17_165742 — timer+docker live
 
-- Helper root:root, timer enabled (neste man 21.09 00:10). docker.socket/service inactive. void ∈ docker.
+- Helper root:root, timer enabled (neste man 21.09 00:10). docker.socket/service inactive. operator ∈ docker.
 - Scan WARN AIDE = **våre** filer: +kalived-scan.{service,timer}, −docker wants. Re-init for ny kjent-god.
 
 ### 2026-09-17_170517 — CLEAN etter AIDE re-baseline
@@ -473,10 +466,10 @@ Format: dato — hva — hvorfor — referanse (finding/rapport).
 - scan-kopi til /usr/local/lib/kalived root:root (timer ExecStart). Ingen NOPASSWD mot home.
 
 ### 2026-09-30_1748 — aide-init.sh (scoped)
-- overlay /home/void/.config/kalived/aide-scope.json. Fryser kalived-filer, ikke Proton. Gate: WARN force=1 force_alert=0.
+- overlay ~/.config/kalived/aide-scope.json. Fryser kalived-filer, ikke Proton. Gate: WARN force=1 force_alert=0.
 
 ### 2026-09-30_1754 — aide-init.sh (scoped)
-- overlay /home/void/.config/kalived/aide-scope.json. Fryser kalived-filer, ikke Proton. Gate: WARN force=1 force_alert=0.
+- overlay ~/.config/kalived/aide-scope.json. Fryser kalived-filer, ikke Proton. Gate: WARN force=1 force_alert=0.
 
 ### 2026-10-01 — H5 Falco host-burst (git)
 - `kalived-ctl falco-burst` → `logs/status/<stamp>/hunt_falco.jsonl` (rule, exe, evt.type, n). Custom `defs/falco-host.yaml`. Falco alene WARN/candidate; Falco+FIM/nett ALERT. Playbook printer apt, kjører ikke. Ingen always-on unit, gRPC/web eller Qdrant/hiroshima-skriv.
@@ -498,3 +491,21 @@ Format: dato — hva — hvorfor — referanse (finding/rapport).
 
 ### 2026-10-03_2007 — install-kalived-helper.sh
 - scan-kopi til /usr/local/lib/kalived root:root (timer ExecStart). Ingen NOPASSWD mot home.
+
+### 2026-10-03_2109 — install-kalived-helper.sh
+- scan-kopi til /usr/local/lib/kalived root:root (timer ExecStart). Ingen NOPASSWD mot home.
+
+### 2026-10-04_2148 — install-kalived-helper.sh
+- scan-kopi til /usr/local/lib/kalived root:root (timer ExecStart). Ingen NOPASSWD mot home.
+
+### 2026-10-04_2200 — install-kalived-helper.sh
+- scan-kopi til /usr/local/lib/kalived root:root (timer ExecStart). Ingen NOPASSWD mot home.
+
+### 2026-10-05_0835 — install-kalived-helper.sh
+- scan-kopi til /usr/local/lib/kalived root:root (timer ExecStart). Ingen NOPASSWD mot home.
+
+### 2026-10-05_1737 — aide-init.sh (scoped)
+- overlay ~/.config/kalived/aide-scope.json. Fryser kalived-filer, ikke Proton. Gate: WARN force=1 force_alert=0.
+
+### 2026-10-05_1750 — aide-init.sh (scoped)
+- overlay ~/.config/kalived/aide-scope.json. Fryser kalived-filer, ikke Proton. Gate: WARN force=1 force_alert=0.
