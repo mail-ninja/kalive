@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Snake</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --panel: #161b22;
+      --grid: #21262d;
+      --snake: #3fb950;
+      --snake-head: #56d364;
+      --food: #f85149;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #58a6ff;
+      --over: #f85149;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, sans-serif;
+    }
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      min-height: 100%;
+      padding: 16px;
+    }
+    h1 { font-size: 1.25rem; font-weight: 600; letter-spacing: 0.04em; }
+    .hud {
+      display: flex;
+      gap: 24px;
+      font-variant-numeric: tabular-nums;
+      font-size: 0.95rem;
+    }
+    .hud span { color: var(--muted); }
+    .hud strong { color: var(--text); }
+    canvas {
+      background: var(--panel);
+      border: 2px solid var(--grid);
+      border-radius: 8px;
+      image-rendering: pixelated;
+      display: block;
+      max-width: 100%;
+      height: auto;
+    }
+    .hint { color: var(--muted); font-size: 0.8rem; }
+    kbd {
+      background: var(--grid);
+      border: 1px solid #30363d;
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-size: 0.75rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>Snake</h1>
+  <div class="hud">
+    <div><span>Poeng</span> <strong id="score">0</strong></div>
+    <div><span>Beste</span> <strong id="best">0</strong></div>
+    <div><span>Status</span> <strong id="status">kjører</strong></div>
+  </div>
+  <canvas id="game" width="400" height="400" aria-label="Snake"></canvas>
+  <p class="hint"><kbd>↑↓←→</kbd> styr · <kbd>Space</kbd> pause / restart</p>
+  <script>
+    (function () {
+      const COLS = 20, ROWS = 20, TICK_MS = 120;
+      const canvas = document.getElementById("game");
+      const ctx = canvas.getContext("2d");
+      const scoreEl = document.getElementById("score");
+      const bestEl = document.getElementById("best");
+      const statusEl = document.getElementById("status");
+      const cell = canvas.width / COLS;
+
+      let snake, dir, pending, food, score, best, paused, over, timer;
+
+      function randCell(exclude) {
+        let p;
+        do {
+          p = { x: Math.floor(Math.random() * COLS), y: Math.floor(Math.random() * ROWS) };
+        } while (exclude.some(s => s.x === p.x && s.y === p.y));
+        return p;
+      }
+
+      function reset() {
+        snake = [{ x: 10, y: 10 }, { x: 9, y: 10 }, { x: 8, y: 10 }];
+        dir = { x: 1, y: 0 };
+        pending = dir;
+        score = 0;
+        paused = false;
+        over = false;
+        food = randCell(snake);
+        scoreEl.textContent = "0";
+        statusEl.textContent = "kjører";
+        statusEl.style.color = "";
+        draw();
+      }
+
+      function drawCell(x, y, color) {
+        ctx.fillStyle = color;
+        ctx.fillRect(x * cell + 1, y * cell + 1, cell - 2, cell - 2);
+      }
+
+      function draw() {
+        ctx.fillStyle = "#161b22";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.strokeStyle = "#21262d";
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= COLS; i++) {
+          ctx.beginPath();
+          ctx.moveTo(i * cell, 0);
+          ctx.lineTo(i * cell, canvas.height);
+          ctx.stroke();
+        }
+        for (let j = 0; j <= ROWS; j++) {
+          ctx.beginPath();
+          ctx.moveTo(0, j * cell);
+          ctx.lineTo(canvas.width, j * cell);
+          ctx.stroke();
+        }
+        drawCell(food.x, food.y, "#f85149");
+        snake.forEach((s, i) => drawCell(s.x, s.y, i === 0 ? "#56d364" : "#3fb950"));
+        if (paused && !over) overlay("PAUSE", "Space for å fortsette");
+        if (over) overlay("GAME OVER", "Poeng: " + score + " · Space for restart");
+      }
+
+      function overlay(title, sub) {
+        ctx.fillStyle = "rgba(13,17,23,0.78)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = over ? "#f85149" : "#58a6ff";
+        ctx.font = "bold 36px system-ui, sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(title, canvas.width / 2, canvas.height / 2 - 16);
+        ctx.fillStyle = "#e6edf3";
+        ctx.font = "16px system-ui, sans-serif";
+        ctx.fillText(sub, canvas.width / 2, canvas.height / 2 + 22);
+      }
+
+      function tick() {
+        if (paused || over) return;
+        dir = pending;
+        const head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
+        if (head.x < 0 || head.x >= COLS || head.y < 0 || head.y >= ROWS ||
+            snake.some(s => s.x === head.x && s.y === head.y)) {
+          over = true;
+          statusEl.textContent = "game over";
+          statusEl.style.color = "#f85149";
+          if (score > best) {
+            best = score;
+            bestEl.textContent = String(best);
+            try { localStorage.setItem("snake-best", String(best)); } catch (e) {}
+          }
+          draw();
+          return;
+        }
+        snake.unshift(head);
+        if (head.x === food.x && head.y === food.y) {
+          score += 1;
+          scoreEl.textContent = String(score);
+          food = snake.length >= COLS * ROWS ? head : randCell(snake);
+        } else {
+          snake.pop();
+        }
+        draw();
+      }
+
+      function opposite(a, b) { return a.x === -b.x && a.y === -b.y; }
+
+      document.addEventListener("keydown", function (e) {
+        const map = {
+          ArrowUp: { x: 0, y: -1 },
+          ArrowDown: { x: 0, y: 1 },
+          ArrowLeft: { x: -1, y: 0 },
+          ArrowRight: { x: 1, y: 0 }
+        };
+        if (map[e.key]) {
+          e.preventDefault();
+          if (!over && !opposite(map[e.key], dir)) pending = map[e.key];
+          return;
+        }
+        if (e.code === "Space" || e.key === " ") {
+          e.preventDefault();
+          if (over) { reset(); return; }
+          paused = !paused;
+          statusEl.textContent = paused ? "pause" : "kjører";
+          draw();
+        }
+      });
+
+      try { best = parseInt(localStorage.getItem("snake-best") || "0", 10) || 0; }
+      catch (e) { best = 0; }
+      bestEl.textContent = String(best);
+      reset();
+      timer = setInterval(tick, TICK_MS);
+    })();
+  </script>
+</body>
+</html>

@@ -28,7 +28,7 @@ Lista er bevisst høy.
 
 Det er destinasjonen. v1 er ærlig om taket og om avstanden dit.
 
-**Arbeid i dag:** loopen virker. Klikk-telleren (`docs/_probe.html`) og minne-statuslinjen er kjørt gjennom den: les → patch → `repo_bash` → HTML-preview. Det er fortsatt et stykke unna UFO-editoren — tre flater som føles som *ett* sted å sitte, preview som følger en lokal app, cli som planlegger og stopper rent.
+**Arbeid i dag:** tre kolonner i ett vindu — cli, tre+Monaco, preview. Loopen virker. Klikk-telleren (`docs/_probe.html`) og Snake (`docs/_snake.html`) åpner kilden og resultatet samtidig. Neste sjikt er preview av en lokal loopback-app, og cli som planlegger og stopper rent.
 
 **Hiroshima i dag:** burst-scan, Falco 8 s, scoped AIDE-freeze, opt-in 5-min egress-watch. Den *ser*. Den rydder ikke alene.
 
@@ -51,7 +51,7 @@ Leserekkefølge: denne fila → [docs/NOW.md](docs/NOW.md) → [docs/HIROSHIMA.m
 
 | Flate | I treet |
 |-------|---------|
-| Arbeid | Agentkonsoll (`build`), mappetre, Monaco på disk, `repo_*` + `repo_bash`, HTML-preview, PTY-skuff, MiniLM + Jev-gate |
+| Arbeid | cli (`build`) · tre+Monaco · preview samtidig, `repo_*` + `repo_bash`, PTY bak knapp, MiniLM + Jev-gate |
 | Hiroshima H0–H5 | Scan, digest-port, ring + Kuzu-graf, miljøklasse, Confirm-playbooks, 5-min egress-watch, Falco host-burst |
 | Settings | Maskin (`config.toml`) og nøkler (`env` 0600) |
 | H6 Suricata | Valgfri, ikke påbegynt |
@@ -141,7 +141,7 @@ Eldre SOC-GUI: `sudo kalived-ctl api` → `http://127.0.0.1:8787`.
 
 | Rom | Hvor | Hva |
 |-----|------|-----|
-| **Arbeid** | `:5173` | `build`-loop: konsoll, tre, Monaco, iframe, `repo_bash`, PTY |
+| **Arbeid** | `:5173` | `build`-loop: cli · tre+Monaco · preview, `repo_bash`, PTY |
 | **Hiroshima** | skuff | `verdict.json` + `protocol.json` + ring + watch. Scan/watch/isolate bak Confirm |
 | **Settings** | fanen | Maskin → `config.toml`. Nøkler → `env` 0600. UI får aldri full nøkkel tilbake |
 

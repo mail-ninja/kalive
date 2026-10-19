@@ -3,7 +3,15 @@
   import 'monaco-editor-css'
   import { getCanvas, setCanvas, subscribeCanvas, type Canvas } from './desk'
 
-  let { diskPath = '' }: { diskPath?: string } = $props()
+  let {
+    diskPath = '',
+    fileRev = 0,
+    ondirty,
+  }: {
+    diskPath?: string
+    fileRev?: number
+    ondirty?: (path: string) => void
+  } = $props()
 
   let host: HTMLDivElement
   let editor: {
@@ -37,11 +45,14 @@
   }
 
   let loaded = ''
+  let loadedRev = -1
   $effect(() => {
     const p = diskPath
-    if (p && p !== loaded) {
+    const r = fileRev
+    if (p && (p !== loaded || r !== loadedRev)) {
       loaded = p
-      loadDisk(p)
+      loadedRev = r
+      void loadDisk(p)
     }
   })
 
@@ -66,10 +77,11 @@
       if (skip) return
       const v = editor?.getValue()
       if (typeof v === 'string') setCanvas({ text: v, mode: 'monaco' })
+      if (diskPath) ondirty?.(diskPath)
     })
     unsub = subscribeCanvas((c) => {
       canvas = c
-      if (!editor || c.mode !== 'monaco') return
+      if (!editor) return
       if (diskPath && c.path && c.path !== diskPath) return
       skip = true
       const cur = editor.getValue()
@@ -90,22 +102,7 @@
 </script>
 
 <div class="wrap">
-  <div class="editor-shell" class:off={canvas.mode === 'iframe'}>
-    <div bind:this={host} class="editor-canvas"></div>
-  </div>
-  <div class="editor-shell" class:off={canvas.mode !== 'iframe'}>
-    {#if canvas.preview.startsWith('http://127.0.0.1') || canvas.preview.startsWith('https://127.0.0.1') || canvas.preview.startsWith('http://localhost')}
-      <iframe title="preview" class="preview" src={canvas.preview}></iframe>
-    {:else}
-      <iframe
-        title="preview"
-        class="preview"
-        src={diskPath && (diskPath.endsWith('.html') || diskPath.endsWith('.htm'))
-          ? '/v1/workspace/raw?path=' + encodeURIComponent(diskPath) + '&r=' + (canvas.rev ?? 0)
-          : '/v1/desk/preview?r=' + (canvas.rev ?? 0)}
-      ></iframe>
-    {/if}
-  </div>
+  <div bind:this={host} class="editor-canvas"></div>
 </div>
 
 <style>
@@ -114,26 +111,14 @@
     height: 100%;
     min-height: 12rem;
     width: 100%;
-  }
-  .editor-shell {
-    position: relative;
-    height: 100%;
-    min-height: 12rem;
-    width: 100%;
     overflow: hidden;
     border-radius: 0.5rem;
     background: #1e1e1e;
   }
-  .off {
-    display: none;
-  }
-  .editor-canvas,
-  .preview {
+  .editor-canvas {
     position: absolute;
     inset: 0;
     width: 100%;
     height: 100%;
-    border: 0;
-    background: #111;
   }
 </style>

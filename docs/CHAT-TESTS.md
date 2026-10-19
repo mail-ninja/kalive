@@ -69,7 +69,9 @@ Pipe må være `line` (bash -c), ikke `argv` der `|` blir et ekstra curl-argumen
 
 ### P1 — HTML-preview (ingen hake)
 
-Klikk `docs/_probe.html` i treet. Forvent: iframe med klikk-teller, ikke Monaco. Etter `repo_edit` av en `.html` (hake på) skal fliken **preview** slå seg på.
+Klikk `docs/_probe.html` i treet. Forvent: Monaco med kilden i **kode**, iframe med klikk-teller i **preview** — begge synlige. Etter `repo_edit` av en `.html` (hake på) åpnes fila i Monaco, preview laster på nytt, treet merker dirty.
+
+Live eksempel: `docs/_snake.html` (canvas-Snake, piltaster, Space). Samme flate.
 
 ---
 

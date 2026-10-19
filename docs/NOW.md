@@ -8,7 +8,7 @@ Sist avstemt mot treet 2026-10.
 
 | | |
 |--|--|
-| Kode-loop | Agentkonsoll, mappetre, Monaco på disk, `repo_bash`, HTML auto-preview, MiniLM + `decide()` |
+| Kode-loop | Tre kolonner: cli · tre+Monaco · preview. `repo_bash`, HTML-preview ved siden av kilden, MiniLM + `decide()` |
 | Minne | Fem lag. Jev → Mercury → rules. Kuzu-kanter `ABOUT` / `EDITED` / `USED` / `CONNECTED` |
 | Hiroshima H0–H5 | Spekk, digest-port, ring+graf, env-overlay, Confirm isolate/kill/aide, 5-min egress-watch, Falco host-burst (`modern_ebpf`, custom yaml, tom jsonl = ingen finding) |
 | Settings | Maskin + Nøkler. `watch_timer` styrer systemd |
@@ -22,7 +22,7 @@ Chat-tester: [CHAT-TESTS.md](CHAT-TESTS.md).
 
 ## Neste
 
-1. **Arbeid-editoren** — tettere tre, preview som følger bygget, cli som planlegger og stopper. UFO-kvalitet, samme loop. Se [NEXT.md](NEXT.md).
+1. **Arbeid-editoren** — tre kolonner er inne. Neste sjikt: preview som følger en lokal loopback-app, cli som planlegger og stopper rent. Se [NEXT.md](NEXT.md).
 2. Valgfri Kuzu-tidslinje for scan-stamps og Confirm-playbooks (disk forblir orakel).
 3. H6 Suricata — valgfri, ikke neste.
 4. Port C (sandbox-VM, tale, mobil) — destinasjon.

@@ -4,11 +4,15 @@
   let {
     direction = 'horizontal',
     value = $bindable(50),
+    min = 18,
+    max = 80,
     a,
     b,
   }: {
     direction?: 'horizontal' | 'vertical'
     value?: number
+    min?: number
+    max?: number
     a: Snippet
     b: Snippet
   } = $props()
@@ -22,7 +26,7 @@
     const move = (ev: MouseEvent) => {
       const pos = direction === 'horizontal' ? ev.clientX - rect.left : ev.clientY - rect.top
       const size = direction === 'horizontal' ? rect.width : rect.height
-      value = Math.min(80, Math.max(18, (pos / size) * 100))
+      value = Math.min(max, Math.max(min, (pos / size) * 100))
     }
     const up = () => {
       window.removeEventListener('mousemove', move)

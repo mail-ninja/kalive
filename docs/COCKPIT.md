@@ -14,7 +14,7 @@ bash cockpit/scripts/up.sh
 
 ```
 http://127.0.0.1:5173
-  ├── Arbeid     chat | tre + Monaco | iframe-preview | cockpit-PTY
+  ├── Arbeid     cli | tre + Monaco | preview | cockpit-PTY
   ├── Settings   Maskin → config.toml · Nøkler → env (hint, aldri full nøkkel)
   └── Hiroshima  skuff: verdict + protocol + ring + watch + Confirm + PTY
 ```
@@ -41,7 +41,7 @@ Chip-raden i Arbeid viser `build`. Andre agenter under kjøredetaljer.
 
 Tool-loop: OpenAI-kompatible function calls mot SpaceXAI (`grok-4.6`) eller Settings. Mutasjon krever haken. Passord aldri i chat.
 
-Spill i iframe: HTML på disk via `GET /v1/workspace/raw?path=…` (f.eks. `docs/_probe.html`), eller `iframe_write`. Live stdout under `repo_bash`.
+Spill i iframe: HTML på disk via `GET /v1/workspace/raw?path=…` (f.eks. `docs/_probe.html`), eller `iframe_write`. Monaco og preview står ved siden av hverandre. `repo_edit` av en fil åpner den i editoren og laster preview på nytt når stien er HTML. Live stdout under `repo_bash`.
 
 ## HTTP på :8788 (utvalg)
 

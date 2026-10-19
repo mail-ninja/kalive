@@ -2,6 +2,7 @@
   import { onMount } from 'svelte'
   import Editor from './lib/Editor.svelte'
   import Hiroshima from './lib/Hiroshima.svelte'
+  import Preview from './lib/Preview.svelte'
   import Settings from './lib/Settings.svelte'
   import Split from './lib/Split.svelte'
   import Term from './lib/Term.svelte'
@@ -28,9 +29,10 @@
   let agentId = $state('build')
   let providerId = $state('xai')
   let modelId = $state('grok-4.6')
-  let splitH = $state(36)
-  let splitV = $state(94)
-  let splitTree = $state(22)
+  let splitH = $state(28)
+  let splitV = $state(72)
+  let splitTree = $state(26)
+  let splitCode = $state(58)
   let allowMutate = $state(false)
   let canvasUi = $state(getCanvas())
   let details = $state(false)
@@ -39,6 +41,10 @@
   let liveOut = $state('')
   let liveCmd = $state('')
   let diskPath = $state('README.md')
+  let previewPath = $state('')
+  let treeTick = $state(0)
+  let fileRev = $state(0)
+  let dirty = $state<Record<string, boolean>>({})
   let wsName = $state('kalived')
   let filMenu = $state(false)
   let saveAs = $state(false)
@@ -46,6 +52,39 @@
   let saveNote = $state('')
   let models = $derived(providers.find((p) => p.id === providerId)?.models ?? [])
   let team = $derived(agents.filter((a) => a.id === 'build'))
+
+  function isHtml(p: string) {
+    return /\.html?$/i.test(p)
+  }
+
+  function markDirty(p: string) {
+    if (!p || dirty[p]) return
+    dirty = { ...dirty, [p]: true }
+  }
+
+  function clearDirty(p: string) {
+    if (!p || !dirty[p]) return
+    const next = { ...dirty }
+    delete next[p]
+    dirty = next
+  }
+
+  function bumpCanvas(path: string) {
+    setCanvas({
+      path,
+      mode: 'monaco',
+      rev: (getCanvas().rev || 0) + 1,
+    })
+  }
+
+  function onWrote(path: string) {
+    diskPath = path
+    markDirty(path)
+    treeTick += 1
+    fileRev += 1
+    bumpCanvas(path)
+    if (isHtml(path)) previewPath = path
+  }
 
   function setHiroshimaW(w: number) {
     hiroshimaW = Math.min(100, Math.max(12, w))
@@ -117,13 +156,7 @@
       const r = f.payload.result as Record<string, unknown> | undefined
       applyToolResult(r)
       if (r?.wrote === true && typeof r.path === 'string') {
-        diskPath = r.path
-        const html = r.mode === 'iframe' || /\.html?$/i.test(r.path)
-        setCanvas({
-          path: r.path,
-          mode: html ? 'iframe' : 'monaco',
-          rev: (getCanvas().rev || 0) + 1,
-        })
+        onWrote(r.path)
       }
       const diff = typeof r?.diff === 'string' ? r.diff : ''
       let text = ''
@@ -264,8 +297,10 @@
       body: JSON.stringify({ path: diskPath, text: c.text }),
     })
     saveNote = r.ok ? 'lagret ' + diskPath : 'lagre feilet'
-    if (r.ok && /\.html?$/i.test(diskPath)) {
-      setCanvas({ path: diskPath, mode: 'iframe', rev: (getCanvas().rev || 0) + 1 })
+    if (r.ok) {
+      clearDirty(diskPath)
+      setCanvas({ path: diskPath, mode: 'monaco', rev: (getCanvas().rev || 0) + 1 })
+      if (isHtml(diskPath)) previewPath = diskPath
     }
     window.setTimeout(() => {
       if (saveNote.startsWith('lagret')) saveNote = ''
@@ -283,25 +318,35 @@
     })
     if (r.ok) {
       diskPath = dest
-      const html = /\.html?$/i.test(dest)
+      fileRev += 1
+      treeTick += 1
+      clearDirty(dest)
       setCanvas({
         path: dest,
-        mode: html ? 'iframe' : 'monaco',
+        mode: 'monaco',
         rev: (getCanvas().rev || 0) + 1,
       })
+      if (isHtml(dest)) previewPath = dest
       saveAs = false
       saveNote = 'lagret som ' + dest
     } else saveNote = 'lagre som feilet'
   }
 
-  async function openDisk(p: string) {
+  function openDisk(p: string) {
     diskPath = p
-    const html = /\.html?$/i.test(p)
-    setCanvas({
-      path: p,
-      mode: html ? 'iframe' : 'monaco',
-      rev: (getCanvas().rev || 0) + 1,
-    })
+    fileRev += 1
+    bumpCanvas(p)
+    if (isHtml(p)) previewPath = p
+  }
+
+  function showInPreview() {
+    if (!diskPath) return
+    previewPath = diskPath
+    setCanvas({ path: diskPath, mode: 'monaco', rev: (getCanvas().rev || 0) + 1 })
+  }
+
+  function reloadPreview() {
+    setCanvas({ rev: (getCanvas().rev || 0) + 1 })
   }
 
   function say() {
@@ -325,12 +370,6 @@
     <div class="font-serif text-xl tracking-wide">cockpit</div>
     <span class="text-xs text-clean/80">{wsName}</span>
     <span class="text-xs text-paper/40">{health}</span>
-    <span class="text-xs text-paper/40" title="GET /v1/memory">
-      Minne
-      {#each memoryKeys as k}
-        <span class="ml-1.5">{k} {memory ? (memory[k] ? 'oppe' : 'nede') : '…'}</span>
-      {/each}
-    </span>
     <div class="ml-auto flex flex-wrap items-center gap-2">
       <button
         class="rounded-full border border-white/15 px-3 py-1 text-sm hover:bg-white/10"
@@ -372,6 +411,12 @@
   </header>
   {#if details}
     <div class="flex flex-wrap items-center gap-3 border-b border-white/10 px-4 py-2 text-xs">
+      <span class="text-paper/40" title="GET /v1/memory">
+        Minne
+        {#each memoryKeys as k}
+          <span class="ml-1.5">{k} {memory ? (memory[k] ? 'oppe' : 'nede') : '…'}</span>
+        {/each}
+      </span>
       <label class="flex items-center gap-1 text-paper/60">
         provider
         <select
@@ -414,185 +459,209 @@
     <Settings />
   {:else}
   <div class="min-h-0 flex-1 p-2">
-    <Split direction="horizontal" bind:value={splitH}>
-      {#snippet a()}
-        <section class="flex h-full min-h-0 flex-col p-2">
-          <h2 class="mb-1 font-serif text-lg">agentkonsoll</h2>
-          {#if agents.length}
-            {@const cur = agents.find((x) => x.id === agentId)}
-            {#if cur}
-              <p class="mb-2 text-xs text-paper/50">{cur.description}</p>
-            {/if}
-          {/if}
-          {#if team.length}
-            <div class="mb-2 flex flex-wrap gap-1">
-              {#each team as a}
-                <button
-                  type="button"
-                  class="rounded-full border border-white/15 px-2 py-0.5 text-xs"
-                  class:bg-paper={agentId === a.id}
-                  class:text-ink={agentId === a.id}
-                  onclick={() => {
-                    agentId = a.id
-                    send('agents', 'select', { id: a.id })
-                  }}>{a.name}</button>
-              {/each}
-            </div>
-          {/if}
-          <div class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-white/10 bg-black/40">
-            <div class="flex items-center justify-between border-b border-white/10 px-3 py-1.5 text-xs text-paper/50">
-              <span class="truncate">{running ? (liveCmd ? 'kjører: ' + liveCmd : 'kjører…') : 'klar'}</span>
-              <span>{hist.length}</span>
-            </div>
-            {#if running && (liveOut || liveCmd)}
-              <pre class="max-h-40 overflow-auto border-b border-white/10 bg-black/50 p-2 font-mono text-[0.7rem] text-clean/90">{liveOut || '… venter på output'}</pre>
-            {/if}
-            <div bind:this={histEl} class="chat-hist min-h-0 flex-1 space-y-2 overflow-y-scroll p-3 text-sm">
-              {#each hist as m}
-                {#if m.role === 'tool'}
-                  <div class="bubble sys">
-                    <div class="who">{m.name || 'tool'}{#if m.path} · {m.path}{/if}</div>
-                    <div>{m.text}</div>
-                    {#if m.diff}
-                      <pre class="mt-1 max-h-40 overflow-auto text-[0.7rem] text-clean/80">{m.diff}</pre>
-                    {/if}
-                  </div>
-                {:else}
-                  <div class="bubble {m.role}">
-                    <div class="who">{m.role === 'you' ? 'du' : m.role === 'bot' ? (m.name || agentId) : 'sys'}</div>
-                    {m.text}
-                  </div>
-                {/if}
-              {/each}
-              {#if stream}
-                <div class="bubble bot">
-                  <div class="who">{agentId}</div>
-                  <span class="text-clean">{stream}</span>
-                </div>
+    {#snippet desk()}
+      <Split direction="horizontal" bind:value={splitH} max={46}>
+        {#snippet a()}
+          <section class="flex h-full min-h-0 flex-col p-2">
+            <h2 class="mb-1 font-serif text-lg">cli</h2>
+            {#if agents.length}
+              {@const cur = agents.find((x) => x.id === agentId)}
+              {#if cur}
+                <p class="mb-2 text-xs text-paper/50">{cur.description}</p>
               {/if}
-            </div>
-          </div>
-          <form
-            class="mt-2 flex gap-2"
-            onsubmit={(e) => {
-              e.preventDefault()
-              say()
-            }}
-          >
-            <input
-              class="flex-1 rounded-lg border border-white/15 bg-ink px-3 py-2"
-              bind:value={draft}
-              placeholder="oppgave til {agentId}"
-            />
-            <button class="rounded-lg bg-paper px-3 py-2 text-ink">send</button>
-          </form>
-        </section>
-      {/snippet}
-      {#snippet b()}
-        <Split direction="vertical" bind:value={splitV}>
-          {#snippet a()}
-            <div class="flex h-full min-h-0 flex-col p-2">
-              <div class="mb-1 flex flex-wrap items-center gap-2">
-                <h2 class="font-serif text-lg">workspace</h2>
-                <button
-                  class="rounded-full border border-white/15 px-2 py-0.5 text-xs"
-                  class:bg-paper={canvasUi.mode === 'monaco'}
-                  class:text-ink={canvasUi.mode === 'monaco'}
-                  onclick={() => setCanvas({ mode: 'monaco' })}
-                >kode</button>
-                <button
-                  class="rounded-full border border-white/15 px-2 py-0.5 text-xs"
-                  class:bg-paper={canvasUi.mode === 'iframe'}
-                  class:text-ink={canvasUi.mode === 'iframe'}
-                  onclick={() => setCanvas({ mode: 'iframe' })}
-                >preview</button>
-                <div class="relative">
+            {/if}
+            {#if team.length}
+              <div class="mb-2 flex flex-wrap gap-1">
+                {#each team as a}
                   <button
                     type="button"
                     class="rounded-full border border-white/15 px-2 py-0.5 text-xs"
-                    onclick={() => (filMenu = !filMenu)}
-                  >fil</button>
-                  {#if filMenu}
-                    <div class="absolute left-0 z-20 mt-1 min-w-[10rem] rounded-md border border-white/15 bg-ink py-1 text-xs shadow-lg">
-                      <button
-                        type="button"
-                        class="block w-full px-3 py-1 text-left hover:bg-white/10"
-                        onclick={() => {
-                          filMenu = false
-                          saveDisk()
-                        }}>lagre <span class="text-paper/40">Ctrl+S</span></button>
-                      <button
-                        type="button"
-                        class="block w-full px-3 py-1 text-left hover:bg-white/10"
-                        onclick={() => {
-                          filMenu = false
-                          saveAsPath = diskPath
-                          saveAs = true
-                        }}>lagre som…</button>
-                    </div>
-                  {/if}
-                </div>
-                {#if saveAs}
-                  <form
-                    class="flex items-center gap-1"
-                    onsubmit={(e) => {
-                      e.preventDefault()
-                      saveDiskAs()
-                    }}
-                  >
-                    <input class="w-48 rounded border border-white/15 bg-ink px-2 py-0.5 text-xs" bind:value={saveAsPath} />
-                    <button type="submit" class="text-xs text-clean">ok</button>
-                    <button type="button" class="text-xs text-paper/50" onclick={() => (saveAs = false)}>avbryt</button>
-                  </form>
-                {/if}
-                {#if saveNote}
-                  <span class="text-xs text-clean/80">{saveNote}</span>
-                {/if}
-                <button
-                  type="button"
-                  class="rounded-full bg-clean px-2 py-0.5 text-xs text-ink"
-                  onclick={() => {
-                    setCanvas({ mode: 'iframe', path: diskPath, rev: (getCanvas().rev || 0) + 1 })
-                  }}>preview fil</button>
-                <button
-                  type="button"
-                  class="rounded-full border border-white/15 px-2 py-0.5 text-xs"
-                  onclick={() => {
-                    ptyOpen = !ptyOpen
-                    splitV = ptyOpen ? 70 : 94
-                  }}
-                >{ptyOpen ? 'skjul PTY' : 'PTY (ikke agent)'}</button>
-                <span class="text-xs text-paper/40">{diskPath}</span>
-              </div>
-              <div class="min-h-0 flex-1">
-                <Split direction="horizontal" bind:value={splitTree}>
-                  {#snippet a()}
-                    <Tree bind:current={diskPath} onopen={openDisk} />
-                  {/snippet}
-                  {#snippet b()}
-                    <Editor diskPath={diskPath} />
-                  {/snippet}
-                </Split>
-              </div>
-            </div>
-          {/snippet}
-          {#snippet b()}
-            {#if ptyOpen}
-              <div class="flex h-full min-h-0 flex-col p-2">
-                <h2 class="mb-1 font-serif text-lg">PTY <span class="text-xs font-sans text-paper/40">ikke agent</span></h2>
-                <div class="min-h-0 flex-1">
-                  <Term />
-                </div>
-              </div>
-            {:else}
-              <div class="flex h-full items-center justify-center text-xs text-paper/40">
-                <button type="button" class="underline" onclick={() => (ptyOpen = true)}>åpne PTY (passord her)</button>
+                    class:bg-paper={agentId === a.id}
+                    class:text-ink={agentId === a.id}
+                    onclick={() => {
+                      agentId = a.id
+                      send('agents', 'select', { id: a.id })
+                    }}>{a.name}</button>
+                {/each}
               </div>
             {/if}
-          {/snippet}
-        </Split>
-      {/snippet}
-    </Split>
+            <div class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-white/10 bg-black/40">
+              <div class="flex items-center justify-between border-b border-white/10 px-3 py-1.5 text-xs text-paper/50">
+                <span class="truncate">{running ? (liveCmd ? 'kjører: ' + liveCmd : 'kjører…') : 'klar'}</span>
+                <span>{hist.length}</span>
+              </div>
+              {#if running && (liveOut || liveCmd)}
+                <pre class="max-h-40 overflow-auto border-b border-white/10 bg-black/50 p-2 font-mono text-[0.7rem] text-clean/90">{liveOut || '… venter på output'}</pre>
+              {/if}
+              <div bind:this={histEl} class="chat-hist min-h-0 flex-1 space-y-2 overflow-y-scroll p-3 text-sm">
+                {#each hist as m}
+                  {#if m.role === 'tool'}
+                    <div class="bubble sys">
+                      <div class="who">
+                        {m.name || 'tool'}{#if m.path}
+                          ·
+                          <button
+                            type="button"
+                            class="normal-case tracking-normal text-clean underline decoration-clean/40 hover:decoration-clean"
+                            onclick={() => openDisk(m.path || '')}
+                          >{m.path}</button>
+                        {/if}
+                      </div>
+                      <div>{m.text}</div>
+                      {#if m.diff}
+                        <pre class="mt-1 max-h-40 overflow-auto text-[0.7rem] text-clean/80">{m.diff}</pre>
+                      {/if}
+                    </div>
+                  {:else}
+                    <div class="bubble {m.role}">
+                      <div class="who">{m.role === 'you' ? 'du' : m.role === 'bot' ? (m.name || agentId) : 'sys'}</div>
+                      {m.text}
+                    </div>
+                  {/if}
+                {/each}
+                {#if stream}
+                  <div class="bubble bot">
+                    <div class="who">{agentId}</div>
+                    <span class="text-clean">{stream}</span>
+                  </div>
+                {/if}
+              </div>
+            </div>
+            <form
+              class="mt-2 flex gap-2"
+              onsubmit={(e) => {
+                e.preventDefault()
+                say()
+              }}
+            >
+              <input
+                class="flex-1 rounded-lg border border-white/15 bg-ink px-3 py-2"
+                bind:value={draft}
+                placeholder="oppgave til {agentId}"
+              />
+              <button class="rounded-lg bg-paper px-3 py-2 text-ink">send</button>
+            </form>
+          </section>
+        {/snippet}
+        {#snippet b()}
+          <Split direction="horizontal" bind:value={splitCode} min={36} max={78}>
+            {#snippet a()}
+              <div class="flex h-full min-h-0 flex-col p-2">
+                <div class="mb-1 flex flex-wrap items-center gap-2">
+                  <h2 class="font-serif text-lg">kode</h2>
+                  <div class="relative">
+                    <button
+                      type="button"
+                      class="rounded-full border border-white/15 px-2 py-0.5 text-xs"
+                      onclick={() => (filMenu = !filMenu)}
+                    >fil</button>
+                    {#if filMenu}
+                      <div class="absolute left-0 z-20 mt-1 min-w-[10rem] rounded-md border border-white/15 bg-ink py-1 text-xs shadow-lg">
+                        <button
+                          type="button"
+                          class="block w-full px-3 py-1 text-left hover:bg-white/10"
+                          onclick={() => {
+                            filMenu = false
+                            saveDisk()
+                          }}>lagre <span class="text-paper/40">Ctrl+S</span></button>
+                        <button
+                          type="button"
+                          class="block w-full px-3 py-1 text-left hover:bg-white/10"
+                          onclick={() => {
+                            filMenu = false
+                            saveAsPath = diskPath
+                            saveAs = true
+                          }}>lagre som…</button>
+                      </div>
+                    {/if}
+                  </div>
+                  {#if saveAs}
+                    <form
+                      class="flex items-center gap-1"
+                      onsubmit={(e) => {
+                        e.preventDefault()
+                        saveDiskAs()
+                      }}
+                    >
+                      <input class="w-48 rounded border border-white/15 bg-ink px-2 py-0.5 text-xs" bind:value={saveAsPath} />
+                      <button type="submit" class="text-xs text-clean">ok</button>
+                      <button type="button" class="text-xs text-paper/50" onclick={() => (saveAs = false)}>avbryt</button>
+                    </form>
+                  {/if}
+                  {#if saveNote}
+                    <span class="text-xs text-clean/80">{saveNote}</span>
+                  {/if}
+                  {#if isHtml(diskPath)}
+                    <button
+                      type="button"
+                      class="rounded-full border border-white/15 px-2 py-0.5 text-xs"
+                      onclick={showInPreview}
+                    >vis i preview</button>
+                  {/if}
+                  <button
+                    type="button"
+                    class="rounded-full border border-white/15 px-2 py-0.5 text-xs"
+                    onclick={() => {
+                      ptyOpen = !ptyOpen
+                      if (ptyOpen) splitV = 72
+                    }}
+                  >{ptyOpen ? 'skjul PTY' : 'PTY'}</button>
+                  <span class="text-xs text-paper/40">
+                    {diskPath}{#if dirty[diskPath]}
+                      <span class="text-warn"> ●</span>
+                    {/if}
+                  </span>
+                </div>
+                <div class="min-h-0 flex-1">
+                  <Split direction="horizontal" bind:value={splitTree} min={12} max={46}>
+                    {#snippet a()}
+                      <Tree bind:current={diskPath} reveal={diskPath} {dirty} tick={treeTick} onopen={openDisk} />
+                    {/snippet}
+                    {#snippet b()}
+                      <Editor diskPath={diskPath} {fileRev} ondirty={markDirty} />
+                    {/snippet}
+                  </Split>
+                </div>
+              </div>
+            {/snippet}
+            {#snippet b()}
+              <div class="flex h-full min-h-0 flex-col p-2">
+                <div class="mb-1 flex flex-wrap items-center gap-2">
+                  <h2 class="font-serif text-lg">preview</h2>
+                  <span class="truncate text-xs text-paper/40">{previewPath || canvasUi.preview || '—'}</span>
+                  <button
+                    type="button"
+                    class="rounded-full border border-white/15 px-2 py-0.5 text-xs"
+                    onclick={reloadPreview}
+                  >last på nytt</button>
+                </div>
+                <div class="min-h-0 flex-1">
+                  <Preview path={previewPath} url={canvasUi.preview} rev={canvasUi.rev ?? 0} />
+                </div>
+              </div>
+            {/snippet}
+          </Split>
+        {/snippet}
+      </Split>
+    {/snippet}
+
+    {#if ptyOpen}
+      <Split direction="vertical" bind:value={splitV} min={48} max={88}>
+        {#snippet a()}
+          {@render desk()}
+        {/snippet}
+        {#snippet b()}
+          <div class="flex h-full min-h-0 flex-col p-2">
+            <h2 class="mb-1 font-serif text-lg">PTY <span class="text-xs font-sans text-paper/40">ikke agent — passord her</span></h2>
+            <div class="min-h-0 flex-1">
+              <Term />
+            </div>
+          </div>
+        {/snippet}
+      </Split>
+    {:else}
+      {@render desk()}
+    {/if}
   </div>
   {/if}
 </div>

@@ -8,19 +8,18 @@ H0–H5 er i treet og på verten. H6 Suricata er valgfri destinasjon. **Neste ko
 
 ## Arbeid — tre flater
 
-I dag: chat til venstre, Monaco/iframe + PTY til høyre. Loopen virker (les → patch → `repo_bash` → preview). Det er for flatt mot UFO-målet.
+Målet er Cursor-følelsen med én tiendedel av kromet: du snakker, du ser koden, du ser resultatet. Samme vindu. Loopen er allerede der (les → patch → `repo_bash` → preview).
 
 ```
-┌──────────────────────────┬─────────────────────┐
-│  3. cli                  │  1. kode            │
-│  samtale + plan + tools  │  tre + Monaco       │
-│  (orchestrator)          │  på disk            │
-│                          ├─────────────────────┤
-│                          │  2. preview         │
-│                          │  iframe av bygget   │
-└──────────────────────────┴─────────────────────┘
-         PTY nederst eller bak «term» — passord der
+┌──────────────┬─────────────────────┬─────────────────┐
+│  cli         │  kode               │  preview        │
+│  samtale     │  tre + Monaco       │  iframe av      │
+│  plan tools  │  på disk            │  bygget         │
+└──────────────┴─────────────────────┴─────────────────┘
+         PTY bak knappen — passord der
 ```
+
+Landet i denne runden: tre kolonner samtidig, `repo_edit` åpner fila i Monaco og laster preview på nytt når det er HTML, treet merker dirty og folder-åpner stien, tool-kort med path er klikkbare, PTY tar bare plass når den er åpen. Minne-dots sitter bak «kjøredetaljer».
 
 ### 1. Kode
 
@@ -28,7 +27,7 @@ Ikke Theia. Ikke full VS Code. Tydelig tre av workspace (default `~/kalived`, by
 
 ### 2. Preview
 
-Når bygget har noe å se (HTML, loopback-dev-server, statisk export), fyrer preview. Workspace-HTML er inne. Loopback-app med treffsikre reloads er neste sjikt. Ikke 0.0.0.0, ikke tilfeldig CDN.
+Når bygget har noe å se (HTML, loopback-dev-server, statisk export), fyrer preview. Workspace-HTML er inne og står ved siden av kilden. Loopback-app med treffsikre reloads er neste sjikt. Ikke 0.0.0.0, ikke tilfeldig CDN.
 
 ### 3. Cli
 
@@ -47,7 +46,7 @@ Haken «agent får kjøre» = edit/bash. Les er fritt. Oneshot per oppgave. Inge
 
 Ikke i treet ennå: `repo_write` som eget tool, `repo_git` (status/diff/commit bak bekreftelse). Commit i dag går via `repo_bash` når haken er på; `git push` er nektet i koden.
 
-Landet i Arbeid: cli-v1, tre+Monaco, edit, HTML-preview, bash. Gjenstår: tettere tre-følelse, preview som følger en lokal app, cli som føles som ett sted å sitte.
+Landet i Arbeid: tre kolonner (cli | kode | preview), tre+Monaco, edit, HTML-preview som følger fila, bash, dirty i treet. Gjenstår: preview av loopback-dev-server, cli som planlegger og stopper rent uten å føles som chat-ved-siden-av.
 
 ---
 
