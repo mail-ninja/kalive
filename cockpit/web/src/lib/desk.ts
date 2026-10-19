@@ -47,6 +47,18 @@ export function ptyWrite(s: string) {
   ptyFns.forEach((fn) => fn(s))
 }
 
+export function isLoopbackUrl(u: string) {
+  const s = (u || '').trim()
+  return (
+    s.startsWith('http://127.0.0.1') ||
+    s.startsWith('https://127.0.0.1') ||
+    s.startsWith('http://localhost') ||
+    s.startsWith('https://localhost') ||
+    s.startsWith('http://[::1]') ||
+    s.startsWith('https://[::1]')
+  )
+}
+
 export function applyToolResult(r: Record<string, unknown> | undefined) {
   if (!r) return
   if (typeof r.pty_write === 'string') ptyWrite(r.pty_write)

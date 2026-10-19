@@ -73,6 +73,14 @@ Klikk `docs/_probe.html` i treet. Forvent: Monaco med kilden i **kode**, iframe 
 
 Live eksempel: `docs/_snake.html` (canvas-Snake, piltaster, Space). Samme flate.
 
+### P2 — loopback-preview (hake **på**)
+
+```
+Start preview_serve av mappa docs/ på 127.0.0.1 (ikke 0.0.0.0), path=_snake.html. Preview skal vise Snake. Stopp når iframe peker på loopback-URL.
+```
+
+Forvent: `preview_serve` returnerer `http://127.0.0.1:<port>/_snake.html`, preview venter til porten svarer, spillet kjører i iframe. `preview_set` med ikke-loopback skal feile.
+
 ---
 
 ## H — Hiroshima-protokoll

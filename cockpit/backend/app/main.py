@@ -15,6 +15,7 @@ from pathlib import Path
 from .agents import get_agent, list_public
 from .catalog import fetch_models, public as catalog_public
 from .desk import router as desk_router
+from .preview import router as preview_router
 from .workspace import router as workspace_router
 from .hiroshima import ensure_watch, router as hiroshima_router
 from .memory_routes import router as memory_router
@@ -49,6 +50,7 @@ app.include_router(memory_router)
 app.include_router(hiroshima_router)
 app.include_router(desk_router)
 app.include_router(workspace_router)
+app.include_router(preview_router)
 
 
 def _token_ok(got: str) -> bool:

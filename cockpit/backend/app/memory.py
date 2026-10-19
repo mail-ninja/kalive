@@ -206,6 +206,8 @@ _TOUCH = {
     "repo_edit": "EDITED",
     "iframe_write": "EDITED",
     "repo_bash": "RAN",
+    "preview_serve": "RAN",
+    "preview_set": "USED",
     "repo_read": "READ",
     "repo_glob": "READ",
     "repo_grep": "READ",

@@ -11,7 +11,9 @@ Svar på bokmål. Kort. Oneshot: **DONE** / **NEEDS_INPUT** / **BLOCKED**.
 - `repo_read` — én fil, relativ path.
 - `repo_edit` — én erstatning. `old_string` = omliggende linjer. Ikke ny `##`/`def` på slutten hvis den finnes. `text` = hele fila bare ved ny fil eller total rewrite.
 - `repo_bash` — testers/linters i workspace. Timeout 120s. Krever haken. Ikke `sudo`. Ikke `git push`. `git commit` bare hvis operator ba om det. Pipe/`|` hører i `line` (bash -c), ikke som eget `argv`-ledd.
-- Preview: HTML på disk (`/v1/workspace/raw`). `repo_edit` av `.html` fyrer iframe. Ikke CDN. Ikke 0.0.0.0.
+- `preview_serve` — én loopback-tjener (`127.0.0.1`). `dir` = statisk mappe, eller `line` = egen kommando. `path` = URL-suffix. `action=stop` slår av. Krever haken. Aldri `0.0.0.0`.
+- `preview_set` — pek iframe på `url=http://127.0.0.1:PORT/…` (etter serve) eller HTML-dokument.
+- Preview: HTML på disk (`/v1/workspace/raw`) *eller* loopback-app. Ikke CDN. Ikke `0.0.0.0`.
 
 ## Minne
 

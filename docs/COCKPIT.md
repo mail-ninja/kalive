@@ -41,7 +41,7 @@ Chip-raden i Arbeid viser `build`. Andre agenter under kjøredetaljer.
 
 Tool-loop: OpenAI-kompatible function calls mot SpaceXAI (`grok-4.6`) eller Settings. Mutasjon krever haken. Passord aldri i chat.
 
-Spill i iframe: HTML på disk via `GET /v1/workspace/raw?path=…` (f.eks. `docs/_probe.html`), eller `iframe_write`. Monaco og preview står ved siden av hverandre. `repo_edit` av en fil åpner den i editoren og laster preview på nytt når stien er HTML. Live stdout under `repo_bash`.
+Spill i iframe: HTML på disk via `GET /v1/workspace/raw?path=…` (f.eks. `docs/_probe.html` / `docs/_snake.html`), eller loopback-app via `preview_serve` + `preview_set` (`http://127.0.0.1:PORT/`). Monaco og preview står ved siden av hverandre. `repo_edit` av en `.html` åpner den i editoren. Live stdout under `repo_bash`.
 
 ## HTTP på :8788 (utvalg)
 
@@ -57,6 +57,7 @@ Spill i iframe: HTML på disk via `GET /v1/workspace/raw?path=…` (f.eks. `docs
 | `POST /v1/hiroshima/run` | Confirm-playbook |
 | `GET/PUT /v1/hiroshima/env` | SSID → `home`/`travel`/`tether` |
 | `GET/POST /v1/desk/preview` `/play` | iframe-innhold |
+| `GET /v1/preview/probe` `status` · `POST /v1/preview/serve` `stop` | loopback-tjener |
 | `/v1/memory/{agent}/…` | Kuzu / Qdrant / SQLite / MinIO / Redis |
 | `GET/PUT /v1/secrets` | env, write-only |
 | `GET/PUT /v1/config` | `config.toml` |

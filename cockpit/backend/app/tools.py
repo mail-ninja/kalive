@@ -220,7 +220,7 @@ def iframe_write(args: dict) -> dict:
 @register(
     ToolSpec(
         name="preview_set",
-        description="Fyr opp iframe. html=komplett HTML-dokument (spill/app) ELLER tom html for å spille det som ligger i canvas. url kun 127.0.0.1.",
+        description="Pek preview-iframe. url=http://127.0.0.1:PORT/… (loopback). html=komplett HTML-dokument. Aldri 0.0.0.0.",
         mutating=False,
         parameters={
             "type": "object",
@@ -230,14 +230,15 @@ def iframe_write(args: dict) -> dict:
 )
 def preview_set(args: dict) -> dict:
     from . import desk
+    from .preview import parse_loopback_url
 
     url = str(args.get("url") or "").strip()
     html = str(args.get("html") or "")
     if url:
-        ok = url.startswith("http://127.0.0.1") or url.startswith("https://127.0.0.1") or url.startswith("http://localhost")
-        if not ok:
-            return {"error": "url må være loopback"}
-        return desk.apply({"mode": "iframe", "preview": url})
+        canon = parse_loopback_url(url)
+        if not canon:
+            return {"error": "url må være http(s)://127.0.0.1|localhost, reserverte porter nektet"}
+        return desk.apply({"mode": "iframe", "preview": canon})
     if not html:
         snap = desk.snapshot()
         html = snap.get("preview") or snap.get("text") or ""
@@ -249,6 +250,44 @@ def preview_set(args: dict) -> dict:
             "path": desk.snapshot().get("path"),
         }
     return desk.apply({"mode": "iframe", "preview": html, "text": html, "language": "html", "path": "index.html"})
+
+
+@register(
+    ToolSpec(
+        name="preview_serve",
+        description="Start eller stopp én loopback-preview-tjener (127.0.0.1). action=start|stop|status. dir=mappe for python http.server, eller line=egen kommando. path=URL-suffix (f.eks. _snake.html). Krever «agent får kjøre». Aldri 0.0.0.0.",
+        mutating=True,
+        parameters={
+            "type": "object",
+            "properties": {
+                "action": {"type": "string", "enum": ["start", "stop", "status"]},
+                "dir": {"type": "string"},
+                "port": {"type": "number"},
+                "line": {"type": "string"},
+                "path": {"type": "string"},
+            },
+        },
+    )
+)
+def preview_serve(args: dict) -> dict:
+    from . import preview as pv
+
+    action = str(args.get("action") or "start").strip().lower()
+    if action == "stop":
+        return pv.stop()
+    if action == "status":
+        return pv.status()
+    port = args.get("port")
+    try:
+        port_i = int(port) if port is not None else None
+    except (TypeError, ValueError):
+        return {"error": "port må være tall"}
+    return pv.start(
+        dir=str(args.get("dir") or ""),
+        port=port_i,
+        line=str(args["line"]) if args.get("line") else None,
+        path=str(args.get("path") or ""),
+    )
 
 
 @register(

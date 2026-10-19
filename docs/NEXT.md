@@ -2,7 +2,7 @@
 
 Retningen: det feteste *lokale* kodemiljøet vi klarer, med Hiroshima som sikkerhetsrom som allerede ser. Ikke en omvei rundt SOC-kjernen. Ikke et nytt rammeverk.
 
-H0–H5 er i treet og på verten. H6 Suricata er valgfri destinasjon. **Neste kode er Arbeid-editoren.**
+H0–H5 er i treet og på verten. H6 Suricata er valgfri destinasjon. Tre kolonner og loopback-preview er inne. **Neste kode er cli-følelsen og `repo_git`.**
 
 ---
 
@@ -27,7 +27,7 @@ Ikke Theia. Ikke full VS Code. Tydelig tre av workspace (default `~/kalived`, by
 
 ### 2. Preview
 
-Når bygget har noe å se (HTML, loopback-dev-server, statisk export), fyrer preview. Workspace-HTML er inne og står ved siden av kilden. Loopback-app med treffsikre reloads er neste sjikt. Ikke 0.0.0.0, ikke tilfeldig CDN.
+Når bygget har noe å se (HTML, loopback-dev-server, statisk export), fyrer preview. Workspace-HTML og `preview_serve` på `127.0.0.1` er inne. Iframe venter til porten svarer. Ikke 0.0.0.0, ikke tilfeldig CDN.
 
 ### 3. Cli
 
@@ -40,13 +40,15 @@ Tools som `build` har i dag (cwd = workspace-rot, aldri hele `$HOME` som default
 | `repo_glob` `repo_grep` `repo_read` | se |
 | `repo_edit` | patch på disk; vis diff |
 | `repo_bash` | én kommando, timeout, ingen `sudo` |
+| `preview_serve` | én tjener på `127.0.0.1` |
+| `preview_set` | pek iframe på loopback-URL eller HTML |
 | `ping` | health |
 
 Haken «agent får kjøre» = edit/bash. Les er fritt. Oneshot per oppgave. Ingen LangChain. Samme `run_turn` + WS.
 
 Ikke i treet ennå: `repo_write` som eget tool, `repo_git` (status/diff/commit bak bekreftelse). Commit i dag går via `repo_bash` når haken er på; `git push` er nektet i koden.
 
-Landet i Arbeid: tre kolonner (cli | kode | preview), tre+Monaco, edit, HTML-preview som følger fila, bash, dirty i treet. Gjenstår: preview av loopback-dev-server, cli som planlegger og stopper rent uten å føles som chat-ved-siden-av.
+Landet i Arbeid: tre kolonner, HTML-preview, `preview_serve` / `preview_set` mot `127.0.0.1`. Gjenstår: cli som planlegger og stopper rent, `repo_git`.
 
 ---
 

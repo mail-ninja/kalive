@@ -7,7 +7,7 @@
   import Split from './lib/Split.svelte'
   import Term from './lib/Term.svelte'
   import Tree from './lib/Tree.svelte'
-  import { applyToolResult, getCanvas, setCanvas, subscribeCanvas } from './lib/desk'
+  import { applyToolResult, getCanvas, isLoopbackUrl, setCanvas, subscribeCanvas } from './lib/desk'
   import { loadHist, persistHist, type Hist } from './lib/hist'
   import { connect, send, type Frame } from './lib/ws'
 
@@ -42,6 +42,8 @@
   let liveCmd = $state('')
   let diskPath = $state('README.md')
   let previewPath = $state('')
+  let previewUrl = $state('')
+  let previewDraft = $state('')
   let treeTick = $state(0)
   let fileRev = $state(0)
   let dirty = $state<Record<string, boolean>>({})
@@ -83,7 +85,10 @@
     treeTick += 1
     fileRev += 1
     bumpCanvas(path)
-    if (isHtml(path)) previewPath = path
+    if (isHtml(path)) {
+      previewPath = path
+      previewUrl = ''
+    }
   }
 
   function setHiroshimaW(w: number) {
@@ -155,6 +160,11 @@
     if (f.ch === 'tools' && f.type === 'result') {
       const r = f.payload.result as Record<string, unknown> | undefined
       applyToolResult(r)
+      const prev = typeof r?.preview === 'string' ? r.preview : typeof r?.url === 'string' ? r.url : ''
+      if (prev && isLoopbackUrl(prev)) {
+        previewUrl = prev
+        previewDraft = prev
+      }
       if (r?.wrote === true && typeof r.path === 'string') {
         onWrote(r.path)
       }
@@ -300,7 +310,10 @@
     if (r.ok) {
       clearDirty(diskPath)
       setCanvas({ path: diskPath, mode: 'monaco', rev: (getCanvas().rev || 0) + 1 })
-      if (isHtml(diskPath)) previewPath = diskPath
+      if (isHtml(diskPath)) {
+        previewPath = diskPath
+        previewUrl = ''
+      }
     }
     window.setTimeout(() => {
       if (saveNote.startsWith('lagret')) saveNote = ''
@@ -326,7 +339,10 @@
         mode: 'monaco',
         rev: (getCanvas().rev || 0) + 1,
       })
-      if (isHtml(dest)) previewPath = dest
+      if (isHtml(dest)) {
+        previewPath = dest
+        previewUrl = ''
+      }
       saveAs = false
       saveNote = 'lagret som ' + dest
     } else saveNote = 'lagre som feilet'
@@ -336,17 +352,38 @@
     diskPath = p
     fileRev += 1
     bumpCanvas(p)
-    if (isHtml(p)) previewPath = p
+    if (isHtml(p)) {
+      previewPath = p
+      previewUrl = ''
+    }
   }
 
   function showInPreview() {
     if (!diskPath) return
     previewPath = diskPath
-    setCanvas({ path: diskPath, mode: 'monaco', rev: (getCanvas().rev || 0) + 1 })
+    previewUrl = ''
+    setCanvas({ path: diskPath, preview: '', mode: 'monaco', rev: (getCanvas().rev || 0) + 1 })
+  }
+
+  function showLoopback() {
+    const u = previewDraft.trim()
+    if (!isLoopbackUrl(u)) {
+      saveNote = 'preview: bare 127.0.0.1 / localhost'
+      return
+    }
+    previewUrl = u
+    setCanvas({ preview: u, mode: 'iframe', rev: (getCanvas().rev || 0) + 1 })
   }
 
   function reloadPreview() {
     setCanvas({ rev: (getCanvas().rev || 0) + 1 })
+  }
+
+  async function stopPreviewServe() {
+    await fetch('/v1/preview/stop', { method: 'POST' }).catch(() => {})
+    previewUrl = ''
+    previewDraft = ''
+    setCanvas({ preview: '', rev: (getCanvas().rev || 0) + 1 })
   }
 
   function say() {
@@ -628,15 +665,36 @@
               <div class="flex h-full min-h-0 flex-col p-2">
                 <div class="mb-1 flex flex-wrap items-center gap-2">
                   <h2 class="font-serif text-lg">preview</h2>
-                  <span class="truncate text-xs text-paper/40">{previewPath || canvasUi.preview || '—'}</span>
+                  <form
+                    class="flex min-w-0 flex-1 items-center gap-1"
+                    onsubmit={(e) => {
+                      e.preventDefault()
+                      showLoopback()
+                    }}
+                  >
+                    <input
+                      class="min-w-0 flex-1 rounded border border-white/15 bg-ink px-2 py-0.5 text-xs"
+                      bind:value={previewDraft}
+                      placeholder="http://127.0.0.1:8765/"
+                      spellcheck="false"
+                    />
+                    <button type="submit" class="rounded-full border border-white/15 px-2 py-0.5 text-xs">vis url</button>
+                  </form>
                   <button
                     type="button"
                     class="rounded-full border border-white/15 px-2 py-0.5 text-xs"
                     onclick={reloadPreview}
                   >last på nytt</button>
+                  {#if previewUrl}
+                    <button
+                      type="button"
+                      class="rounded-full border border-white/15 px-2 py-0.5 text-xs"
+                      onclick={stopPreviewServe}
+                    >stopp tjener</button>
+                  {/if}
                 </div>
                 <div class="min-h-0 flex-1">
-                  <Preview path={previewPath} url={canvasUi.preview} rev={canvasUi.rev ?? 0} />
+                  <Preview path={previewPath} url={previewUrl} rev={canvasUi.rev ?? 0} />
                 </div>
               </div>
             {/snippet}

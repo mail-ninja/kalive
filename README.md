@@ -28,7 +28,7 @@ Lista er bevisst høy.
 
 Det er destinasjonen. v1 er ærlig om taket og om avstanden dit.
 
-**Arbeid i dag:** tre kolonner i ett vindu — cli, tre+Monaco, preview. Loopen virker. Klikk-telleren (`docs/_probe.html`) og Snake (`docs/_snake.html`) åpner kilden og resultatet samtidig. Neste sjikt er preview av en lokal loopback-app, og cli som planlegger og stopper rent.
+**Arbeid i dag:** tre kolonner i ett vindu — cli, tre+Monaco, preview. Loopen virker. HTML på disk (`docs/_probe.html`, `docs/_snake.html`) og loopback-app (`preview_serve` på `127.0.0.1`) vises i iframe. Neste sjikt er cli som planlegger og stopper rent.
 
 **Hiroshima i dag:** burst-scan, Falco 8 s, scoped AIDE-freeze, opt-in 5-min egress-watch. Den *ser*. Den rydder ikke alene.
 
