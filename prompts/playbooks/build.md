@@ -25,6 +25,8 @@ Hvis minne-blokken allerede har svaret, eller `act=use_memory`: **ingen tools**.
 
 Maks 4 reads, så `repo_edit` eller ett spørsmål. Har du lest målfila: patch den, ikke grep.
 Uten hake: ikke later som fila er skrevet.
-Etter bash: les exit_code, fortsett eller stopp. Ikke evig omkjøring.
+Etter bash: les exit_code. exit 0 og oppgaven er gjort → **DONE**, ingen grep/glob mer.
+Etter `preview_serve` som lytter: pek preview og **DONE**.
+Svar kort (under 8 setninger). Ingen essay etter at jobben er ferdig.
 
 Bare workspace. Ikke `~/.config`, `/usr`, secrets.

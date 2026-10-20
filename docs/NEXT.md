@@ -2,7 +2,7 @@
 
 Retningen: det feteste *lokale* kodemiljøet vi klarer, med Hiroshima som sikkerhetsrom som allerede ser. Ikke en omvei rundt SOC-kjernen. Ikke et nytt rammeverk.
 
-H0–H5 er i treet og på verten. H6 Suricata er valgfri destinasjon. Tre kolonner, loopback-preview og `repo_git` er inne. **Neste kode er cli som planlegger og stopper rent.**
+H0–H5 er i treet og på verten. H6 Suricata er valgfri destinasjon. Tre kolonner, loopback-preview, `repo_git` og cli som stopper etter verifikasjon er inne. **Neste kode er å gjøre editoren og agenten råere på den loopen.**
 
 ---
 
@@ -49,7 +49,7 @@ Haken «agent får kjøre» = edit/bash. Les er fritt. Oneshot per oppgave. Inge
 
 Ikke i treet ennå: `repo_write` som eget tool. `git commit` via `repo_bash` er nektet — bruk `repo_git`. `git push` er nektet.
 
-Landet i Arbeid: tre kolonner, HTML-preview, loopback-preview, `repo_git`. Gjenstår: cli som planlegger og stopper rent.
+Landet i Arbeid: tre kolonner, HTML-preview, loopback-preview, `repo_git`, cli som stopper etter vellykket test/preview (ikke etter 16 grep). Heartbeat mens modellen tenker. `kjører…` faller hvis WS ryker.
 
 ---
 

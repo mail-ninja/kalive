@@ -158,6 +158,8 @@ async def _run_chat_turn(
                 await emit(_msg("log", "line", {"text": ev.get("text") or "", "agent": ag.id}, mid))
             elif kind == "stopped":
                 await emit(_msg("run", "stopped", {"text": ev.get("text") or ""}, mid))
+            elif kind == "pulse":
+                await emit(_msg("run", "pulse", {"s": ev.get("s") or 0}, mid))
         if not stop.is_set():
             await emit(_msg("chat", "done", {"agent": ag.id}, mid))
         tag = _remember_chat(

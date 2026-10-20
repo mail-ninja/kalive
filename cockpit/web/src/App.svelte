@@ -143,6 +143,10 @@
       hist = [...hist, { role: 'sys', text: 'stoppet — logger og diff beholdt' }]
       stream = ''
     }
+    if (f.ch === 'run' && f.type === 'pulse') {
+      const s = Number(f.payload.s ?? 0)
+      liveCmd = s > 0 ? 'modell ' + s + 's' : 'modell'
+    }
     if (f.ch === 'tools' && f.type === 'list') {
       const list = f.payload.tools as { name: string }[] | undefined
       tools = (list ?? []).map((t) => t.name)
@@ -267,14 +271,15 @@
       wsReady = s === 'open'
       if (s === 'open') hist = [...hist, { role: 'sys', text: 'cockpit ws up' }]
       if (s === 'close' && running) {
+        running = false
+        liveCmd = ''
         hist = [
           ...hist,
           {
             role: 'sys',
-            text: 'ws brutt — runden kjører videre på server. Histikk ligger i sqlite hvis UI tømmes.',
+            text: 'ws brutt — runden kan fortsette på server. Histikk ligger i sqlite.',
           },
         ]
-        liveCmd = ''
       }
     })
     return () => {

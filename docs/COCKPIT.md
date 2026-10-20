@@ -39,7 +39,7 @@ Minne følger `agent_id`. Provider er munnstykke.
 
 Chip-raden i Arbeid viser `build`. Andre agenter under kjøredetaljer.
 
-Tool-loop: OpenAI-kompatible function calls mot SpaceXAI (`grok-4.6`) eller Settings. Mutasjon krever haken. Passord aldri i chat.
+Tool-loop: OpenAI-kompatible function calls mot SpaceXAI (`grok-4.6`) eller Settings. Mutasjon krever haken. Passord aldri i chat. Etter vellykket bash/preview: DONE (ikke grep-runder). Heartbeat (`run/pulse`) mens modellen tenker.
 
 Spill i iframe: HTML på disk via `GET /v1/workspace/raw?path=…` (f.eks. `docs/_probe.html` / `docs/_snake.html`), eller loopback-app via `preview_serve` + `preview_set` (`http://127.0.0.1:PORT/`). Monaco og preview står ved siden av hverandre. `repo_edit` av en `.html` åpner den i editoren. Live stdout under `repo_bash`.
 

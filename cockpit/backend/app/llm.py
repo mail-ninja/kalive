@@ -18,6 +18,7 @@ from .hiroshima import MAX_ROUNDS as HIRO_ROUNDS
 from .decide import gate_recall
 from .memory import format_recall, recall, remember_engram
 from .secrets_store import load_env
+from .orchestrate import NUDGE_DONE, SHORT_DONE, is_edit, is_fail, is_verify, next_brake
 from .tools import call_tool, openai_tools
 
 _REPO = Path(__file__).resolve().parents[3]
@@ -32,7 +33,8 @@ def _system_prompt(agent: Agent) -> str:
             "act=use_memory eller minne-blokken svarer: ingen tools. "
             "repo_bash er lov bak haken. Git: repo_git status|diff|log|commit (commit bak haken, aldri push). "
             "Preview = HTML på disk ELLER loopback via preview_serve/preview_set (127.0.0.1, aldri 0.0.0.0). "
-            "Maks 16 tool-runder. Oneshot. Passord bare i xterm."
+            "Maks 16 tool-runder. Oneshot. Etter vellykket test/preview: DONE, ikke grep mer. "
+            "Kort svar. Passord bare i xterm."
         )
     else:
         extra = (
@@ -73,6 +75,39 @@ def _endpoint(agent: Agent, provider: str | None, model: str | None) -> tuple[st
 
 def _headers(key: str) -> dict[str, str]:
     return {"Authorization": "Bearer " + key, "Content-Type": "application/json"}
+
+
+async def _wait_or_pulse(aw, cancel: asyncio.Event | None, pulse_s: float = 2.5):
+    """Await aw, yielding pulse events until it finishes. Cancels aw on stop."""
+    task = asyncio.ensure_future(aw)
+    t0 = time.monotonic()
+    try:
+        while True:
+            if cancel is not None and cancel.is_set():
+                task.cancel()
+                try:
+                    await task
+                except (asyncio.CancelledError, httpx.HTTPError):
+                    pass
+                yield {"type": "stopped", "text": "stoppet av operator"}
+                return
+            done, _ = await asyncio.wait({task}, timeout=pulse_s)
+            if done:
+                try:
+                    yield {"type": "_ok", "value": task.result()}
+                except asyncio.CancelledError:
+                    yield {"type": "stopped", "text": "stoppet av operator"}
+                except Exception as e:
+                    yield {"type": "_err", "error": e}
+                return
+            yield {"type": "pulse", "s": int(time.monotonic() - t0)}
+    finally:
+        if not task.done():
+            task.cancel()
+            try:
+                await task
+            except (asyncio.CancelledError, httpx.HTTPError):
+                pass
 
 
 async def stream_tokens(
@@ -160,6 +195,9 @@ async def run_turn(
     tool_cap = 16 if (agent.desk == "code" or agent.id == "build") else HIRO_ROUNDS
     max_r = tool_cap + 1
     did_mutate = False
+    verified = False
+    see_streak = 0
+    code_desk = agent.desk == "code" or agent.id == "build"
     async with httpx.AsyncClient(timeout=120.0) as client:
         for rnd in range(max_r):
             if cancel is not None and cancel.is_set():
@@ -168,11 +206,15 @@ async def run_turn(
             if rnd >= tool_cap:
                 tools = []
             last = rnd == max_r - 1 or not tools
+            if last and (not messages or messages[-1].get("content") != SHORT_DONE):
+                messages.append({"role": "user", "content": SHORT_DONE})
             body: dict[str, Any] = {"model": model_id, "messages": messages, "stream": last}
             if tools and not last:
                 body["tools"] = tools
                 body["tool_choice"] = "auto"
             if last:
+                body["max_tokens"] = 400
+                last_tok = time.monotonic()
                 async with client.stream("POST", url, headers=_headers(key), json=body) as resp:
                     if resp.status_code >= 400:
                         err = (await resp.aread()).decode("utf-8", "replace")[:400]
@@ -181,6 +223,10 @@ async def run_turn(
                         if cancel is not None and cancel.is_set():
                             yield {"type": "stopped", "text": "stoppet av operator"}
                             return
+                        now = time.monotonic()
+                        if now - last_tok >= 2.5:
+                            yield {"type": "pulse", "s": int(now - last_tok)}
+                            last_tok = now
                         if not line.startswith("data:"):
                             continue
                         data = line[5:].strip()
@@ -192,9 +238,23 @@ async def run_turn(
                             continue
                         delta = ((chunk.get("choices") or [{}])[0].get("delta") or {}).get("content")
                         if delta:
+                            last_tok = time.monotonic()
                             yield {"type": "token", "text": str(delta)}
                 return
-            resp = await client.post(url, headers=_headers(key), json=body)
+            resp = None
+            async for ev in _wait_or_pulse(client.post(url, headers=_headers(key), json=body), cancel):
+                if ev.get("type") == "pulse":
+                    yield ev
+                elif ev.get("type") == "stopped":
+                    yield ev
+                    return
+                elif ev.get("type") == "_err":
+                    raise ev["error"]
+                else:
+                    resp = ev.get("value")
+            if resp is None:
+                yield {"type": "stopped", "text": "stoppet av operator"}
+                return
             if resp.status_code >= 400:
                 raise RuntimeError(f"{pid} HTTP {resp.status_code}: {resp.text[:400]}")
             choice = ((resp.json().get("choices") or [{}])[0]) or {}
@@ -208,6 +268,11 @@ async def run_turn(
                     yield {"type": "token", "text": "(tool-tak nådd — svar ut fra det som er lest)"}
                 return
             messages.append({"role": "assistant", "content": text or "", "tool_calls": calls})
+            round_names: list[str] = []
+            round_args: list[dict] = []
+            got_verify = False
+            got_edit = False
+            got_fail = False
             for tc in calls:
                 fn = (tc.get("function") or {}) if isinstance(tc, dict) else {}
                 name = str(fn.get("name") or "")
@@ -218,6 +283,8 @@ async def run_turn(
                     args = {}
                 if not isinstance(args, dict):
                     args = {}
+                round_names.append(name)
+                round_args.append(args)
                 yield {"type": "tool", "name": name, "args": args, "round": rnd + 1}
                 if name == "repo_bash":
                     q: queue.Queue = queue.Queue()
@@ -269,6 +336,12 @@ async def run_turn(
                     name == "repo_git" and str(args.get("action") or "") == "commit"
                 ):
                     did_mutate = True
+                if is_verify(name, result if isinstance(result, dict) else None):
+                    got_verify = True
+                if is_edit(name, args):
+                    got_edit = True
+                if is_fail(name, result if isinstance(result, dict) else None):
+                    got_fail = True
                 messages.append(
                     {
                         "role": "tool",
@@ -306,11 +379,29 @@ async def run_turn(
                                 bits.append(str(ev.get("text") or ""))
                         result = {"ok": True, "agent": sub.id, "excerpt": "".join(bits)[:1500]}
                         messages[-1]["content"] = json.dumps(result, ensure_ascii=False)[:8000]
+            if code_desk and tools:
+                br = next_brake(
+                    verified=verified,
+                    see_streak=see_streak,
+                    names=round_names,
+                    args_list=round_args,
+                    got_verify=got_verify,
+                    got_edit=got_edit,
+                    got_fail=got_fail,
+                )
+                verified = bool(br["verified"])
+                see_streak = int(br["see_streak"])
+                if br["force_stop"]:
+                    tools = []
+                    yield {"type": "log", "text": "orchestrator: ferdig — stopper"}
+                elif br["nudge"]:
+                    messages.append({"role": "user", "content": NUDGE_DONE})
             if (
-                (agent.desk == "code" or agent.id == "build")
+                code_desk
                 and rnd + 1 >= 4
                 and not did_mutate
                 and names
+                and tools
             ):
                 names = [n for n in names if n in ("repo_read", "repo_edit", "repo_bash", "repo_git", "preview_serve", "preview_set")]
                 tools = openai_tools(names) if (use_tools and act != "use_memory" and names) else []

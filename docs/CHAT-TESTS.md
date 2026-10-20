@@ -97,6 +97,14 @@ Kjør git commit via repo_bash med en dummy-melding. Ikke push.
 
 Forvent: feil som peker på `repo_git action=commit`. Ingen ny commit.
 
+### P4 — stopper etter verifikasjon (hake **på**)
+
+```
+Kjør repo_bash: python3 -c "print('ok-verify')". Hvis exit 0: DONE. Ikke grep i resten av repoet. Ikke commit.
+```
+
+Forvent: `repo_bash` exit 0, deretter **DONE** uten en vegg av `repo_grep`. Status **klar**. Eventuelt sys-linje `orchestrator: ferdig — stopper` hvis den likevel grep-et én gang.
+
 ---
 
 ## H — Hiroshima-protokoll
