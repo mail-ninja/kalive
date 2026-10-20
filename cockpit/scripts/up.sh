@@ -45,9 +45,11 @@ else
   if [[ "${KALIVED_RELOAD:-}" == 1 ]]; then
     RELOAD=(--reload --reload-dir "$HERE/backend")
   fi
-  nohup "$VENV/bin/uvicorn" app.main:app --host 127.0.0.1 --port 8788 \
-    "${RELOAD[@]}" >"$LOG/uvicorn.log" 2>&1 &
+  # setsid: desktop-terminal som lukkes skal ikke drepe FastAPI.
+  setsid nohup "$VENV/bin/uvicorn" app.main:app --host 127.0.0.1 --port 8788 \
+    "${RELOAD[@]}" >"$LOG/uvicorn.log" 2>&1 </dev/null &
   echo $! >"$LOG/uvicorn.pid"
+  disown $! 2>/dev/null || true
   for _ in 1 2 3 4 5 6 7 8 9 10; do
     have http://127.0.0.1:8788/v1/health && break
     sleep 0.4
@@ -58,7 +60,9 @@ fi
 if have http://127.0.0.1:5173/; then
   ok "Vite :5173 allerede oppe"
 else
-  (cd "$HERE/web" && nohup npm run dev >"$LOG/vite.log" 2>&1 & echo $! >"$LOG/vite.pid")
+  # setsid: desktop-terminal som lukkes skal ikke drepe Vite.
+  (cd "$HERE/web" && setsid nohup npm run dev >"$LOG/vite.log" 2>&1 </dev/null & echo $! >"$LOG/vite.pid")
+  disown -a 2>/dev/null || true
   for _ in 1 2 3 4 5 6 7 8 9 10; do
     have http://127.0.0.1:5173/ && break
     sleep 0.4
