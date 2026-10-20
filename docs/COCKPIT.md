@@ -27,7 +27,7 @@ Minne følger `agent_id`. Provider er munnstykke.
 
 | id | desk | Rolle |
 |----|------|--------|
-| `build` | code | repo-loop på disk (`repo_glob/grep/read/edit/bash/git`) |
+| `build` | code | repo-loop på disk (`repo_glob/grep/read/write/edit/bash/git`) |
 | `crew` | code | dirigent, `ask_agent` → build/forge/review/term |
 | `forge` | code | skriver canvas; spill/app → `iframe_write` |
 | `review` | code | leser canvas |
@@ -41,7 +41,7 @@ Chip-raden i Arbeid viser `build`. Andre agenter under kjøredetaljer.
 
 Tool-loop: OpenAI-kompatible function calls mot SpaceXAI (`grok-4.6`) eller Settings. Mutasjon krever haken. Passord aldri i chat. Etter vellykket bash/preview: DONE (ikke grep-runder). Heartbeat (`run/pulse`) mens modellen tenker.
 
-Spill i iframe: HTML på disk via `GET /v1/workspace/raw?path=…` (f.eks. `docs/_probe.html` / `docs/_snake.html`), eller loopback-app via `preview_serve` + `preview_set` (`http://127.0.0.1:PORT/`). Monaco og preview står ved siden av hverandre. `repo_edit` av en `.html` åpner den i editoren. Live stdout under `repo_bash`.
+Spill i iframe: HTML på disk via `GET /v1/workspace/raw?path=…` (f.eks. `docs/_probe.html` / `docs/_snake.html`), eller loopback-app via `preview_serve` + `preview_set` (`http://127.0.0.1:PORT/`). Monaco og preview står ved siden av hverandre. `repo_write` lager ny fil; `repo_edit` av en `.html` åpner den i editoren. Grep-treff i chatten åpner linja. Ny fil fra treet eller Fil-menyen. Live stdout under `repo_bash`.
 
 ## HTTP på :8788 (utvalg)
 

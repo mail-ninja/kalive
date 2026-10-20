@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import Any
 
 SEE = frozenset({"repo_glob", "repo_grep", "repo_read", "ping", "repo_git"})
-EDIT = frozenset({"repo_edit", "iframe_write"})
+EDIT = frozenset({"repo_edit", "repo_write", "iframe_write"})
 SHORT_DONE = (
     "Svar på under 8 setninger. DONE / NEEDS_INPUT / BLOCKED. Ingen essay. Ingen nye tools."
 )
@@ -48,7 +48,7 @@ def is_fail(name: str, result: dict | None) -> bool:
         return False
     n = str(name or "")
     if result.get("error"):
-        return n in {"repo_bash", "repo_edit", "preview_serve", "preview_set", "repo_git"}
+        return n in {"repo_bash", "repo_edit", "repo_write", "preview_serve", "preview_set", "repo_git"}
     if n == "repo_bash":
         code = result.get("exit_code")
         return code not in (0, None) or bool(result.get("timeout"))

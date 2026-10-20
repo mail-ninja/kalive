@@ -9,6 +9,7 @@
     dirty = {},
     tick = 0,
     onopen,
+    onnew,
     depth = 0,
   }: {
     rel?: string
@@ -17,6 +18,7 @@
     dirty?: Record<string, boolean>
     tick?: number
     onopen: (path: string) => void
+    onnew?: () => void
     depth?: number
   } = $props()
 
@@ -79,9 +81,14 @@
 
 <div class="h-full min-h-0 text-xs" class:root={!rel}>
   {#if !rel}
-    <div class="flex items-center justify-between border-b border-white/10 px-2 py-1 text-paper/50">
-      <span>{rootName}</span>
-      <button type="button" class="text-paper/40 hover:text-paper" onclick={load}>oppdater</button>
+    <div class="flex items-center justify-between gap-2 border-b border-white/10 px-2 py-1 text-paper/50">
+      <span class="truncate">{rootName}</span>
+      <span class="flex shrink-0 gap-2">
+        {#if onnew}
+          <button type="button" class="text-paper/40 hover:text-paper" onclick={onnew}>ny fil</button>
+        {/if}
+        <button type="button" class="text-paper/40 hover:text-paper" onclick={load}>oppdater</button>
+      </span>
     </div>
   {/if}
   <div class={rel ? '' : 'min-h-0 flex-1 overflow-y-auto py-1'} style={!rel ? 'height: calc(100% - 1.75rem)' : ''}>
@@ -103,7 +110,7 @@
             <span class="truncate">{e.name}</span>
           </button>
           {#if expanded[e.path]}
-            <Tree rel={e.path} bind:current {reveal} {dirty} {tick} {onopen} depth={depth + 1} />
+            <Tree rel={e.path} bind:current {reveal} {dirty} {tick} {onopen} {onnew} depth={depth + 1} />
           {/if}
         </div>
       {:else}

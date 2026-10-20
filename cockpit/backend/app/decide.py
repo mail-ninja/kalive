@@ -15,13 +15,13 @@ from .secrets_store import load_env
 
 KEEP_MIN = 0.6
 _MUTATE = re.compile(
-    r"\b(skriv|edit|patch|kjør|bash|lag |bygg|commit|slett|fjern|repo_edit|repo_bash|repo_git)\b",
+    r"\b(skriv|edit|patch|kjør|bash|lag |bygg|commit|slett|fjern|repo_edit|repo_write|repo_bash|repo_git)\b",
     re.I,
 )
 _ASK = re.compile(r"\b(hva|hvor|hvilken|hvem|hvordan|was|what|where|which)\b", re.I)
 _GREET = re.compile(r"^\s*(yo|halla|hallo|hei+|hi+|hey|sup|god\s+morgen|god\s+kveld)\b", re.I)
 _KINDS = ("fact", "artifact", "noise", "decision")
-_MUTATE_TOOLS = frozenset({"repo_edit", "repo_bash", "iframe_write", "preview_serve", "repo_git"})
+_MUTATE_TOOLS = frozenset({"repo_edit", "repo_write", "repo_bash", "iframe_write", "preview_serve", "repo_git"})
 
 
 def jev_key() -> str:

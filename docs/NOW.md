@@ -22,7 +22,7 @@ Chat-tester: [CHAT-TESTS.md](CHAT-TESTS.md).
 
 ## Neste
 
-1. **Arbeid-editoren** — tre kolonner, loopback-preview, `repo_git`, cli som stopper etter verifikasjon. Neste: gjøre loopen råere. Se [NEXT.md](NEXT.md).
+1. **Arbeid** — bruk loopen på større systemer og stram der den gnisser. `repo_write`, grep→linje og ny fil er inne. Se [NEXT.md](NEXT.md).
 2. Valgfri Kuzu-tidslinje for scan-stamps og Confirm-playbooks (disk forblir orakel).
 3. H6 Suricata — valgfri, ikke neste.
 4. Port C (sandbox-VM, tale, mobil) — destinasjon.

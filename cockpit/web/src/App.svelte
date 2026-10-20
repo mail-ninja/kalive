@@ -52,6 +52,9 @@
   let saveAs = $state(false)
   let saveAsPath = $state('')
   let saveNote = $state('')
+  let newFile = $state(false)
+  let newFilePath = $state('')
+  let revealLine = $state(0)
   let models = $derived(providers.find((p) => p.id === providerId)?.models ?? [])
   let team = $derived(agents.filter((a) => a.id === 'build'))
 
@@ -173,9 +176,21 @@
         onWrote(r.path)
       }
       const diff = typeof r?.diff === 'string' ? r.diff : ''
+      const rawHits = Array.isArray(r?.hits) ? r.hits : []
+      const hits = rawHits
+        .map((h) => {
+          if (!h || typeof h !== 'object') return null
+          const o = h as { path?: unknown; line?: unknown; text?: unknown }
+          if (typeof o.path !== 'string') return null
+          return { path: o.path, line: Number(o.line) || 1, text: String(o.text || '') }
+        })
+        .filter((h): h is { path: string; line: number; text: string } => h !== null)
+        .slice(0, 16)
       let text = ''
       if (r && 'exit_code' in r) {
         text = `exit ${r.exit_code}${r.timeout ? ' timeout' : ''}${r.cancelled ? ' stoppet' : ''}\n${String(r.stdout_tail || r.stderr_tail || '').slice(-1200)}`
+      } else if (hits.length) {
+        text = `${hits.length} treff`
       } else if (typeof r?.summary === 'string' && r.summary) {
         text = r.summary
       } else {
@@ -188,6 +203,8 @@
           role: 'tool',
           name: String(f.payload.name || ''),
           path: typeof r?.path === 'string' ? r.path : undefined,
+          line: typeof r?.line === 'number' ? r.line : hits[0]?.line,
+          hits: hits.length ? hits : undefined,
           diff,
           text,
         },
@@ -355,14 +372,41 @@
     } else saveNote = 'lagre som feilet'
   }
 
-  function openDisk(p: string) {
+  function openDisk(p: string, line?: number) {
+    const same = diskPath === p
     diskPath = p
-    fileRev += 1
-    bumpCanvas(p)
-    if (isHtml(p)) {
-      previewPath = p
-      previewUrl = ''
+    revealLine = line && line > 0 ? line : 0
+    if (!same) {
+      fileRev += 1
+      bumpCanvas(p)
+      if (isHtml(p)) {
+        previewPath = p
+        previewUrl = ''
+      }
     }
+  }
+
+  function startNewFile() {
+    const dir = diskPath.includes('/') ? diskPath.slice(0, diskPath.lastIndexOf('/') + 1) : ''
+    newFilePath = dir
+    newFile = true
+    filMenu = false
+  }
+
+  async function createFile() {
+    const dest = newFilePath.trim().replace(/^\/+/, '')
+    if (!dest || dest.includes('..')) return
+    const r = await fetch('/v1/workspace/file', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: dest, text: '\n' }),
+    })
+    if (r.ok) {
+      newFile = false
+      treeTick += 1
+      openDisk(dest)
+      saveNote = 'ny fil ' + dest
+    } else saveNote = 'ny fil feilet'
   }
 
   function showInPreview() {
@@ -547,11 +591,22 @@
                           <button
                             type="button"
                             class="normal-case tracking-normal text-clean underline decoration-clean/40 hover:decoration-clean"
-                            onclick={() => openDisk(m.path || '')}
-                          >{m.path}</button>
+                            onclick={() => openDisk(m.path || '', m.line)}
+                          >{m.path}{#if m.line}:{m.line}{/if}</button>
                         {/if}
                       </div>
                       <div>{m.text}</div>
+                      {#if m.hits?.length}
+                        <div class="mt-1 max-h-40 space-y-0.5 overflow-auto font-mono text-[0.7rem]">
+                          {#each m.hits as h}
+                            <button
+                              type="button"
+                              class="block w-full truncate text-left text-clean/80 hover:text-clean"
+                              onclick={() => openDisk(h.path, h.line)}
+                            >{h.path}:{h.line} {h.text}</button>
+                          {/each}
+                        </div>
+                      {/if}
                       {#if m.diff}
                         <pre class="mt-1 max-h-40 overflow-auto text-[0.7rem] text-clean/80">{m.diff}</pre>
                       {/if}
@@ -616,6 +671,11 @@
                             saveAsPath = diskPath
                             saveAs = true
                           }}>lagre som…</button>
+                        <button
+                          type="button"
+                          class="block w-full px-3 py-1 text-left hover:bg-white/10"
+                          onclick={startNewFile}
+                        >ny fil…</button>
                       </div>
                     {/if}
                   </div>
@@ -630,6 +690,23 @@
                       <input class="w-48 rounded border border-white/15 bg-ink px-2 py-0.5 text-xs" bind:value={saveAsPath} />
                       <button type="submit" class="text-xs text-clean">ok</button>
                       <button type="button" class="text-xs text-paper/50" onclick={() => (saveAs = false)}>avbryt</button>
+                    </form>
+                  {/if}
+                  {#if newFile}
+                    <form
+                      class="flex items-center gap-1"
+                      onsubmit={(e) => {
+                        e.preventDefault()
+                        createFile()
+                      }}
+                    >
+                      <input
+                        class="w-48 rounded border border-white/15 bg-ink px-2 py-0.5 text-xs"
+                        bind:value={newFilePath}
+                        placeholder="docs/ny.html"
+                      />
+                      <button type="submit" class="text-xs text-clean">ok</button>
+                      <button type="button" class="text-xs text-paper/50" onclick={() => (newFile = false)}>avbryt</button>
                     </form>
                   {/if}
                   {#if saveNote}
@@ -659,10 +736,10 @@
                 <div class="min-h-0 flex-1">
                   <Split direction="horizontal" bind:value={splitTree} min={12} max={46}>
                     {#snippet a()}
-                      <Tree bind:current={diskPath} reveal={diskPath} {dirty} tick={treeTick} onopen={openDisk} />
+                      <Tree bind:current={diskPath} reveal={diskPath} {dirty} tick={treeTick} onopen={openDisk} onnew={startNewFile} />
                     {/snippet}
                     {#snippet b()}
-                      <Editor diskPath={diskPath} {fileRev} ondirty={markDirty} />
+                      <Editor diskPath={diskPath} {fileRev} {revealLine} ondirty={markDirty} />
                     {/snippet}
                   </Split>
                 </div>

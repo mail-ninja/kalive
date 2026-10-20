@@ -6,10 +6,12 @@
   let {
     diskPath = '',
     fileRev = 0,
+    revealLine = 0,
     ondirty,
   }: {
     diskPath?: string
     fileRev?: number
+    revealLine?: number
     ondirty?: (path: string) => void
   } = $props()
 
@@ -21,7 +23,18 @@
     setValue: (v: string) => void
     getModel: () => unknown
     onDidChangeModelContent: (cb: () => void) => void
+    revealLineInCenter?: (n: number) => void
+    setPosition?: (p: { lineNumber: number; column: number }) => void
+    focus?: () => void
   } | null = null
+  let pendingLine = 0
+
+  function goLine(n: number) {
+    if (!editor || n < 1) return
+    editor.revealLineInCenter?.(n)
+    editor.setPosition?.({ lineNumber: n, column: 1 })
+    editor.focus?.()
+  }
   let monacoMod: typeof import('monaco-editor') | null = null
   let ro: ResizeObserver | null = null
   let unsub: (() => void) | null = null
@@ -42,6 +55,7 @@
     })
     if (editor && j.text != null) editor.setValue(j.text)
     skip = false
+    if (pendingLine > 0) goLine(pendingLine)
   }
 
   let loaded = ''
@@ -49,10 +63,14 @@
   $effect(() => {
     const p = diskPath
     const r = fileRev
+    const ln = revealLine
+    pendingLine = ln
     if (p && (p !== loaded || r !== loadedRev)) {
       loaded = p
       loadedRev = r
       void loadDisk(p)
+    } else if (ln > 0) {
+      goLine(ln)
     }
   })
 
@@ -73,6 +91,7 @@
     ro = new ResizeObserver(() => editor?.layout())
     ro.observe(host)
     editor.layout()
+    if (pendingLine > 0) goLine(pendingLine)
     editor.onDidChangeModelContent?.(() => {
       if (skip) return
       const v = editor?.getValue()

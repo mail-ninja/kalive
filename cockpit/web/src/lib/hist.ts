@@ -1,9 +1,13 @@
+export type HistHit = { path: string; line: number; text: string }
+
 export type Hist = {
   role: 'you' | 'bot' | 'sys' | 'tool'
   text: string
   name?: string
   diff?: string
   path?: string
+  line?: number
+  hits?: HistHit[]
 }
 
 /** Survives Vite HMR of App.svelte (root remount wipes $state). */

@@ -2,7 +2,7 @@
 
 Retningen: det feteste *lokale* kodemiljøet vi klarer, med Hiroshima som sikkerhetsrom som allerede ser. Ikke en omvei rundt SOC-kjernen. Ikke et nytt rammeverk.
 
-H0–H5 er i treet og på verten. H6 Suricata er valgfri destinasjon. Tre kolonner, loopback-preview, `repo_git` og cli som stopper etter verifikasjon er inne. **Neste kode er å gjøre editoren og agenten råere på den loopen.**
+H0–H5 er i treet og på verten. H6 Suricata er valgfri destinasjon. Tre kolonner, `repo_write`, grep→linje, loopback-preview, `repo_git` og cli som stopper etter verifikasjon er inne. **Neste er å bruke loopen på større systemer og stramme der den gnisser.**
 
 ---
 
@@ -37,7 +37,8 @@ Tools som `build` har i dag (cwd = workspace-rot, aldri hele `$HOME` som default
 
 | Tool | |
 |------|--|
-| `repo_glob` `repo_grep` `repo_read` | se |
+| `repo_glob` `repo_grep` `repo_read` | se (`read` har `start_line`) |
+| `repo_write` | ny fil / hele fila |
 | `repo_edit` | patch på disk; vis diff |
 | `repo_bash` | én kommando, timeout, ingen `sudo` |
 | `repo_git` | `status` `diff` `log` `commit` (commit bak haken). Aldri push |
@@ -45,11 +46,11 @@ Tools som `build` har i dag (cwd = workspace-rot, aldri hele `$HOME` som default
 | `preview_set` | pek iframe på loopback-URL eller HTML |
 | `ping` | health |
 
-Haken «agent får kjøre» = edit/bash. Les er fritt. Oneshot per oppgave. Ingen LangChain. Samme `run_turn` + WS.
+Haken «agent får kjøre» = write/edit/bash. Les er fritt. Oneshot per oppgave. Ingen LangChain. Samme `run_turn` + WS.
 
-Ikke i treet ennå: `repo_write` som eget tool. `git commit` via `repo_bash` er nektet — bruk `repo_git`. `git push` er nektet.
+`git commit` via `repo_bash` er nektet — bruk `repo_git`. `git push` er nektet.
 
-Landet i Arbeid: tre kolonner, HTML-preview, loopback-preview, `repo_git`, cli som stopper etter vellykket test/preview (ikke etter 16 grep). Heartbeat mens modellen tenker. `kjører…` faller hvis WS ryker.
+Landet i Arbeid: tre kolonner, `repo_write`, grep-treff åpner linja, ny fil fra treet, loopback-preview, `repo_git`, cli som stopper etter verifikasjon.
 
 ---
 

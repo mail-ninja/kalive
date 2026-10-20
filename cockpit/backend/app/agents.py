@@ -28,6 +28,7 @@ BUILD_TOOLS = [
     "repo_grep",
     "repo_read",
     "repo_edit",
+    "repo_write",
     "repo_bash",
     "repo_git",
     "preview_set",

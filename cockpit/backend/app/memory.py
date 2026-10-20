@@ -204,6 +204,7 @@ _PATH_IN_TEXT = re.compile(
 )
 _TOUCH = {
     "repo_edit": "EDITED",
+    "repo_write": "EDITED",
     "iframe_write": "EDITED",
     "repo_bash": "RAN",
     "repo_git": "RAN",

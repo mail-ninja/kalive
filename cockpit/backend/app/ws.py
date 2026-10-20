@@ -33,6 +33,8 @@ def _tool_engram(name: str, result: dict) -> str:
         return f"grep n={result.get('n')}"
     if name == "repo_edit":
         return f"edit {result.get('path')} " + str(result.get("diff") or "")[:400]
+    if name == "repo_write":
+        return f"write {result.get('path')} n={result.get('n')}"
     if name == "repo_bash":
         return f"exit {result.get('exit_code')} {str(result.get('stdout_tail') or '')[:240]}"
     if name == "repo_git":

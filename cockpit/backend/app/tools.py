@@ -347,22 +347,40 @@ def repo_grep(args: dict) -> dict:
         hits = w.grep(str(args.get("query") or ""), str(args.get("glob") or "**/*"))
     except Exception as e:
         return {"error": str(e)[:240]}
-    return {"hits": hits, "n": len(hits)}
+    summary = "\n".join(f"{h.get('path')}:{h.get('line')}: {h.get('text')}" for h in hits[:20])
+    out: dict = {"hits": hits, "n": len(hits), "summary": summary or "ingen treff"}
+    if hits:
+        out["path"] = hits[0].get("path")
+        out["line"] = hits[0].get("line")
+    return out
 
 
 @register(
     ToolSpec(
         name="repo_read",
-        description="Les én fil relativ til workspace. Ikke secrets, ikke utenfor rot.",
+        description="Les én fil relativ til workspace. start_line/n_lines for vindu i store filer. Ikke secrets, ikke utenfor rot.",
         mutating=False,
-        parameters={"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]},
+        parameters={
+            "type": "object",
+            "properties": {
+                "path": {"type": "string"},
+                "start_line": {"type": "integer"},
+                "n_lines": {"type": "integer"},
+            },
+            "required": ["path"],
+        },
     )
 )
 def repo_read(args: dict) -> dict:
     from . import workspace as w
 
     try:
-        return w.read(str(args.get("path") or ""))
+        n_lines = args.get("n_lines")
+        return w.read(
+            str(args.get("path") or ""),
+            start_line=int(args.get("start_line") or 1),
+            n_lines=int(n_lines) if n_lines is not None else None,
+        )
     except Exception as e:
         return {"error": str(e)[:240]}
 
@@ -396,6 +414,34 @@ def repo_edit(args: dict) -> dict:
         if not old:
             return {"error": "trenger old_string+new_string eller text"}
         return w.edit(path, old, new)
+    except Exception as e:
+        return {"error": str(e)[:240]}
+
+
+@register(
+    ToolSpec(
+        name="repo_write",
+        description="Skriv hele fila (ny eller overwrite). path relativ til workspace. Lager manglende mapper. Krever «agent får kjøre». Nye filer: repo_write. Patch: repo_edit.",
+        mutating=True,
+        parameters={
+            "type": "object",
+            "properties": {"path": {"type": "string"}, "text": {"type": "string"}},
+            "required": ["path", "text"],
+        },
+    )
+)
+def repo_write(args: dict) -> dict:
+    from . import workspace as w
+
+    args.pop("_allow_mutate", None)
+    args.pop("_cancel", None)
+    args.pop("_on_chunk", None)
+    path = str(args.get("path") or "")
+    text = str(args.get("text") if args.get("text") is not None else "")
+    if len(text) > 400_000:
+        return {"error": "fil for stor (maks 400k)"}
+    try:
+        return w.write(path, text)
     except Exception as e:
         return {"error": str(e)[:240]}
 

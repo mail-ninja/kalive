@@ -105,6 +105,16 @@ Kjør repo_bash: python3 -c "print('ok-verify')". Hvis exit 0: DONE. Ikke grep i
 
 Forvent: `repo_bash` exit 0, deretter **DONE** uten en vegg av `repo_grep`. Status **klar**. Eventuelt sys-linje `orchestrator: ferdig — stopper` hvis den likevel grep-et én gang.
 
+### P5 — ny fil via repo_write (hake **på**)
+
+```
+Lag docs/_lab/hello.html med repo_write: en overskrift «hei» og en knapp. Preview i iframe. Ikke grep resten av repoet. Ikke commit.
+```
+
+Forvent: tool `repo_write` (ikke `repo_edit` med old_string). Fila åpnes i Monaco, preview viser knappen. Klikk grep-treff i chatten åpner linja.
+
+Live 2026-10-20: `repo_write` + `preview_set`, **DONE**, ingen grep. Fila: `docs/_lab/hello.html`.
+
 ---
 
 ## H — Hiroshima-protokoll

@@ -155,7 +155,7 @@ def grep(query: str, glob_pat: str = "**/*", limit: int = MAX_MATCH) -> list[dic
     return hits
 
 
-def read(rel: str, max_bytes: int = MAX_READ) -> dict:
+def read(rel: str, max_bytes: int = MAX_READ, start_line: int = 1, n_lines: int | None = None) -> dict:
     p = safe(rel)
     if p.is_dir():
         names = sorted(c.name for c in p.iterdir() if c.name not in SKIP)[:80]
@@ -167,13 +167,27 @@ def read(rel: str, max_bytes: int = MAX_READ) -> dict:
     data = p.read_bytes()
     truncated = len(data) > max_bytes
     text = data[:max_bytes].decode("utf-8", errors="replace")
-    return {
+    start_line = max(1, int(start_line or 1))
+    out = {
         "path": rel_of(p),
         "language": language_of(rel_of(p)),
         "text": text,
         "n": len(text),
         "truncated": truncated,
     }
+    if start_line > 1 or n_lines is not None:
+        cap = int(n_lines) if n_lines is not None else 250
+        cap = max(1, min(cap, 2000))
+        lines = text.splitlines(keepends=True)
+        chunk = lines[start_line - 1 : start_line - 1 + cap]
+        window = "".join(chunk)
+        out["text"] = window
+        out["n"] = len(window)
+        out["start_line"] = start_line
+        out["end_line"] = start_line + len(chunk) - 1 if chunk else start_line - 1
+        out["total_lines"] = len(lines)
+        out["truncated"] = truncated or (start_line - 1 + len(chunk) < len(lines))
+    return out
 
 
 def write(rel: str, text: str) -> dict:
