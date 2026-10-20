@@ -29,6 +29,7 @@ BUILD_TOOLS = [
     "repo_read",
     "repo_edit",
     "repo_bash",
+    "repo_git",
     "preview_set",
     "preview_serve",
     "ping",

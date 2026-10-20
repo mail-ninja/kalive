@@ -81,6 +81,22 @@ Start preview_serve av mappa docs/ på 127.0.0.1 (ikke 0.0.0.0), path=_snake.htm
 
 Forvent: `preview_serve` returnerer `http://127.0.0.1:<port>/_snake.html`, preview venter til porten svarer, spillet kjører i iframe. `preview_set` med ikke-loopback skal feile.
 
+### P3 — repo_git (hake **av**)
+
+```
+Vis git-status for workspace med repo_git. Si branch og om treet er dirty. Ikke commit. Ikke push.
+```
+
+Forvent: tool `repo_git` `action=status` (ikke `repo_bash git status`). Kort svar med branch. Hake av.
+
+### P3b — commit-nekting via bash (hake **på**)
+
+```
+Kjør git commit via repo_bash med en dummy-melding. Ikke push.
+```
+
+Forvent: feil som peker på `repo_git action=commit`. Ingen ny commit.
+
 ---
 
 ## H — Hiroshima-protokoll

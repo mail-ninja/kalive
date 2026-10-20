@@ -35,6 +35,8 @@ def _tool_engram(name: str, result: dict) -> str:
         return f"edit {result.get('path')} " + str(result.get("diff") or "")[:400]
     if name == "repo_bash":
         return f"exit {result.get('exit_code')} {str(result.get('stdout_tail') or '')[:240]}"
+    if name == "repo_git":
+        return str(result.get("summary") or result.get("error") or result.get("action") or "")[:400]
     return json.dumps({k: result[k] for k in result if k != "text"}, ensure_ascii=False)[:500]
 
 

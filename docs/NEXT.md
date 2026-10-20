@@ -2,7 +2,7 @@
 
 Retningen: det feteste *lokale* kodemiljøet vi klarer, med Hiroshima som sikkerhetsrom som allerede ser. Ikke en omvei rundt SOC-kjernen. Ikke et nytt rammeverk.
 
-H0–H5 er i treet og på verten. H6 Suricata er valgfri destinasjon. Tre kolonner og loopback-preview er inne. **Neste kode er cli-følelsen og `repo_git`.**
+H0–H5 er i treet og på verten. H6 Suricata er valgfri destinasjon. Tre kolonner, loopback-preview og `repo_git` er inne. **Neste kode er cli som planlegger og stopper rent.**
 
 ---
 
@@ -40,15 +40,16 @@ Tools som `build` har i dag (cwd = workspace-rot, aldri hele `$HOME` som default
 | `repo_glob` `repo_grep` `repo_read` | se |
 | `repo_edit` | patch på disk; vis diff |
 | `repo_bash` | én kommando, timeout, ingen `sudo` |
+| `repo_git` | `status` `diff` `log` `commit` (commit bak haken). Aldri push |
 | `preview_serve` | én tjener på `127.0.0.1` |
 | `preview_set` | pek iframe på loopback-URL eller HTML |
 | `ping` | health |
 
 Haken «agent får kjøre» = edit/bash. Les er fritt. Oneshot per oppgave. Ingen LangChain. Samme `run_turn` + WS.
 
-Ikke i treet ennå: `repo_write` som eget tool, `repo_git` (status/diff/commit bak bekreftelse). Commit i dag går via `repo_bash` når haken er på; `git push` er nektet i koden.
+Ikke i treet ennå: `repo_write` som eget tool. `git commit` via `repo_bash` er nektet — bruk `repo_git`. `git push` er nektet.
 
-Landet i Arbeid: tre kolonner, HTML-preview, `preview_serve` / `preview_set` mot `127.0.0.1`. Gjenstår: cli som planlegger og stopper rent, `repo_git`.
+Landet i Arbeid: tre kolonner, HTML-preview, loopback-preview, `repo_git`. Gjenstår: cli som planlegger og stopper rent.
 
 ---
 

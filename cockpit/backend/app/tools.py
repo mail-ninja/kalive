@@ -420,6 +420,7 @@ def repo_bash(args: dict) -> dict:
 
     cancel = args.pop("_cancel", None)
     on_chunk = args.pop("_on_chunk", None)
+    args.pop("_allow_mutate", None)
     argv = args.get("argv")
     if argv is not None and not isinstance(argv, list):
         argv = None
@@ -430,6 +431,45 @@ def repo_bash(args: dict) -> dict:
             timeout_s=float(args.get("timeout_s") or 120),
             cancel=cancel,
             on_chunk=on_chunk,
+        )
+    except Exception as e:
+        return {"error": str(e)[:240]}
+
+
+@register(
+    ToolSpec(
+        name="repo_git",
+        description="Git i workspace: action=status|diff|log|commit. commit krever haken og message; paths[] stages først. Ikke push. Status/diff/log uten hake.",
+        mutating=False,
+        parameters={
+            "type": "object",
+            "properties": {
+                "action": {"type": "string", "enum": ["status", "diff", "log", "commit"]},
+                "message": {"type": "string"},
+                "paths": {"type": "array", "items": {"type": "string"}},
+                "path": {"type": "string"},
+                "staged": {"type": "boolean"},
+                "n": {"type": "integer"},
+            },
+            "required": ["action"],
+        },
+    )
+)
+def repo_git(args: dict) -> dict:
+    from . import repo_git as g
+
+    allow = bool(args.pop("_allow_mutate", False))
+    args.pop("_cancel", None)
+    args.pop("_on_chunk", None)
+    try:
+        return g.run(
+            str(args.get("action") or "status"),
+            message=str(args.get("message") or ""),
+            paths=args.get("paths"),
+            path=str(args["path"]) if args.get("path") else None,
+            staged=bool(args.get("staged")),
+            n=int(args.get("n") or 12),
+            allow_mutate=allow,
         )
     except Exception as e:
         return {"error": str(e)[:240]}
@@ -500,6 +540,7 @@ def call_tool(
     if spec.mutating and not allow_mutate:
         return {"error": "mutating: huk av «agent får kjøre» i cockpit"}
     args = dict(payload) if isinstance(payload, dict) else {}
+    args["_allow_mutate"] = allow_mutate
     if cancel is not None:
         args["_cancel"] = cancel
     if on_chunk is not None:

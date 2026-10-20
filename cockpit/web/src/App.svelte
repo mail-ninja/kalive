@@ -172,6 +172,8 @@
       let text = ''
       if (r && 'exit_code' in r) {
         text = `exit ${r.exit_code}${r.timeout ? ' timeout' : ''}${r.cancelled ? ' stoppet' : ''}\n${String(r.stdout_tail || r.stderr_tail || '').slice(-1200)}`
+      } else if (typeof r?.summary === 'string' && r.summary) {
+        text = r.summary
       } else {
         const bit = r && (r.error || r.path || r.n || r.agent)
         text = String(bit ?? JSON.stringify(r ?? {}).slice(0, 280))

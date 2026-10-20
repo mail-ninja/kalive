@@ -30,7 +30,8 @@ def _system_prompt(agent: Agent) -> str:
             "Workspace er filer på disk. build bruker repo_glob/grep/read/edit. "
             "repo_edit: old_string med omliggende linjer. Aldri duplikat-overskrift på EOF. "
             "act=use_memory eller minne-blokken svarer: ingen tools. "
-            "repo_bash er lov bak haken. Preview = HTML på disk ELLER loopback via preview_serve/preview_set (127.0.0.1, aldri 0.0.0.0). "
+            "repo_bash er lov bak haken. Git: repo_git status|diff|log|commit (commit bak haken, aldri push). "
+            "Preview = HTML på disk ELLER loopback via preview_serve/preview_set (127.0.0.1, aldri 0.0.0.0). "
             "Maks 16 tool-runder. Oneshot. Passord bare i xterm."
         )
     else:
@@ -264,7 +265,9 @@ async def run_turn(
                         call_tool, name, args, allow_mutate=allow_mutate, allow=names, cancel=cancel
                     )
                 yield {"type": "tool_result", "name": name, "result": result, "round": rnd + 1}
-                if name in ("repo_edit", "repo_bash", "iframe_write", "preview_serve"):
+                if name in ("repo_edit", "repo_bash", "iframe_write", "preview_serve") or (
+                    name == "repo_git" and str(args.get("action") or "") == "commit"
+                ):
                     did_mutate = True
                 messages.append(
                     {
@@ -309,7 +312,7 @@ async def run_turn(
                 and not did_mutate
                 and names
             ):
-                names = [n for n in names if n in ("repo_read", "repo_edit", "repo_bash", "preview_serve", "preview_set")]
+                names = [n for n in names if n in ("repo_read", "repo_edit", "repo_bash", "repo_git", "preview_serve", "preview_set")]
                 tools = openai_tools(names) if (use_tools and act != "use_memory" and names) else []
                 messages.append(
                     {

@@ -28,7 +28,7 @@ Lista er bevisst høy.
 
 Det er destinasjonen. v1 er ærlig om taket og om avstanden dit.
 
-**Arbeid i dag:** tre kolonner i ett vindu — cli, tre+Monaco, preview. Loopen virker. HTML på disk (`docs/_probe.html`, `docs/_snake.html`) og loopback-app (`preview_serve` på `127.0.0.1`) vises i iframe. Neste sjikt er cli som planlegger og stopper rent.
+**Arbeid i dag:** tre kolonner i ett vindu — cli, tre+Monaco, preview. Loopen virker. HTML på disk (`docs/_probe.html`, `docs/_snake.html`) og loopback-app (`preview_serve` på `127.0.0.1`) vises i iframe. Git via `repo_git` (status/diff/log/commit, aldri push). Neste sjikt er cli som planlegger og stopper rent.
 
 **Hiroshima i dag:** burst-scan, Falco 8 s, scoped AIDE-freeze, opt-in 5-min egress-watch. Den *ser*. Den rydder ikke alene.
 
@@ -51,7 +51,7 @@ Leserekkefølge: denne fila → [docs/NOW.md](docs/NOW.md) → [docs/HIROSHIMA.m
 
 | Flate | I treet |
 |-------|---------|
-| Arbeid | cli (`build`) · tre+Monaco · preview samtidig, `repo_*` + `repo_bash`, PTY bak knapp, MiniLM + Jev-gate |
+| Arbeid | cli (`build`) · tre+Monaco · preview samtidig, `repo_*` + `repo_bash` + `repo_git`, PTY bak knapp, MiniLM + Jev-gate |
 | Hiroshima H0–H5 | Scan, digest-port, ring + Kuzu-graf, miljøklasse, Confirm-playbooks, 5-min egress-watch, Falco host-burst |
 | Settings | Maskin (`config.toml`) og nøkler (`env` 0600) |
 | H6 Suricata | Valgfri, ikke påbegynt |

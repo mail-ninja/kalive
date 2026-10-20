@@ -320,6 +320,8 @@ def bash(
     blob = " ".join(cmd)
     if _DENY.search(blob):
         return {"error": "nekta: sudo/git push/destruktiv root — PTY til passord, du eier remote", "argv": cmd}
+    if re.search(r"(^|[\s;|&])git\s+commit(\s|$)", blob, re.I):
+        return {"error": "bruk repo_git action=commit (hake på). Ikke git commit via repo_bash", "argv": cmd}
     timeout_s = max(1.0, min(float(timeout_s or 120), 600.0))
     cwd = str(root())
     env = {**os.environ, "NO_COLOR": "1", "PYTHONUNBUFFERED": "1"}
