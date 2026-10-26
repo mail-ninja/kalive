@@ -7,6 +7,7 @@ import os
 import re
 import sys
 from collections import defaultdict
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -47,13 +48,147 @@ SEV = {
     "snap_proton": ("WARN", "FIM-AIDE", "AIDE snap_proton"),
     "snap_other": ("WARN", "FIM-AIDE", "AIDE snap_other"),
     "identity": ("ALERT", "FIM-AIDE", "AIDE identity"),
+    "pkg": ("WARN", "FIM-AIDE-PKG", "AIDE pkg"),
     "other": ("WARN", "FIM-AIDE", "AIDE other"),
 }
+
+DPKG_EVENT = re.compile(
+    r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) (?:upgrade|install|configure) ([^:\s]+)"
+)
+AIDE_HEAD = re.compile(r"^(?:File|Link|Directory):\s+(\S.*)$")
+AIDE_MTIME = re.compile(
+    r"^ Mtime\s+:\s+.*\|\s+(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?: [+-]\d{4})?)\s*$"
+)
+MTIME_LINE = re.compile(
+    r"^(\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(?: [+-]\d{4})?|\d{9,12})\s+(\S.*)$"
+)
+PKG_SLACK_S = 24 * 3600
 
 
 def decode_path(raw: str) -> str:
     s = str(raw or "").strip()
     return _ESC.sub(lambda m: chr(int(m.group(1), 16)), s)
+
+
+def _parse_ts(raw: str) -> float | None:
+    s = str(raw or "").strip()
+    if not s:
+        return None
+    if re.fullmatch(r"\d{9,12}", s):
+        return float(s)
+    s = s.replace("T", " ", 1)
+    for fmt in ("%Y-%m-%d %H:%M:%S %z", "%Y-%m-%d %H:%M:%S"):
+        try:
+            return datetime.strptime(s, fmt).timestamp()
+        except ValueError:
+            continue
+    return None
+
+
+def parse_aide_mtimes(text: str) -> dict[str, float]:
+    out: dict[str, float] = {}
+    current = ""
+    for raw in text.splitlines():
+        hm = AIDE_HEAD.match(raw.rstrip())
+        if hm:
+            current = decode_path(hm.group(1))
+            continue
+        mm = AIDE_MTIME.match(raw.rstrip())
+        if mm and current:
+            ts = _parse_ts(mm.group(1))
+            if ts is not None:
+                out[current] = ts
+    return out
+
+
+def parse_file_mtime_txt(text: str) -> dict[str, float]:
+    out: dict[str, float] = {}
+    for raw in text.splitlines():
+        m = MTIME_LINE.match(raw.strip())
+        if not m:
+            continue
+        ts = _parse_ts(m.group(1))
+        if ts is None:
+            continue
+        out[decode_path(m.group(2))] = ts
+    return out
+
+
+def parse_dpkg_log(text: str) -> list[tuple[float, str]]:
+    rows: list[tuple[float, str]] = []
+    for raw in text.splitlines():
+        m = DPKG_EVENT.match(raw.strip())
+        if not m:
+            continue
+        ts = _parse_ts(m.group(1))
+        if ts is None:
+            continue
+        rows.append((ts, m.group(2)))
+    return rows
+
+
+def parse_dpkg_owned(text: str) -> dict[str, str]:
+    """dpkg -S lines: 'openssh-server: /etc/ssh/sshd_config'."""
+    out: dict[str, str] = {}
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or "no path found" in line.lower():
+            continue
+        if ": " not in line:
+            continue
+        pkg, path = line.split(": ", 1)
+        pkg = pkg.split(",", 1)[0].strip().split(":", 1)[0]
+        path = decode_path(path)
+        if pkg and path.startswith("/"):
+            out[path] = pkg
+    return out
+
+
+def load_dpkg_context(out_dir: Path | None) -> tuple[dict[str, str], list[tuple[float, str]], dict[str, float]]:
+    if out_dir is None or not out_dir.is_dir():
+        return {}, [], {}
+    owned: dict[str, str] = {}
+    events: list[tuple[float, str]] = []
+    mtimes: dict[str, float] = {}
+    op = out_dir / "dpkg_owned.txt"
+    if op.is_file():
+        owned = parse_dpkg_owned(op.read_text(encoding="utf-8", errors="replace"))
+    for name in ("dpkg.log", "dpkg.log.1", "dpkg_log.txt"):
+        lp = out_dir / name
+        if lp.is_file():
+            events.extend(parse_dpkg_log(lp.read_text(encoding="utf-8", errors="replace")))
+    mp = out_dir / "file_mtime.txt"
+    if mp.is_file():
+        mtimes = parse_file_mtime_txt(mp.read_text(encoding="utf-8", errors="replace"))
+    return owned, events, mtimes
+
+
+def pkg_for_path(path: str, owned: dict[str, str]) -> str | None:
+    p = decode_path(path)
+    if p in owned:
+        return owned[p]
+    best: str | None = None
+    best_n = -1
+    for op, pkg in owned.items():
+        if classify_path(op) != "identity":
+            continue
+        if p == op or p.startswith(op.rstrip("/") + "/"):
+            if len(op) > best_n:
+                best, best_n = pkg, len(op)
+    return best
+
+
+def in_dpkg_window(mtime: float | None, pkg: str | None, events: list[tuple[float, str]]) -> bool:
+    if mtime is None or not pkg or not events:
+        return False
+    for ts, name in events:
+        if name == pkg and abs(mtime - ts) <= PKG_SLACK_S:
+            return True
+    return False
+
+
+def identity_paths(text: str) -> list[str]:
+    return [p for _, p in parse_paths(text) if classify_path(p) == "identity"]
 
 
 def classify_path(path: str) -> str:
@@ -167,7 +302,11 @@ def is_frozen(path: str, scope: dict[str, Any]) -> bool:
     return got == want
 
 
-def findings_from_report(text: str, scope: dict[str, Any] | None = None) -> list[dict[str, str]]:
+def findings_from_report(
+    text: str,
+    scope: dict[str, Any] | None = None,
+    out_dir: Path | None = None,
+) -> list[dict[str, str]]:
     if re.search(r"There are no differences|AIDE found NO|Nothing to do", text, re.I):
         if re.search(r"failed to open|No such file", text, re.I):
             return [
@@ -181,16 +320,23 @@ def findings_from_report(text: str, scope: dict[str, Any] | None = None) -> list
             ]
         return []
     scope = scope or {}
+    owned, events, extra_mtime = load_dpkg_context(out_dir)
+    aide_mtime = parse_aide_mtimes(text)
     buckets: dict[str, list[str]] = defaultdict(list)
     skipped: list[str] = []
     for _kind, path in parse_paths(text):
         cls = classify_path(path)
+        if cls == "identity":
+            pkg = pkg_for_path(path, owned)
+            mtime = extra_mtime.get(path, aide_mtime.get(path))
+            if pkg and in_dpkg_window(mtime, pkg, events):
+                cls = "pkg"
         if cls in {"self_sudoers", "self_helper"} and is_frozen(path, scope):
             skipped.append(path)
             continue
         buckets[cls].append(path)
     recs: list[dict[str, str]] = []
-    order = ("identity", "self_sudoers", "snap_proton", "snap_other", "other", "self_helper")
+    order = ("identity", "pkg", "self_sudoers", "snap_proton", "snap_other", "other", "self_helper")
     for cls in order:
         paths = buckets.get(cls) or []
         if not paths:
@@ -258,9 +404,11 @@ def main(argv: list[str]) -> int:
         print(dest)
         return 0
     if cmd == "findings":
-        report = Path(argv[2]).read_text(encoding="utf-8", errors="replace")
+        report_p = Path(argv[2])
+        report = report_p.read_text(encoding="utf-8", errors="replace")
         scope = load_scope(Path(argv[3]) if len(argv) > 3 else scope_path())
-        recs = findings_from_report(report, scope)
+        out_dir = Path(argv[4]) if len(argv) > 4 else report_p.parent
+        recs = findings_from_report(report, scope, out_dir)
         print(json.dumps(recs, ensure_ascii=False, indent=2))
         return 0
     print("unknown", cmd, file=sys.stderr)

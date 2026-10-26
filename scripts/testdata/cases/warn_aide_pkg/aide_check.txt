@@ -1,0 +1,61 @@
+Start timestamp: 2026-10-26 12:39:27 +0100 (AIDE 0.19.4)
+AIDE found differences between database and filesystem!!
+
+Summary:
+  Total number of entries:	40
+  Added entries:		4
+  Removed entries:		0
+  Changed entries:		6
+
+---------------------------------------------------
+Added entries:
+---------------------------------------------------
+
+f++++++++++++++++++: /etc/ssh/ssh_host_mldsa44_ed25519_key
+f++++++++++++++++++: /etc/ssh/ssh_host_mldsa44_ed25519_key.pub
+f++++++++++++++++++: /etc/systemd/system/snap-proton\x2dvpn-15.mount
+f++++++++++++++++++: /etc/systemd/system/snap-snapd-28254.mount
+
+---------------------------------------------------
+Changed entries:
+---------------------------------------------------
+
+d =.... m ..       : /etc/ssh
+f <.... m i.H      : /etc/ssh/ssh_config
+f <.... m ..H      : /etc/ssh/sshd_config
+f >b... m i.H      : /usr/bin/passwd
+f >b... m i.H      : /usr/bin/su
+f >b... m i.H      : /usr/bin/sudo
+
+---------------------------------------------------
+Detailed information about changes:
+---------------------------------------------------
+
+Directory: /etc/ssh
+ Mtime     : 2026-09-03 18:33:12 +0200        | 2026-10-26 10:38:19 +0100
+
+File: /etc/ssh/ssh_config
+ Size      : 1637                             | 1561
+ Mtime     : 2025-10-17 11:14:14 +0200        | 2026-10-26 10:38:17 +0100
+
+File: /etc/ssh/sshd_config
+ Size      : 3349                             | 3349
+ Mtime     : 2025-10-17 11:14:14 +0200        | 2026-10-26 10:38:19 +0100
+
+File: /etc/ssh/ssh_host_mldsa44_ed25519_key
+ Mtime     : 2026-01-01 00:00:00 +0100        | 2026-10-26 10:38:22 +0100
+
+File: /etc/ssh/ssh_host_mldsa44_ed25519_key.pub
+ Mtime     : 2026-01-01 00:00:00 +0100        | 2026-10-26 10:38:22 +0100
+
+File: /usr/bin/passwd
+ Size      : 100                              | 110
+ Mtime     : 2026-04-02 19:44:38 +0200        | 2026-10-26 10:38:10 +0100
+
+File: /usr/bin/su
+ Size      : 100                              | 110
+ Mtime     : 2026-07-12 04:54:46 +0200        | 2026-10-26 10:38:11 +0100
+
+File: /usr/bin/sudo
+ Size      : 200                              | 210
+ Mtime     : 2026-06-08 09:32:46 +0200        | 2026-10-26 10:38:12 +0100

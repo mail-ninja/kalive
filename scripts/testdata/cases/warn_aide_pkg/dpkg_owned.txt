@@ -1,0 +1,6 @@
+openssh-server: /etc/ssh
+openssh-client: /etc/ssh/ssh_config
+openssh-server: /etc/ssh/sshd_config
+passwd: /usr/bin/passwd
+login: /usr/bin/su
+sudo: /usr/bin/sudo

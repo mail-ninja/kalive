@@ -2,8 +2,7 @@
 # Path-scoped AIDE freeze by default (overlay JSON). Does NOT run aide --init.
 # Default --paths: sudoers.d/kalived + helper/ctl + kalived-watch units.
 # Proton-snap, udev 70-snap.proton-vpn.rules og snapd-mount forblir åpne WARN.
-# --all: full DB-rebuild. Proton forsvinner da fra FIM til neste reelle endring.
-# Confirm / kalived-ctl kaller ALDRI --all (bare --force).
+# --all er forbudt (skjuler Proton). Confirm / kalived-ctl kaller scoped --force.
 # --force: hopp over always_prompt / clean_only. NEKTES ved siste verdict ALERT|ERROR.
 # --force-alert: re-baseline selv om siste scan er ALERT (kun etter evidens er lagret).
 # Rollback scoped: rm -f ~/.config/kalived/aide-scope.json /var/lib/aide/kalived-scope.json
@@ -27,7 +26,10 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --force) FORCE=1; shift ;;
     --force-alert) FORCE=1; FORCE_ALERT=1; shift ;;
-    --all) ALL=1; shift ;;
+    --all)
+      echo "GATE FAIL: --all forbudt (skjuler Proton). Confirm kaller scoped --force." >&2
+      exit 2
+      ;;
     --paths)
       IFS=',' read -ra PATHS <<< "${2:-}"
       shift 2
@@ -37,7 +39,7 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     *)
-      echo "ukjent flagg: $1 (gyldig: --force | --force-alert | --all | --paths p1,p2)" >&2
+      echo "ukjent flagg: $1 (gyldig: --force | --force-alert | --paths p1,p2)" >&2
       exit 2
       ;;
   esac

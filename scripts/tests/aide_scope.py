@@ -22,6 +22,8 @@ from aide_classify import (  # noqa: E402
 
 WARN_FIX = ROOT / "scripts" / "testdata" / "cases" / "warn_aide_classes" / "aide_check.txt"
 ALERT_FIX = ROOT / "scripts" / "testdata" / "cases" / "alert_aide_identity" / "aide_check.txt"
+PKG_DIR = ROOT / "scripts" / "testdata" / "cases" / "warn_aide_pkg"
+NODPKG_DIR = ROOT / "scripts" / "testdata" / "cases" / "alert_aide_identity_nodpkg"
 SCAN = ROOT / "scripts" / "kalived-scan.sh"
 INIT = ROOT / "playbooks" / "aide-init.sh"
 CTL = ROOT / "scripts" / "kalived-ctl"
@@ -37,6 +39,7 @@ def _sevs(recs: list[dict]) -> dict[str, str]:
         t = r.get("title", "")
         for cls in (
             "identity",
+            "pkg",
             "self_sudoers",
             "snap_proton",
             "snap_other",
@@ -100,6 +103,39 @@ def test_freeze_keeps_proton() -> None:
     assert sevs.get("snap_other") == "WARN", recs
     assert "proton" in blob.lower()
     print("OK freeze: sudoers gone, Proton still WARN")
+
+
+def test_pkg_window_is_warn() -> None:
+    recs = findings_from_report(
+        (PKG_DIR / "aide_check.txt").read_text(encoding="utf-8"),
+        {},
+        PKG_DIR,
+    )
+    sevs = _sevs(recs)
+    ids = {r.get("id") for r in recs}
+    blob = _titles(recs) + "\n" + "\n".join(r.get("detail", "") for r in recs)
+    assert sevs.get("pkg") == "WARN", recs
+    assert "FIM-AIDE-PKG" in ids, recs
+    assert "identity" not in sevs, recs
+    assert sevs.get("snap_proton") == "WARN", recs
+    assert "/usr/bin/sudo" in blob
+    assert "/etc/ssh/ssh_host_mldsa44_ed25519_key" in blob
+    assert "proton" in blob.lower()
+    print("OK pkg window → FIM-AIDE-PKG WARN, Proton WARN")
+
+
+def test_same_paths_without_dpkg_alert() -> None:
+    recs = findings_from_report(
+        (NODPKG_DIR / "aide_check.txt").read_text(encoding="utf-8"),
+        {},
+        NODPKG_DIR,
+    )
+    sevs = _sevs(recs)
+    ids = {r.get("id") for r in recs}
+    assert sevs.get("identity") == "ALERT", recs
+    assert "FIM-AIDE-PKG" not in ids, recs
+    assert sevs.get("snap_proton") == "WARN", recs
+    print("OK same paths uten dpkg → identity ALERT, Proton WARN")
 
 
 def test_identity_alert_keeps_snap() -> None:
@@ -166,6 +202,28 @@ def test_scan_identity() -> None:
     print("OK scan identity ALERT + Proton WARN")
 
 
+def test_scan_pkg_warn() -> None:
+    rc, doc = _scan("warn_aide_pkg")
+    assert rc == 1 and doc["verdict"] == "WARN", (rc, doc.get("verdict"), doc.get("findings"))
+    ids = [f.get("id") for f in doc.get("findings") or []]
+    titles = " ".join(f.get("title", "") for f in doc.get("findings") or [])
+    assert "FIM-AIDE-PKG" in ids, ids
+    assert "AIDE identity" not in titles
+    assert "snap_proton" in titles
+    print("OK scan pkg WARN exit 1, Proton WARN")
+
+
+def test_scan_nodpkg_alert() -> None:
+    rc, doc = _scan("alert_aide_identity_nodpkg")
+    assert rc == 2 and doc["verdict"] == "ALERT", (rc, doc.get("verdict"))
+    ids = [f.get("id") for f in doc.get("findings") or []]
+    titles = " ".join(f.get("title", "") for f in doc.get("findings") or [])
+    assert "FIM-AIDE-PKG" not in ids, ids
+    assert "identity" in titles
+    assert "snap_proton" in titles
+    print("OK scan uten dpkg ALERT exit 2, Proton WARN")
+
+
 def _fake_data(verdict: str) -> Path:
     td = Path(tempfile.mkdtemp())
     stamp = td / "logs" / "status" / "2026-01-01_000000"
@@ -219,7 +277,7 @@ def test_aide_init_force_warn_scoped() -> None:
     print("OK aide-init --force WARN writes scoped overlay")
 
 
-def test_aide_init_all_warns_proton() -> None:
+def test_aide_init_all_forbidden() -> None:
     data = _fake_data("WARN")
     env = os.environ.copy()
     env["KALIVED_AIDE_INIT_DRY"] = "1"
@@ -231,10 +289,29 @@ def test_aide_init_all_warns_proton() -> None:
         env=env,
         check=False,
     )
-    assert p.returncode == 0, (p.returncode, p.stderr)
+    assert p.returncode == 2, (p.returncode, p.stderr)
     blob = p.stderr + p.stdout
-    assert "--all" in blob and "Proton" in blob
-    print("OK --all prints Proton FIM warning")
+    assert "forbudt" in blob
+    print("OK --all forbudt exit 2")
+
+
+def test_gate_open_on_pkg_warn() -> None:
+    data = _fake_data("WARN")
+    dest = data / "aide-scope.json"
+    env = os.environ.copy()
+    env["KALIVED_AIDE_INIT_DRY"] = "1"
+    env["KALIVED_DATA"] = str(data)
+    env["KALIVED_AIDE_SCOPE"] = str(dest)
+    p = subprocess.run(
+        ["bash", str(INIT), "--force"],
+        capture_output=True,
+        text=True,
+        env=env,
+        check=False,
+    )
+    assert p.returncode == 0, (p.returncode, p.stdout, p.stderr)
+    assert dest.is_file()
+    print("OK gate åpen på PKG-WARN/WARN")
 
 
 def test_ctl_never_all() -> None:
@@ -251,13 +328,18 @@ def main() -> int:
     test_parse_live_format()
     test_warn_classes()
     test_freeze_keeps_proton()
+    test_pkg_window_is_warn()
+    test_same_paths_without_dpkg_alert()
     test_identity_alert_keeps_snap()
     test_scan_fixture_warn()
     test_scan_fixture_freeze()
     test_scan_identity()
+    test_scan_pkg_warn()
+    test_scan_nodpkg_alert()
     test_aide_init_force_alert_denied()
     test_aide_init_force_warn_scoped()
-    test_aide_init_all_warns_proton()
+    test_gate_open_on_pkg_warn()
+    test_aide_init_all_forbidden()
     test_ctl_never_all()
     print("ALL OK aide_scope")
     return 0
