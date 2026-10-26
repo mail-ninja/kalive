@@ -1,0 +1,4 @@
+Netid State  Recv-Q Send-Q Local Address:Port  Peer Address:PortProcess
+tcp   LISTEN 0      4096   127.0.0.1:7878      0.0.0.0:*    users:(("svl",pid=100,fd=3))
+tcp   LISTEN 0      511    127.0.0.1:5173      0.0.0.0:*    users:(("node",pid=3754,fd=20))
+tcp   LISTEN 0      2048   127.0.0.1:8788      0.0.0.0:*    users:(("uvicorn",pid=3702,fd=13))

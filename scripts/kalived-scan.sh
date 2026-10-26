@@ -49,6 +49,8 @@ source "$ROOT/scripts/lib/check-pcap.sh"
 source "$ROOT/scripts/lib/check-ufw-digest.sh"
 # shellcheck source=lib/check-falco.sh
 source "$ROOT/scripts/lib/check-falco.sh"
+# shellcheck source=lib/check-runtime.sh
+source "$ROOT/scripts/lib/check-runtime.sh"
 
 usage() {
   cat << 'EOF'
@@ -322,6 +324,7 @@ run_mod helperstale check_helper_stale
 run_mod procs check_procs
 run_mod pcap check_pcap
 run_mod falco check_falco
+run_mod runtime check_runtime
 
 # PR 2 dummy: SUDO-MISS-INPUT only on live sudo=0 (should not happen — we ERROR earlier).
 if kalived_is_live && [[ "${KALIVED_SUDO_FLAG}" == "0" ]]; then

@@ -1,0 +1,4 @@
+Netid State  Recv-Q Send-Q Local Address:Port  Peer Address:PortProcess
+tcp   LISTEN 0      4096   127.0.0.1:7878      0.0.0.0:*    users:(("svl",pid=100,fd=3))
+tcp   LISTEN 0      4096   127.0.0.1:9000      0.0.0.0:*    users:(("php-fpm",pid=200,fd=8))
+tcp   LISTEN 0      128    127.0.0.1:80        0.0.0.0:*    users:(("apache2",pid=201,fd=4))

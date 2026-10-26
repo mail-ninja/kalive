@@ -11,7 +11,10 @@
   condition: proc.name in (bash, sh, dash, zsh, fish)
 
 - macro: kalived_interp
-  condition: proc.name in (python, python3, python3.11, python3.12, python3.13, python3.14, sh, bash, dash)
+  condition: >
+    proc.name in (python, python3, python3.11, python3.12, python3.13, python3.14, sh, bash, dash,
+                  node, nodejs, php, php-fpm, bun, deno)
+    or proc.name startswith php-fpm
 
 - macro: kalived_browser_parent
   condition: >
@@ -22,6 +25,9 @@
 
 - macro: kalived_loopback_rip
   condition: (fd.rip in (127.0.0.1, "::1", 0.0.0.0))
+
+- macro: kalived_cockpit_connect
+  condition: (kalived_loopback_rip and fd.rport in (5173, 8788))
 
 - macro: kalived_private_rip
   condition: >
@@ -53,11 +59,12 @@
   tags: [host, kalived, preload]
 
 - rule: kalived_interp_connect
-  desc: python/sh/bash connect to a non-private dest (unknown)
+  desc: interpreter connect to a non-private dest (unknown). Cockpit loopback :5173/:8788 excepted.
   condition: >
     evt.type = connect
     and kalived_interp
     and not kalived_private_rip
+    and not kalived_cockpit_connect
   output: interp connect exe=%proc.exepath evt=%evt.type
   priority: WARNING
   tags: [host, kalived, connect]

@@ -1,0 +1,7 @@
+{
+  "node": "v24.21.0",
+  "openssl": "OpenSSL 3.5.0 8 Apr 2025",
+  "ca_certificates": "20260601",
+  "chromium": "Chromium 150.0.7871.181",
+  "brotli": "1.2.0-4+b2"
+}

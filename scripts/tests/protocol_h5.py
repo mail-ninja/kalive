@@ -374,6 +374,10 @@ def test_tree() -> None:
         "kalived_lkm_load",
     ):
         assert name in host, name
+    for name in ("node", "nodejs", "php", "php-fpm", "bun", "deno"):
+        assert name in host, name
+    assert "kalived_cockpit_connect" in host
+    assert "fd.rport in (5173, 8788)" in host
     print("OK tree rules/ctl/playbook")
 
 

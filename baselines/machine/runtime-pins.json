@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "note": "Lokal pin-tabell. Ingen sky-oppslag. Ingen auto-apt. HOST-RUNTIME er WARN.",
+  "node": {
+    "series": [
+      {"major": 22, "min": "22.23.4"},
+      {"major": 24, "min": "24.22.1"}
+    ]
+  },
+  "brotli": {
+    "min": "1.2.1"
+  }
+}

@@ -144,6 +144,14 @@ else
   fail=1
 fi
 
+echo "[test] runtime_sil.py"
+if python3 "$ROOT/scripts/tests/runtime_sil.py"; then
+  echo "  OK runtime_sil"
+else
+  echo "  FAIL runtime_sil"
+  fail=1
+fi
+
 echo "[test] testdata urørt"
 after="$(checksum_testdata)"
 if [[ "$before" != "$after" ]]; then

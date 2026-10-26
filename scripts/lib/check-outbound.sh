@@ -49,7 +49,9 @@ def split_addr(a):
     return host, port
 
 loop = {"127.0.0.1", "::1"}
+cockpit_ports = {"5173", "8788"}
 shellish = re.compile(r"^(bash|sh|dash|zsh|ncat|nc|socat|perl|php|ruby)$")
+interpish = re.compile(r"^(node|nodejs|bun|deno|php-fpm(\d.*)?)$")
 rows = []
 with open(estab, encoding="utf-8", errors="replace") as fh:
     for raw in fh:
@@ -63,8 +65,11 @@ with open(estab, encoding="utf-8", errors="replace") as fh:
         if not m:
             continue
         local, peer, comm, pid = m.group(1), m.group(2), m.group(3) or "", m.group(4) or ""
-        phost, _pport = split_addr(peer)
-        lhost, _ = split_addr(local)
+        phost, pport = split_addr(peer)
+        lhost, lport = split_addr(local)
+        if pport in cockpit_ports or lport in cockpit_ports:
+            if phost in loop or lhost in loop:
+                continue
         if phost in loop or lhost in loop:
             continue
         if phost in ("0.0.0.0", "*", ""):
@@ -83,6 +88,9 @@ with open(estab, encoding="utf-8", errors="replace") as fh:
             continue
         if shellish.match(comm):
             rows.append(("ALERT", "NET-ESTAB", f"Shell/netcat-lignende ESTAB: {comm} pid {pid} → {peer}", line[:300]))
+            continue
+        if interpish.match(comm):
+            rows.append(("WARN", "NET-ESTAB", f"Interpreter ESTAB: {comm} pid {pid} → {peer}", line[:300]))
             continue
         if comm in ("python", "python3") and "http.server" not in cl:
             rows.append(("ALERT", "NET-ESTAB", f"python ESTAB mot {peer} (pid {pid}) — ikke VPN-allow", cmd or line[:300]))

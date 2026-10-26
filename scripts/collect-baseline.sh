@@ -139,4 +139,33 @@ if [[ "${KALIVED_SUDO:-0}" == "1" ]]; then
   fi
 fi
 
+# HOST-RUNTIME snapshot — local versions only, no apt, no CVE API.
+if command -v python3 >/dev/null 2>&1; then
+  python3 - "$OUT/runtime_versions.json" << 'PY' || true
+import json, shutil, subprocess, sys
+from pathlib import Path
+
+def run(cmd: list[str]) -> str:
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+        return ((r.stdout or "") + (r.stderr or "")).strip()
+    except (OSError, subprocess.SubprocessError):
+        return ""
+
+def dpkg(pkg: str) -> str:
+    return run(["dpkg-query", "-W", "-f=${Version}", pkg])
+
+node_bin = shutil.which("node") or shutil.which("nodejs")
+chrom = shutil.which("chromium") or shutil.which("chromium-browser")
+rec = {
+    "node": run([node_bin, "-v"]) if node_bin else "",
+    "openssl": run(["openssl", "version"]),
+    "ca_certificates": dpkg("ca-certificates"),
+    "chromium": run([chrom, "--version"]) if chrom else "",
+    "brotli": dpkg("libbrotli1"),
+}
+Path(sys.argv[1]).write_text(json.dumps(rec, indent=2) + "\n", encoding="utf-8")
+PY
+fi
+
 echo "[+] Done: $OUT" >&2
