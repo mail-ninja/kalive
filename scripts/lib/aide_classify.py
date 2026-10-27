@@ -59,10 +59,14 @@ AIDE_HEAD = re.compile(r"^(?:File|Link|Directory):\s+(\S.*)$")
 AIDE_MTIME = re.compile(
     r"^ Mtime\s+:\s+.*\|\s+(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?: [+-]\d{4})?)\s*$"
 )
+AIDE_START = re.compile(
+    r"^Start timestamp:\s+(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?: [+-]\d{4})?)"
+)
 MTIME_LINE = re.compile(
     r"^(\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(?: [+-]\d{4})?|\d{9,12})\s+(\S.*)$"
 )
 PKG_SLACK_S = 24 * 3600
+BIN_PREFIXES = ("/usr/bin/", "/usr/sbin/", "/bin/", "/sbin/")
 
 
 def decode_path(raw: str) -> str:
@@ -99,6 +103,31 @@ def parse_aide_mtimes(text: str) -> dict[str, float]:
             if ts is not None:
                 out[current] = ts
     return out
+
+
+def parse_aide_start(text: str) -> float | None:
+    for raw in text.splitlines()[:30]:
+        m = AIDE_START.match(raw.rstrip())
+        if m:
+            return _parse_ts(m.group(1))
+    return None
+
+
+def live_mtime(path: str) -> float | None:
+    try:
+        return Path(decode_path(path)).lstat().st_mtime
+    except OSError:
+        return None
+
+
+def resolve_mtime(path: str, aide_mtime: dict[str, float], extra_mtime: dict[str, float]) -> float | None:
+    """AIDE changed-block first; file_mtime.txt / live stat fill Added (no Mtime)."""
+    p = decode_path(path)
+    if p in aide_mtime:
+        return aide_mtime[p]
+    if p in extra_mtime:
+        return extra_mtime[p]
+    return live_mtime(p)
 
 
 def parse_file_mtime_txt(text: str) -> dict[str, float]:
@@ -185,6 +214,36 @@ def in_dpkg_window(mtime: float | None, pkg: str | None, events: list[tuple[floa
         if name == pkg and abs(mtime - ts) <= PKG_SLACK_S:
             return True
     return False
+
+
+def is_identity_binary(path: str) -> bool:
+    """dpkg-owned ELF/bin under PATH; conffiles under /etc stay on mtime-vindu."""
+    return decode_path(path).startswith(BIN_PREFIXES)
+
+
+def pkg_event_in_scan_window(
+    pkg: str | None,
+    events: list[tuple[float, str]],
+    scan_ts: float | None,
+) -> bool:
+    if not pkg or scan_ts is None or not events:
+        return False
+    return any(name == pkg and abs(scan_ts - ts) <= PKG_SLACK_S for ts, name in events)
+
+
+def identity_is_pkg(
+    path: str,
+    pkg: str | None,
+    events: list[tuple[float, str]],
+    mtime: float | None,
+    scan_ts: float | None,
+) -> bool:
+    if not pkg:
+        return False
+    # Binær-mtime er pakkens byggetid. configure/upgrade i scan-vinduet er nok.
+    if is_identity_binary(path) and pkg_event_in_scan_window(pkg, events, scan_ts):
+        return True
+    return in_dpkg_window(mtime, pkg, events)
 
 
 def identity_paths(text: str) -> list[str]:
@@ -322,14 +381,15 @@ def findings_from_report(
     scope = scope or {}
     owned, events, extra_mtime = load_dpkg_context(out_dir)
     aide_mtime = parse_aide_mtimes(text)
+    scan_ts = parse_aide_start(text)
     buckets: dict[str, list[str]] = defaultdict(list)
     skipped: list[str] = []
     for _kind, path in parse_paths(text):
         cls = classify_path(path)
         if cls == "identity":
             pkg = pkg_for_path(path, owned)
-            mtime = extra_mtime.get(path, aide_mtime.get(path))
-            if pkg and in_dpkg_window(mtime, pkg, events):
+            mtime = resolve_mtime(path, aide_mtime, extra_mtime)
+            if identity_is_pkg(path, pkg, events, mtime, scan_ts):
                 cls = "pkg"
         if cls in {"self_sudoers", "self_helper"} and is_frozen(path, scope):
             skipped.append(path)

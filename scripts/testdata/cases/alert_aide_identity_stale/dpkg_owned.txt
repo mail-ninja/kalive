@@ -1,0 +1,6 @@
+openssh-server: /etc/ssh
+openssh-client: /etc/ssh/ssh_config
+systemd: /etc/ssh/ssh_config.d/20-systemd-ssh-proxy.conf
+passwd: /usr/bin/passwd
+util-linux: /usr/bin/su
+sudo: /usr/bin/sudo

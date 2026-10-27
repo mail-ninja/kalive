@@ -1,0 +1,23 @@
+Start timestamp: 2026-10-26 16:28:02 +0100 (AIDE 0.19.4)
+AIDE found differences between database and filesystem!!
+
+Summary:
+  Total number of entries:	40
+  Added entries:		4
+  Removed entries:		0
+  Changed entries:		0
+
+---------------------------------------------------
+Added entries:
+---------------------------------------------------
+
+f++++++++++++++++++: /etc/ssh/ssh_host_mldsa44_ed25519_key
+f++++++++++++++++++: /etc/ssh/ssh_host_mldsa44_ed25519_key.pub
+f++++++++++++++++++: /etc/systemd/system/snap-proton\x2dvpn-15.mount
+f++++++++++++++++++: /etc/systemd/system/snap-snapd-28254.mount
+
+---------------------------------------------------
+Detailed information about changes:
+---------------------------------------------------
+
+End timestamp: 2026-10-26 16:28:03 +0100 (run 1s)

@@ -1,6 +1,7 @@
 # shellcheck shell=bash
 # One finding per AIDE class. INFO does not raise. No early-return after sudoers.
-# Identity + dpkg-eid + mtime i dpkg.log-vindu → FIM-AIDE-PKG WARN.
+# Identity + dpkg-eid + (mtime i vindu | binær med configure i scan-vindu) → FIM-AIDE-PKG.
+# Added uten AIDE-Mtime: file_mtime.txt / live stat.
 
 check_aide() {
   local f="$OUT/aide_check.txt"
@@ -34,12 +35,16 @@ text = Path(sys.argv[2]).read_text(encoding="utf-8", errors="replace")
 Path(sys.argv[3]).write_text("\n".join(identity_paths(text)) + "\n", encoding="utf-8")
 PY
       then
+        : > "$OUT/file_mtime.txt"
         while IFS= read -r p || [[ -n "$p" ]]; do
           [[ -z "$p" ]] && continue
           dpkg -S "$p" 2>/dev/null || true
           parent="${p%/*}"
           if [[ -n "$parent" && "$parent" != "$p" && "$parent" == /etc/ssh* ]]; then
             dpkg -S "$parent" 2>/dev/null || true
+          fi
+          if [[ -e "$p" ]]; then
+            stat -c '%Y %n' "$p" >> "$OUT/file_mtime.txt" 2>/dev/null || true
           fi
         done < "$paths" > "$tmpo" || true
         mv "$tmpo" "$OUT/dpkg_owned.txt"

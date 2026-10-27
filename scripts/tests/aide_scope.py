@@ -17,6 +17,7 @@ from aide_classify import (  # noqa: E402
     classify_path,
     decode_path,
     findings_from_report,
+    is_identity_binary,
     parse_paths,
 )
 
@@ -24,6 +25,9 @@ WARN_FIX = ROOT / "scripts" / "testdata" / "cases" / "warn_aide_classes" / "aide
 ALERT_FIX = ROOT / "scripts" / "testdata" / "cases" / "alert_aide_identity" / "aide_check.txt"
 PKG_DIR = ROOT / "scripts" / "testdata" / "cases" / "warn_aide_pkg"
 NODPKG_DIR = ROOT / "scripts" / "testdata" / "cases" / "alert_aide_identity_nodpkg"
+ADDED_DIR = ROOT / "scripts" / "testdata" / "cases" / "warn_aide_pkg_added"
+BINARY_DIR = ROOT / "scripts" / "testdata" / "cases" / "warn_aide_pkg_binary"
+STALE_DIR = ROOT / "scripts" / "testdata" / "cases" / "alert_aide_identity_stale"
 SCAN = ROOT / "scripts" / "kalived-scan.sh"
 INIT = ROOT / "playbooks" / "aide-init.sh"
 CTL = ROOT / "scripts" / "kalived-ctl"
@@ -64,6 +68,10 @@ def test_classify() -> None:
     assert classify_path("/etc/udev/rules.d/70-snap.proton-vpn.rules") == "snap_proton"
     assert classify_path("/etc/systemd/system/snap-snapd-28254.mount") == "snap_other"
     assert classify_path("/etc/cron.d/evil") == "other"
+    assert is_identity_binary("/usr/bin/sudo")
+    assert is_identity_binary("/usr/bin/passwd")
+    assert not is_identity_binary("/etc/ssh/ssh_config")
+    assert not is_identity_binary("/etc/ssh/ssh_host_mldsa44_ed25519_key")
     print("OK classify")
 
 
@@ -122,6 +130,81 @@ def test_pkg_window_is_warn() -> None:
     assert "/etc/ssh/ssh_host_mldsa44_ed25519_key" in blob
     assert "proton" in blob.lower()
     print("OK pkg window → FIM-AIDE-PKG WARN, Proton WARN")
+
+
+def _blob_for(recs: list[dict], cls: str) -> str:
+    parts: list[str] = []
+    for r in recs:
+        title = r.get("title", "")
+        if f"AIDE {cls}:" in title or title.startswith(f"AIDE {cls}"):
+            parts.append(title)
+            parts.append(r.get("detail") or "")
+    return "\n".join(parts)
+
+
+def test_added_key_stat_mtime_is_pkg() -> None:
+    recs = findings_from_report(
+        (ADDED_DIR / "aide_check.txt").read_text(encoding="utf-8"),
+        {},
+        ADDED_DIR,
+    )
+    sevs = _sevs(recs)
+    ids = {r.get("id") for r in recs}
+    pkg = _blob_for(recs, "pkg")
+    ident = _blob_for(recs, "identity")
+    blob = _titles(recs) + "\n" + "\n".join(r.get("detail", "") for r in recs)
+    assert sevs.get("pkg") == "WARN", recs
+    assert "FIM-AIDE-PKG" in ids, recs
+    assert "identity" not in sevs, recs
+    assert ident == ""
+    assert "/etc/ssh/ssh_host_mldsa44_ed25519_key" in pkg
+    assert sevs.get("snap_proton") == "WARN", recs
+    assert "proton" in blob.lower()
+    print("OK Added uten AIDE-Mtime → FIM-AIDE-PKG, Proton WARN")
+
+
+def test_binary_ignores_build_mtime() -> None:
+    recs = findings_from_report(
+        (BINARY_DIR / "aide_check.txt").read_text(encoding="utf-8"),
+        {},
+        BINARY_DIR,
+    )
+    sevs = _sevs(recs)
+    ids = {r.get("id") for r in recs}
+    pkg = _blob_for(recs, "pkg")
+    assert sevs.get("pkg") == "WARN", recs
+    assert "FIM-AIDE-PKG" in ids, recs
+    assert "identity" not in sevs, recs
+    assert "/usr/bin/sudo" in pkg
+    assert sevs.get("snap_proton") == "WARN", recs
+    print("OK sudo byggetid ignorert, configure i scan-vindu → PKG")
+
+
+def test_stale_identity_stays_alert() -> None:
+    recs = findings_from_report(
+        (STALE_DIR / "aide_check.txt").read_text(encoding="utf-8"),
+        {},
+        STALE_DIR,
+    )
+    sevs = _sevs(recs)
+    ids = {r.get("id") for r in recs}
+    ident = _blob_for(recs, "identity")
+    pkg = _blob_for(recs, "pkg")
+    blob = _titles(recs) + "\n" + "\n".join(r.get("detail", "") for r in recs)
+    assert sevs.get("identity") == "ALERT", recs
+    assert sevs.get("pkg") == "WARN", recs
+    assert "FIM-AIDE-PKG" in ids, recs
+    assert "/etc/ssh/ssh_config" in ident
+    assert "20-systemd-ssh-proxy.conf" in ident
+    assert "/usr/bin/passwd" in ident
+    assert "/usr/bin/su" in ident
+    assert "/usr/bin/sudo" in pkg
+    assert "/etc/ssh/ssh_host_mldsa44_ed25519_key" in pkg
+    assert "/etc/ssh/ssh_config" not in pkg
+    assert "/usr/bin/passwd" not in pkg
+    assert sevs.get("snap_proton") == "WARN", recs
+    assert "proton" in blob.lower()
+    print("OK stale ssh_config/proxy/passwd/su identity; nøkler+sudo PKG; Proton WARN")
 
 
 def test_same_paths_without_dpkg_alert() -> None:
@@ -211,6 +294,57 @@ def test_scan_pkg_warn() -> None:
     assert "AIDE identity" not in titles
     assert "snap_proton" in titles
     print("OK scan pkg WARN exit 1, Proton WARN")
+
+
+def test_scan_added_pkg_warn() -> None:
+    rc, doc = _scan("warn_aide_pkg_added")
+    assert rc == 1 and doc["verdict"] == "WARN", (rc, doc.get("verdict"), doc.get("findings"))
+    ids = [f.get("id") for f in doc.get("findings") or []]
+    titles = " ".join(f.get("title", "") for f in doc.get("findings") or [])
+    details = " ".join(f.get("detail", "") for f in doc.get("findings") or [])
+    blob = titles + " " + details
+    assert "FIM-AIDE-PKG" in ids, ids
+    assert "AIDE identity" not in titles
+    assert "ssh_host_mldsa44" in blob
+    assert "snap_proton" in titles
+    print("OK scan Added-key WARN exit 1, Proton WARN")
+
+
+def test_scan_binary_pkg_warn() -> None:
+    rc, doc = _scan("warn_aide_pkg_binary")
+    assert rc == 1 and doc["verdict"] == "WARN", (rc, doc.get("verdict"), doc.get("findings"))
+    ids = [f.get("id") for f in doc.get("findings") or []]
+    titles = " ".join(f.get("title", "") for f in doc.get("findings") or [])
+    details = " ".join(f.get("detail", "") for f in doc.get("findings") or [])
+    assert "FIM-AIDE-PKG" in ids, ids
+    assert "AIDE identity" not in titles
+    assert "/usr/bin/sudo" in details
+    assert "snap_proton" in titles
+    print("OK scan sudo-binær WARN exit 1, Proton WARN")
+
+
+def test_scan_stale_alert() -> None:
+    rc, doc = _scan("alert_aide_identity_stale")
+    assert rc == 2 and doc["verdict"] == "ALERT", (rc, doc.get("verdict"), doc.get("findings"))
+    ids = [f.get("id") for f in doc.get("findings") or []]
+    titles = " ".join(f.get("title", "") for f in doc.get("findings") or [])
+    details = " ".join(f.get("detail", "") for f in doc.get("findings") or [])
+    ident = " ".join(
+        f.get("detail", "") for f in doc.get("findings") or [] if f.get("title", "").startswith("AIDE identity")
+    )
+    pkg = " ".join(
+        f.get("detail", "") for f in doc.get("findings") or [] if f.get("title", "").startswith("AIDE pkg")
+    )
+    assert "FIM-AIDE" in ids, ids
+    assert "FIM-AIDE-PKG" in ids, ids
+    assert "identity" in titles
+    assert "snap_proton" in titles
+    assert "/etc/ssh/ssh_config" in ident
+    assert "/usr/bin/passwd" in ident
+    assert "/usr/bin/su" in ident
+    assert "/usr/bin/sudo" in pkg
+    assert "ssh_host_mldsa44" in pkg
+    print("OK scan stale identity ALERT exit 2, nøkler+sudo PKG, Proton WARN")
 
 
 def test_scan_nodpkg_alert() -> None:
@@ -329,12 +463,18 @@ def main() -> int:
     test_warn_classes()
     test_freeze_keeps_proton()
     test_pkg_window_is_warn()
+    test_added_key_stat_mtime_is_pkg()
+    test_binary_ignores_build_mtime()
+    test_stale_identity_stays_alert()
     test_same_paths_without_dpkg_alert()
     test_identity_alert_keeps_snap()
     test_scan_fixture_warn()
     test_scan_fixture_freeze()
     test_scan_identity()
     test_scan_pkg_warn()
+    test_scan_added_pkg_warn()
+    test_scan_binary_pkg_warn()
+    test_scan_stale_alert()
     test_scan_nodpkg_alert()
     test_aide_init_force_alert_denied()
     test_aide_init_force_warn_scoped()

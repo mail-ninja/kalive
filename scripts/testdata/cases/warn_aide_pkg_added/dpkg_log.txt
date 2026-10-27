@@ -1,0 +1,2 @@
+2026-10-26 10:38:15 upgrade openssh-server:amd64 1:10.5p1-1 1:10.6p1-1
+2026-10-26 10:38:16 configure openssh-server:amd64 1:10.6p1-1
