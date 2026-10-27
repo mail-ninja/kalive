@@ -2,9 +2,11 @@
 """Classify AIDE report paths. Scoped freeze is a prefix list — not a full --init."""
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
+import subprocess
 import sys
 from collections import defaultdict
 from datetime import datetime
@@ -48,6 +50,7 @@ SEV = {
     "snap_proton": ("WARN", "FIM-AIDE", "AIDE snap_proton"),
     "snap_other": ("WARN", "FIM-AIDE", "AIDE snap_other"),
     "identity": ("ALERT", "FIM-AIDE", "AIDE identity"),
+    "stale": ("WARN", "FIM-AIDE-STALE", "AIDE stale"),
     "pkg": ("WARN", "FIM-AIDE-PKG", "AIDE pkg"),
     "other": ("WARN", "FIM-AIDE", "AIDE other"),
 }
@@ -173,12 +176,32 @@ def parse_dpkg_owned(text: str) -> dict[str, str]:
     return out
 
 
-def load_dpkg_context(out_dir: Path | None) -> tuple[dict[str, str], list[tuple[float, str]], dict[str, float]]:
+def parse_debsums_txt(text: str) -> dict[str, str]:
+    """'OK /path' or debsums native '/path  OK'."""
+    out: dict[str, str] = {}
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        m = re.match(r"^(OK|FAILED)\s+(\S.*)$", line)
+        if m:
+            out[decode_path(m.group(2))] = m.group(1)
+            continue
+        m = re.match(r"^(.*?)\s+(OK|FAILED)\s*$", line)
+        if m:
+            out[decode_path(m.group(1).rstrip())] = m.group(2)
+    return out
+
+
+def load_dpkg_context(
+    out_dir: Path | None,
+) -> tuple[dict[str, str], list[tuple[float, str]], dict[str, float], dict[str, str]]:
     if out_dir is None or not out_dir.is_dir():
-        return {}, [], {}
+        return {}, [], {}, {}
     owned: dict[str, str] = {}
     events: list[tuple[float, str]] = []
     mtimes: dict[str, float] = {}
+    debsums: dict[str, str] = {}
     op = out_dir / "dpkg_owned.txt"
     if op.is_file():
         owned = parse_dpkg_owned(op.read_text(encoding="utf-8", errors="replace"))
@@ -189,7 +212,10 @@ def load_dpkg_context(out_dir: Path | None) -> tuple[dict[str, str], list[tuple[
     mp = out_dir / "file_mtime.txt"
     if mp.is_file():
         mtimes = parse_file_mtime_txt(mp.read_text(encoding="utf-8", errors="replace"))
-    return owned, events, mtimes
+    dp = out_dir / "debsums.txt"
+    if dp.is_file():
+        debsums = parse_debsums_txt(dp.read_text(encoding="utf-8", errors="replace"))
+    return owned, events, mtimes, debsums
 
 
 def pkg_for_path(path: str, owned: dict[str, str]) -> str | None:
@@ -244,6 +270,104 @@ def identity_is_pkg(
     if is_identity_binary(path) and pkg_event_in_scan_window(pkg, events, scan_ts):
         return True
     return in_dpkg_window(mtime, pkg, events)
+
+
+def debsums_status(path: str, status_map: dict[str, str]) -> str | None:
+    p = decode_path(path)
+    if p in status_map:
+        return status_map[p]
+    try:
+        real = str(Path(p).resolve())
+    except OSError:
+        return None
+    return status_map.get(real)
+
+
+def identity_is_stale(path: str, pkg: str | None, status_map: dict[str, str]) -> bool:
+    """dpkg-eid + debsums OK + ikke apt-vindu (vindu sjekkes før denne)."""
+    if not pkg:
+        return False
+    return debsums_status(path, status_map) == "OK"
+
+
+def package_hashes(pkg: str) -> dict[str, str]:
+    out: dict[str, str] = {}
+    if not pkg:
+        return out
+    info = Path("/var/lib/dpkg/info")
+    for f in (info / f"{pkg}.md5sums", info / f"{pkg}:amd64.md5sums"):
+        if not f.is_file():
+            continue
+        for line in f.read_text(encoding="utf-8", errors="replace").splitlines():
+            if len(line) < 35:
+                continue
+            digest, rel = line[:32], line[34:].strip()
+            if not re.fullmatch(r"[0-9a-f]{32}", digest):
+                continue
+            out["/" + rel.lstrip("/")] = digest
+    try:
+        p = subprocess.run(
+            ["dpkg-query", "-W", "-f", "${Conffiles}\n", pkg],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+        for line in (p.stdout or "").splitlines():
+            parts = line.strip().split()
+            if len(parts) >= 2 and parts[0].startswith("/") and re.fullmatch(r"[0-9a-f]{32}", parts[1]):
+                out[parts[0]] = parts[1]
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+    return out
+
+
+def live_md5(path: str) -> str | None:
+    try:
+        return hashlib.md5(Path(decode_path(path)).read_bytes()).hexdigest()
+    except OSError:
+        return None
+
+
+def write_debsums_txt(paths: list[str], owned_file: Path, dest: Path) -> None:
+    owned = {}
+    if owned_file.is_file():
+        owned = parse_dpkg_owned(owned_file.read_text(encoding="utf-8", errors="replace"))
+    cache: dict[str, dict[str, str]] = {}
+    lines: list[str] = []
+    for raw in paths:
+        p = decode_path(raw)
+        if not p:
+            continue
+        pkg = pkg_for_path(p, owned)
+        if not pkg:
+            continue
+        hashes = cache.setdefault(pkg, package_hashes(pkg))
+        got = live_md5(p)
+        want = hashes.get(p)
+        if want is None:
+            try:
+                want = hashes.get(str(Path(p).resolve()))
+            except OSError:
+                want = None
+        if not got or not want:
+            continue
+        lines.append(f"{'OK' if got == want else 'FAILED'} {p}")
+    dest.write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
+
+
+def stale_paths_from_verdict(doc: dict[str, Any]) -> list[str]:
+    out: list[str] = []
+    seen: set[str] = set()
+    for rec in doc.get("findings") or []:
+        if not isinstance(rec, dict) or rec.get("id") != "FIM-AIDE-STALE":
+            continue
+        for line in (rec.get("detail") or "").splitlines():
+            p = decode_path(line)
+            if p.startswith("/") and p not in seen:
+                seen.add(p)
+                out.append(p)
+    return out
 
 
 def identity_paths(text: str) -> list[str]:
@@ -355,8 +479,6 @@ def is_frozen(path: str, scope: dict[str, Any]) -> bool:
     live = Path(p)
     if not live.is_file():
         return True
-    import hashlib
-
     got = hashlib.sha256(live.read_bytes()).hexdigest()
     return got == want
 
@@ -379,7 +501,7 @@ def findings_from_report(
             ]
         return []
     scope = scope or {}
-    owned, events, extra_mtime = load_dpkg_context(out_dir)
+    owned, events, extra_mtime, debsums = load_dpkg_context(out_dir)
     aide_mtime = parse_aide_mtimes(text)
     scan_ts = parse_aide_start(text)
     buckets: dict[str, list[str]] = defaultdict(list)
@@ -391,12 +513,23 @@ def findings_from_report(
             mtime = resolve_mtime(path, aide_mtime, extra_mtime)
             if identity_is_pkg(path, pkg, events, mtime, scan_ts):
                 cls = "pkg"
-        if cls in {"self_sudoers", "self_helper"} and is_frozen(path, scope):
+            elif identity_is_stale(path, pkg, debsums):
+                cls = "stale"
+        if cls in {"self_sudoers", "self_helper", "stale"} and is_frozen(path, scope):
             skipped.append(path)
             continue
         buckets[cls].append(path)
     recs: list[dict[str, str]] = []
-    order = ("identity", "pkg", "self_sudoers", "snap_proton", "snap_other", "other", "self_helper")
+    order = (
+        "identity",
+        "stale",
+        "pkg",
+        "self_sudoers",
+        "snap_proton",
+        "snap_other",
+        "other",
+        "self_helper",
+    )
     for cls in order:
         paths = buckets.get(cls) or []
         if not paths:
@@ -422,7 +555,6 @@ def findings_from_report(
 
 
 def write_scope(dest: Path, prefixes: list[str] | None = None) -> dict[str, Any]:
-    import hashlib
     import time
 
     prefs = list(prefixes or DEFAULT_SCOPE)

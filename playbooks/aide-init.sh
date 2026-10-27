@@ -3,7 +3,10 @@
 # Default --paths: sudoers.d/kalived + helper/ctl + kalived-watch units.
 # Proton-snap, udev 70-snap.proton-vpn.rules og snapd-mount forblir åpne WARN.
 # --all er forbudt (skjuler Proton). Confirm / kalived-ctl kaller scoped --force.
-# --force: hopp over always_prompt / clean_only. NEKTES ved siste verdict ALERT|ERROR.
+# --force: hopp over always_prompt / clean_only. NEKTES ved siste verdict ALERT|ERROR
+#   og ved uacka FIM-AIDE-STALE. Stale alene åpner ikke gaten.
+# --ack-stale: tillat stale WARN; legg ssh/passwd-stiene i scoped overlay. Identity-ALERT
+#   nektes fortsatt. Proton uendret.
 # --force-alert: re-baseline selv om siste scan er ALERT (kun etter evidens er lagret).
 # Rollback scoped: rm -f ~/.config/kalived/aide-scope.json /var/lib/aide/kalived-scope.json
 # Rollback --all: rm -f /var/lib/aide/kalived.db.gz /etc/aide/kalived.conf
@@ -20,12 +23,14 @@ source "$ROOT/playbooks/lib/kalived-gate.sh"
 source "$ROOT/scripts/lib/kalived-config.sh"
 FORCE=0
 FORCE_ALERT=0
+ACK_STALE=0
 ALL=0
 PATHS=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --force) FORCE=1; shift ;;
     --force-alert) FORCE=1; FORCE_ALERT=1; shift ;;
+    --ack-stale) ACK_STALE=1; FORCE=1; shift ;;
     --all)
       echo "GATE FAIL: --all forbudt (skjuler Proton). Confirm kaller scoped --force." >&2
       exit 2
@@ -39,7 +44,7 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     *)
-      echo "ukjent flagg: $1 (gyldig: --force | --force-alert | --paths p1,p2)" >&2
+      echo "ukjent flagg: $1 (gyldig: --force | --force-alert | --ack-stale | --paths p1,p2)" >&2
       exit 2
       ;;
   esac
@@ -47,13 +52,37 @@ done
 if [[ ${#PATHS[@]} -eq 0 ]]; then
   mapfile -t PATHS < <(python3 -c "import sys; sys.path.insert(0, sys.argv[1]); from aide_classify import DEFAULT_SCOPE; print('\n'.join(DEFAULT_SCOPE))" "$ROOT/scripts/lib")
 fi
+if [[ "$ACK_STALE" == "1" ]]; then
+  _stale_dir="$(kalived_latest_scan_dir)"
+  if [[ -n "$_stale_dir" && -f "$_stale_dir/verdict.json" ]]; then
+    mapfile -t _stale_paths < <(python3 -c "
+import json, sys
+sys.path.insert(0, sys.argv[1])
+from aide_classify import stale_paths_from_verdict
+doc = json.load(open(sys.argv[2], encoding='utf-8'))
+print('\n'.join(stale_paths_from_verdict(doc)))
+" "$ROOT/scripts/lib" "$_stale_dir/verdict.json")
+    for _p in "${_stale_paths[@]+"${_stale_paths[@]}"}"; do
+      [[ -z "$_p" ]] && continue
+      PATHS+=("$_p")
+    done
+  fi
+fi
 if [[ "$FORCE_ALERT" == "1" ]]; then
   echo "aide-init --force-alert: hopper over ALERT-gate (evidens må allerede være lagret)" >&2
 else
   kalived_require_not_alert
+  if [[ "$ACK_STALE" != "1" ]] && kalived_latest_has_id FIM-AIDE-STALE; then
+    echo "GATE FAIL: FIM-AIDE-STALE uacka — stale alene åpner ikke gaten." >&2
+    echo "  Bruk --ack-stale for å fryse ssh/passwd (ikke Proton). Identity-ALERT nektes fortsatt." >&2
+    exit 2
+  fi
 fi
 if [[ "$FORCE" == "1" && "$FORCE_ALERT" != "1" ]]; then
   echo "aide-init --force: bevisst re-baseline (ALERT-gate gjelder fortsatt). WARN er lov." >&2
+fi
+if [[ "$ACK_STALE" == "1" ]]; then
+  echo "aide-init --ack-stale: fryser stale identity-stier, ikke Proton" >&2
 fi
 kalived_config_load || exit 3
 

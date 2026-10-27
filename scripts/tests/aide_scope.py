@@ -28,6 +28,8 @@ NODPKG_DIR = ROOT / "scripts" / "testdata" / "cases" / "alert_aide_identity_nodp
 ADDED_DIR = ROOT / "scripts" / "testdata" / "cases" / "warn_aide_pkg_added"
 BINARY_DIR = ROOT / "scripts" / "testdata" / "cases" / "warn_aide_pkg_binary"
 STALE_DIR = ROOT / "scripts" / "testdata" / "cases" / "alert_aide_identity_stale"
+STALE_OK_DIR = ROOT / "scripts" / "testdata" / "cases" / "warn_aide_stale"
+STALE_FAIL_DIR = ROOT / "scripts" / "testdata" / "cases" / "alert_aide_stale_failed"
 SCAN = ROOT / "scripts" / "kalived-scan.sh"
 INIT = ROOT / "playbooks" / "aide-init.sh"
 CTL = ROOT / "scripts" / "kalived-ctl"
@@ -43,6 +45,7 @@ def _sevs(recs: list[dict]) -> dict[str, str]:
         t = r.get("title", "")
         for cls in (
             "identity",
+            "stale",
             "pkg",
             "self_sudoers",
             "snap_proton",
@@ -207,6 +210,53 @@ def test_stale_identity_stays_alert() -> None:
     print("OK stale ssh_config/proxy/passwd/su identity; nøkler+sudo PKG; Proton WARN")
 
 
+def test_debsums_ok_is_stale_warn() -> None:
+    recs = findings_from_report(
+        (STALE_OK_DIR / "aide_check.txt").read_text(encoding="utf-8"),
+        {},
+        STALE_OK_DIR,
+    )
+    sevs = _sevs(recs)
+    ids = {r.get("id") for r in recs}
+    stale = _blob_for(recs, "stale")
+    ident = _blob_for(recs, "identity")
+    pkg = _blob_for(recs, "pkg")
+    blob = _titles(recs) + "\n" + "\n".join(r.get("detail", "") for r in recs)
+    assert sevs.get("stale") == "WARN", recs
+    assert "FIM-AIDE-STALE" in ids, recs
+    assert "identity" not in sevs, recs
+    assert ident == ""
+    assert "/etc/ssh/ssh_config" in stale
+    assert "20-systemd-ssh-proxy.conf" in stale
+    assert "20-systemd-userdb.conf" in stale
+    assert "/usr/bin/passwd" in stale
+    assert "/usr/bin/su" in stale
+    assert "/usr/bin/sudo" in pkg
+    assert "ssh_host_mldsa44" in pkg
+    assert sevs.get("snap_proton") == "WARN", recs
+    assert "proton" in blob.lower()
+    print("OK fem debsums-OK → FIM-AIDE-STALE WARN, nøkler+sudo PKG, Proton WARN")
+
+
+def test_one_debsums_failed_is_identity() -> None:
+    recs = findings_from_report(
+        (STALE_FAIL_DIR / "aide_check.txt").read_text(encoding="utf-8"),
+        {},
+        STALE_FAIL_DIR,
+    )
+    sevs = _sevs(recs)
+    ids = {r.get("id") for r in recs}
+    ident = _blob_for(recs, "identity")
+    stale = _blob_for(recs, "stale")
+    assert sevs.get("identity") == "ALERT", recs
+    assert "FIM-AIDE-STALE" in ids, recs
+    assert "/usr/bin/passwd" in ident
+    assert "/usr/bin/passwd" not in stale
+    assert "/etc/ssh/ssh_config" in stale
+    assert sevs.get("snap_proton") == "WARN", recs
+    print("OK én debsums-FAILED → identity ALERT, resten STALE, Proton WARN")
+
+
 def test_same_paths_without_dpkg_alert() -> None:
     recs = findings_from_report(
         (NODPKG_DIR / "aide_check.txt").read_text(encoding="utf-8"),
@@ -347,6 +397,46 @@ def test_scan_stale_alert() -> None:
     print("OK scan stale identity ALERT exit 2, nøkler+sudo PKG, Proton WARN")
 
 
+def test_scan_stale_ok_warn() -> None:
+    rc, doc = _scan("warn_aide_stale")
+    assert rc == 1 and doc["verdict"] == "WARN", (rc, doc.get("verdict"), doc.get("findings"))
+    ids = [f.get("id") for f in doc.get("findings") or []]
+    titles = " ".join(f.get("title", "") for f in doc.get("findings") or [])
+    stale = " ".join(
+        f.get("detail", "") for f in doc.get("findings") or [] if f.get("title", "").startswith("AIDE stale")
+    )
+    ident = " ".join(
+        f.get("detail", "") for f in doc.get("findings") or [] if f.get("title", "").startswith("AIDE identity")
+    )
+    pkg = " ".join(
+        f.get("detail", "") for f in doc.get("findings") or [] if f.get("title", "").startswith("AIDE pkg")
+    )
+    assert "FIM-AIDE-STALE" in ids, ids
+    assert "AIDE identity" not in titles
+    assert ident == ""
+    assert "/etc/ssh/ssh_config" in stale
+    assert "20-systemd-userdb.conf" in stale
+    assert "/usr/bin/passwd" in stale
+    assert "/usr/bin/su" in stale
+    assert "/usr/bin/sudo" in pkg
+    assert "snap_proton" in titles
+    print("OK scan fem STALE WARN exit 1, Proton WARN")
+
+
+def test_scan_stale_failed_alert() -> None:
+    rc, doc = _scan("alert_aide_stale_failed")
+    assert rc == 2 and doc["verdict"] == "ALERT", (rc, doc.get("verdict"), doc.get("findings"))
+    ids = [f.get("id") for f in doc.get("findings") or []]
+    ident = " ".join(
+        f.get("detail", "") for f in doc.get("findings") or [] if f.get("title", "").startswith("AIDE identity")
+    )
+    assert "FIM-AIDE" in ids, ids
+    assert "/usr/bin/passwd" in ident
+    titles = " ".join(f.get("title", "") for f in doc.get("findings") or [])
+    assert "snap_proton" in titles
+    print("OK scan én FAILED identity ALERT exit 2, Proton WARN")
+
+
 def test_scan_nodpkg_alert() -> None:
     rc, doc = _scan("alert_aide_identity_nodpkg")
     assert rc == 2 and doc["verdict"] == "ALERT", (rc, doc.get("verdict"))
@@ -358,16 +448,32 @@ def test_scan_nodpkg_alert() -> None:
     print("OK scan uten dpkg ALERT exit 2, Proton WARN")
 
 
-def _fake_data(verdict: str) -> Path:
+def _fake_data(verdict: str, findings: list | None = None) -> Path:
     td = Path(tempfile.mkdtemp())
     stamp = td / "logs" / "status" / "2026-01-01_000000"
     stamp.mkdir(parents=True)
     (stamp / "meta.txt").write_text("kalived_scan=1\nsudo=1\n", encoding="utf-8")
     (stamp / "verdict.json").write_text(
-        json.dumps({"verdict": verdict, "exit_code": 2 if verdict == "ALERT" else 1, "findings": []}) + "\n",
+        json.dumps(
+            {
+                "verdict": verdict,
+                "exit_code": 2 if verdict == "ALERT" else 1,
+                "findings": findings or [],
+            }
+        )
+        + "\n",
         encoding="utf-8",
     )
     return td
+
+
+_STALE_FINDING = {
+    "severity": "WARN",
+    "id": "FIM-AIDE-STALE",
+    "title": "AIDE stale: /etc/ssh/ssh_config, /usr/bin/passwd",
+    "detail": "/etc/ssh/ssh_config\n/etc/ssh/ssh_config.d/20-systemd-ssh-proxy.conf\n/etc/ssh/sshd_config.d/20-systemd-userdb.conf\n/usr/bin/passwd\n/usr/bin/su",
+    "source": "aide_check.txt",
+}
 
 
 def test_aide_init_force_alert_denied() -> None:
@@ -448,12 +554,88 @@ def test_gate_open_on_pkg_warn() -> None:
     print("OK gate åpen på PKG-WARN/WARN")
 
 
+def test_gate_stale_denied_without_ack() -> None:
+    data = _fake_data("WARN", [_STALE_FINDING])
+    env = os.environ.copy()
+    env["KALIVED_AIDE_INIT_DRY"] = "1"
+    env["KALIVED_DATA"] = str(data)
+    env["KALIVED_AIDE_SCOPE"] = str(data / "aide-scope.json")
+    p = subprocess.run(
+        ["bash", str(INIT), "--force"],
+        capture_output=True,
+        text=True,
+        env=env,
+        check=False,
+    )
+    assert p.returncode == 2, (p.returncode, p.stdout, p.stderr)
+    blob = p.stderr + p.stdout
+    assert "STALE" in blob or "stale" in blob
+    assert "uacka" in blob
+    assert not (data / "aide-scope.json").exists()
+    print("OK gate stengt på uacka STALE")
+
+
+def test_gate_ack_stale_writes_paths() -> None:
+    data = _fake_data("WARN", [_STALE_FINDING])
+    dest = data / "aide-scope.json"
+    env = os.environ.copy()
+    env["KALIVED_AIDE_INIT_DRY"] = "1"
+    env["KALIVED_DATA"] = str(data)
+    env["KALIVED_AIDE_SCOPE"] = str(dest)
+    p = subprocess.run(
+        ["bash", str(INIT), "--ack-stale"],
+        capture_output=True,
+        text=True,
+        env=env,
+        check=False,
+    )
+    assert p.returncode == 0, (p.returncode, p.stdout, p.stderr)
+    doc = json.loads(dest.read_text(encoding="utf-8"))
+    prefs = doc.get("prefixes") or []
+    assert "/etc/sudoers.d/kalived" in prefs
+    assert "/etc/ssh/ssh_config" in prefs
+    assert "/usr/bin/passwd" in prefs
+    assert "/usr/bin/su" in prefs
+    assert not any("proton" in str(x).lower() for x in prefs)
+    print("OK --ack-stale skriver ssh/passwd i scope, Proton ute")
+
+
+def test_gate_ack_stale_denied_on_identity() -> None:
+    data = _fake_data(
+        "ALERT",
+        [
+            {
+                "severity": "ALERT",
+                "id": "FIM-AIDE",
+                "title": "AIDE identity: /usr/bin/passwd",
+                "detail": "/usr/bin/passwd",
+            },
+            _STALE_FINDING,
+        ],
+    )
+    env = os.environ.copy()
+    env["KALIVED_AIDE_INIT_DRY"] = "1"
+    env["KALIVED_DATA"] = str(data)
+    env["KALIVED_AIDE_SCOPE"] = str(data / "aide-scope.json")
+    p = subprocess.run(
+        ["bash", str(INIT), "--ack-stale"],
+        capture_output=True,
+        text=True,
+        env=env,
+        check=False,
+    )
+    assert p.returncode != 0, (p.returncode, p.stdout, p.stderr)
+    assert "ALERT" in (p.stderr + p.stdout)
+    print("OK --ack-stale nektes på identity-ALERT")
+
+
 def test_ctl_never_all() -> None:
     text = CTL.read_text(encoding="utf-8")
     exec_lines = [ln for ln in text.splitlines() if "aide-init.sh" in ln and "exec" in ln]
     assert exec_lines, "mangler exec aide-init"
     assert any("--force" in ln for ln in exec_lines)
     assert all("--all" not in ln for ln in exec_lines)
+    assert all("--ack-stale" not in ln for ln in exec_lines)
     print("OK ctl aide-init is --force only")
 
 
@@ -466,6 +648,8 @@ def main() -> int:
     test_added_key_stat_mtime_is_pkg()
     test_binary_ignores_build_mtime()
     test_stale_identity_stays_alert()
+    test_debsums_ok_is_stale_warn()
+    test_one_debsums_failed_is_identity()
     test_same_paths_without_dpkg_alert()
     test_identity_alert_keeps_snap()
     test_scan_fixture_warn()
@@ -475,10 +659,15 @@ def main() -> int:
     test_scan_added_pkg_warn()
     test_scan_binary_pkg_warn()
     test_scan_stale_alert()
+    test_scan_stale_ok_warn()
+    test_scan_stale_failed_alert()
     test_scan_nodpkg_alert()
     test_aide_init_force_alert_denied()
     test_aide_init_force_warn_scoped()
     test_gate_open_on_pkg_warn()
+    test_gate_stale_denied_without_ack()
+    test_gate_ack_stale_writes_paths()
+    test_gate_ack_stale_denied_on_identity()
     test_aide_init_all_forbidden()
     test_ctl_never_all()
     print("ALL OK aide_scope")

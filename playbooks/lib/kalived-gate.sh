@@ -41,6 +41,18 @@ kalived_require_not_alert() {
   esac
 }
 
+kalived_latest_has_id() {
+  local id="${1:-}" dir
+  dir="$(kalived_latest_scan_dir)"
+  [[ -n "$dir" && -n "$id" && -f "$dir/verdict.json" ]] || return 1
+  python3 -c "
+import json, sys
+doc = json.load(open(sys.argv[1], encoding='utf-8'))
+ids = [f.get('id') for f in (doc.get('findings') or []) if isinstance(f, dict)]
+sys.exit(0 if sys.argv[2] in ids else 1)
+" "$dir/verdict.json" "$id"
+}
+
 kalived_changelog() {
   local dest="${KALIVED_DATA:-$ROOT}/remediation/CHANGELOG.md"
   mkdir -p "$(dirname "$dest")"

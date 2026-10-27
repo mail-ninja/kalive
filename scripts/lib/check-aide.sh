@@ -1,6 +1,7 @@
 # shellcheck shell=bash
 # One finding per AIDE class. INFO does not raise. No early-return after sudoers.
 # Identity + dpkg-eid + (mtime i vindu | binær med configure i scan-vindu) → FIM-AIDE-PKG.
+# Identity + dpkg-eid + debsums OK + ikke i vinduet → FIM-AIDE-STALE.
 # Added uten AIDE-Mtime: file_mtime.txt / live stat.
 
 check_aide() {
@@ -48,6 +49,14 @@ PY
           fi
         done < "$paths" > "$tmpo" || true
         mv "$tmpo" "$OUT/dpkg_owned.txt"
+        "$py" - "$ROOT/scripts/lib" "$paths" "$OUT/dpkg_owned.txt" "$OUT/debsums.txt" << 'PY' || true
+import sys
+from pathlib import Path
+sys.path.insert(0, sys.argv[1])
+from aide_classify import write_debsums_txt
+paths = [ln.strip() for ln in Path(sys.argv[2]).read_text(encoding="utf-8", errors="replace").splitlines() if ln.strip()]
+write_debsums_txt(paths, Path(sys.argv[3]), Path(sys.argv[4]))
+PY
       else
         rm -f "$tmpo"
       fi

@@ -1,0 +1,55 @@
+Start timestamp: 2026-10-26 16:28:02 +0100 (AIDE 0.19.4)
+AIDE found differences between database and filesystem!!
+
+Summary:
+  Total number of entries:	40
+  Added entries:		4
+  Removed entries:		0
+  Changed entries:		6
+
+---------------------------------------------------
+Added entries:
+---------------------------------------------------
+
+f++++++++++++++++++: /etc/ssh/ssh_host_mldsa44_ed25519_key
+f++++++++++++++++++: /etc/ssh/ssh_host_mldsa44_ed25519_key.pub
+f++++++++++++++++++: /etc/systemd/system/snap-proton\x2dvpn-15.mount
+f++++++++++++++++++: /etc/systemd/system/snap-snapd-28254.mount
+
+---------------------------------------------------
+Changed entries:
+---------------------------------------------------
+
+f <.... m i.H      : /etc/ssh/ssh_config
+l =.... m i.       : /etc/ssh/ssh_config.d/20-systemd-ssh-proxy.conf
+l =.... m i.       : /etc/ssh/sshd_config.d/20-systemd-userdb.conf
+f >b... m i.H      : /usr/bin/passwd
+f =.... m i.H      : /usr/bin/su
+f >b... m i.H      : /usr/bin/sudo
+
+---------------------------------------------------
+Detailed information about changes:
+---------------------------------------------------
+
+File: /etc/ssh/ssh_config
+ Size      : 1637                             | 1561
+ Mtime     : 2025-10-17 11:14:14 +0200        | 2026-10-06 19:00:40 +0200
+
+Link: /etc/ssh/ssh_config.d/20-systemd-ssh-proxy.conf
+ Mtime     : 2026-07-23 20:31:52 +0200        | 2026-09-22 15:21:47 +0200
+
+Link: /etc/ssh/sshd_config.d/20-systemd-userdb.conf
+ Mtime     : 2026-07-23 20:31:52 +0200        | 2026-09-22 15:21:47 +0200
+
+File: /usr/bin/passwd
+ Size      : 113928                           | 126280
+ Mtime     : 2026-04-02 19:44:38 +0200        | 2026-09-28 15:39:01 +0200
+
+File: /usr/bin/su
+ Mtime     : 2026-07-12 04:54:46 +0200        | 2026-09-26 01:49:04 +0200
+
+File: /usr/bin/sudo
+ Size      : 310552                           | 318744
+ Mtime     : 2026-06-08 09:32:46 +0200        | 2026-09-28 14:40:42 +0200
+
+End timestamp: 2026-10-26 16:28:03 +0100 (run 1s)

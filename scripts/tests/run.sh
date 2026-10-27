@@ -121,8 +121,10 @@ echo "[test] aide-init --force gates ALERT"
 if grep -q -- '--force-alert' "$ROOT/playbooks/aide-init.sh" \
   && grep -q 'kalived_require_not_alert' "$ROOT/playbooks/aide-init.sh" \
   && grep -q 'FORCE_ALERT' "$ROOT/playbooks/aide-init.sh" \
+  && grep -q -- '--ack-stale' "$ROOT/playbooks/aide-init.sh" \
+  && grep -q 'FIM-AIDE-STALE' "$ROOT/playbooks/aide-init.sh" \
   && grep -q 'forbudt' "$ROOT/playbooks/aide-init.sh"; then
-  echo "  OK --force-alert er egen nøkkel; --force alene skipper ikke ALERT; --all forbudt"
+  echo "  OK --force-alert egen nøkkel; --ack-stale; --force skipper ikke ALERT/STALE; --all forbudt"
 else
   echo "  FAIL aide-init gate"
   fail=1

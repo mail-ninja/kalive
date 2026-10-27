@@ -1,0 +1,5 @@
+OK /etc/ssh/ssh_config
+OK /etc/ssh/ssh_config.d/20-systemd-ssh-proxy.conf
+OK /etc/ssh/sshd_config.d/20-systemd-userdb.conf
+FAILED /usr/bin/passwd
+OK /usr/bin/su
