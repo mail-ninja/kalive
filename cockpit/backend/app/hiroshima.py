@@ -166,13 +166,14 @@ def _attach_actions(doc: dict) -> dict:
     if lib not in sys.path:
         sys.path.insert(0, lib)
     try:
-        from scan_actions import actions_from_verdict, port_actions  # type: ignore
+        from scan_actions import actions_from_verdict, port_actions, signal_port  # type: ignore
     except Exception as e:
         doc["actions_error"] = str(e)[:200]
         doc["actions"] = []
         return doc
     proto = doc.get("protocol") if isinstance(doc.get("protocol"), dict) else {}
     rows = actions_from_verdict(doc, protocol=proto)
+    rows = signal_port(rows, doc, proto)
     merc = proto.get("mercury") if isinstance(proto.get("mercury"), dict) else {}
     pick: dict = {}
     why = merc.get("why")

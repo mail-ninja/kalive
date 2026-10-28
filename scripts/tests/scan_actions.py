@@ -10,10 +10,12 @@ sys.path.insert(0, str(ROOT / "scripts" / "lib"))
 
 from scan_actions import (  # noqa: E402
     ALLOWED_RUNS,
+    BROTLI_ARCHIVE,
     CONFIRM_RUNS,
     HELPER_PTY,
     actions_from_verdict,
     port_actions,
+    signal_port,
 )
 
 CTL = ROOT / "scripts" / "kalived-ctl"
@@ -183,8 +185,10 @@ def test_helper_and_runtime_text() -> None:
     assert helper["run"] is None and helper["confirm"] is False
     assert helper["text"] == HELPER_PTY
     assert runtime["run"] is None
-    assert "auto-apt" in runtime["why"]
-    print("OK HELPER-STALE PTY + HOST-RUNTIME ja apt (tekst)")
+    assert runtime["title"] == "Brotli: vent på Kali"
+    assert "kali-rolling" in runtime["why"]
+    assert "ja apt" not in runtime["title"].lower()
+    print("OK HELPER-STALE PTY + HOST-RUNTIME vent på Kali")
 
 
 def test_isolate_home_vs_travel() -> None:
@@ -197,15 +201,30 @@ def test_isolate_home_vs_travel() -> None:
     assert iso["run"] == "isolate-dst" and iso["confirm"] is True
     assert iso["extra"]["family"] == "unknown"
     travel = actions_from_verdict(
-        base, protocol={"isolatable": True, "env": {"class": "travel"}}
+        base,
+        protocol={
+            "isolatable": True,
+            "env": {"class": "travel", "ssid": "Breeze Guest"},
+            "ufw": {"allow_dns_proton": 0},
+        },
     )
-    assert "isolate-skip" in _ids(travel), travel
+    assert "travel-harden" in _ids(travel), travel
+    assert "isolate-skip" not in _ids(travel)
     assert "isolate-dst" not in _runs(travel)
+    th = next(r for r in travel if r["id"] == "travel-harden")
+    assert th["run"] is None and th["confirm"] is False
+    assert "Breeze Guest" in th["why"]
+    assert "VPN" in th["why"]
     tether = actions_from_verdict(
         base, protocol={"isolatable": True, "env": {"class": "tether"}}
     )
-    assert "isolate-skip" in _ids(tether)
-    print("OK isolate home vs travel/tether")
+    assert "travel-harden" in _ids(tether)
+    hotel = actions_from_verdict(
+        {"verdict": "CLEAN", "findings": []},
+        protocol={"isolatable": False, "env": {"class": "travel", "ssid": "Breeze Guest"}},
+    )
+    assert "travel-harden" in _ids(hotel), hotel
+    print("OK isolate home vs travel-harden (gjestenett)")
 
 
 def test_rollback_undo() -> None:
@@ -293,6 +312,34 @@ def test_mercury_ask_does_not_hide_safe_row() -> None:
     print("OK mercury ask_operator skjuler ikke dpkg-lukk")
 
 
+def test_signal_port_drops_unknown_run_and_rewrites_why() -> None:
+    rows = actions_from_verdict(
+        {
+            "verdict": "WARN",
+            "findings": [
+                {
+                    "severity": "WARN",
+                    "id": "HOST-RUNTIME",
+                    "title": "brotli 1.2.0 < 1.2.1",
+                    "detail": "brotli 1.2.0-4+b2 < 1.2.1",
+                }
+            ],
+        },
+        protocol={"env": {"class": "travel", "ssid": "Breeze Guest"}},
+    )
+    ported = signal_port(
+        rows,
+        protocol={"env": {"class": "travel", "ssid": "Breeze Guest"}},
+        picks=[{"run": "kill-pid", "why": "drepe"}, {"id": "runtime-apt", "why": "arkivet har ikke 1.2.1"}],
+    )
+    assert "kill-pid" not in _runs(ported)
+    assert ported[0]["id"] == "travel-harden"
+    runtime = next(r for r in ported if r["id"] == "runtime-apt")
+    assert runtime["why"] == "arkivet har ikke 1.2.1"
+    assert BROTLI_ARCHIVE
+    print("OK signal_port dropper ukjent run, porter why, travel først")
+
+
 def test_no_invented_runs() -> None:
     assert "kill-pid" not in ALLOWED_RUNS
     assert "aide-init" not in ALLOWED_RUNS
@@ -313,6 +360,7 @@ def test_ctl_ack_stale_verb() -> None:
     hiro = HIRO.read_text(encoding="utf-8")
     assert '"aide-init-ack-stale"' in hiro
     assert "_attach_actions" in hiro
+    assert "signal_port" in hiro
     ui = UI.read_text(encoding="utf-8")
     assert "kalived.hiroshima.sheet" in ui
     assert "etter scan" in ui
@@ -335,6 +383,7 @@ def main() -> int:
     test_drop_unknown_run()
     test_port_rewrites_why_and_rank()
     test_mercury_ask_does_not_hide_safe_row()
+    test_signal_port_drops_unknown_run_and_rewrites_why()
     test_no_invented_runs()
     test_ctl_ack_stale_verb()
     print("ALL OK scan_actions")

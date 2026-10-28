@@ -32,6 +32,9 @@ UNPACKAGED_PREFIXES = (
 
 _EXE = re.compile(r"exe=(\S+)")
 HELPER_PTY = "pkexec bash playbooks/install-kalived-helper.sh"
+# libbrotli 1.2.1 is the pin; kali-rolling had 1.2.0-4+b2 as of 2026-10-27.
+BROTLI_ARCHIVE = "1.2.1 ikke i kali-rolling (sist sett 2026-10-27). Node 24.22.1 er inne."
+TEXT_ROW_IDS = frozenset({"travel-harden", "runtime-apt", "helper-pty", "isolate-skip"})
 
 NOISE_IDS = frozenset(
     {
@@ -177,6 +180,32 @@ def _env_class(protocol: dict[str, Any] | None) -> str:
     return ""
 
 
+def _env_ssid(protocol: dict[str, Any] | None) -> str:
+    env = (protocol or {}).get("env") if isinstance(protocol, dict) else None
+    if isinstance(env, dict):
+        return str(env.get("ssid") or "").strip()
+    return ""
+
+
+def _travel_harden_row(protocol: dict[str, Any]) -> dict[str, Any]:
+    env = _env_class(protocol)
+    ssid = _env_ssid(protocol)
+    ufw = protocol.get("ufw") if isinstance(protocol.get("ufw"), dict) else {}
+    proton_dns = int(ufw.get("allow_dns_proton") or 0)
+    net = f"Nett: {ssid}." if ssid else ("Tether." if env == "tether" else "Gjestenett/travel.")
+    if proton_dns:
+        proton = "Proton-DNS synlig i UFW-vindu."
+    else:
+        proton = "Proton-tunnel ikke synlig — slå på VPN (snap er installert)."
+    why = f"{net} UFW inn er reject. {proton} Isolate av unknown-DNS kutter nett."
+    return _row(
+        "travel-harden",
+        "Sikre uten isolate",
+        why,
+        text="Proton VPN (snap) · UFW inn reject · mDNS på LAN · ikke isolate DNS",
+    )
+
+
 def actions_from_verdict(
     doc: dict[str, Any] | None,
     protocol: dict[str, Any] | None = None,
@@ -227,32 +256,26 @@ def actions_from_verdict(
             _row(
                 "ack-stale",
                 "Confirm --ack-stale",
-                f"FIM-AIDE-STALE: {shown}{extra}. Scoped freeze, Proton urørt.",
+                f"FIM-AIDE-STALE: {shown}{extra}. Overlay unionerer (sudo blir værende). Proton urørt.",
                 run="aide-init-ack-stale",
                 confirm=True,
             )
         )
 
-    if proto.get("isolatable"):
-        env = _env_class(proto)
-        if env == "home":
-            rows.append(
-                _row(
-                    "isolate-dst",
-                    "Confirm isolate unknown",
-                    "ukjent dest i ring og env=home.",
-                    run="isolate-dst",
-                    confirm=True,
-                    extra={"family": "unknown"},
-                )
+    env = _env_class(proto)
+    if proto.get("isolatable") and env == "home":
+        rows.append(
+            _row(
+                "isolate-dst",
+                "Confirm isolate unknown",
+                "ukjent dest i ring og env=home.",
+                run="isolate-dst",
+                confirm=True,
+                extra={"family": "unknown"},
             )
-        else:
-            why = (
-                "env er travel/tether; dest er snapshot-eid."
-                if env in ("travel", "tether")
-                else "env er ikke home; isolate skjules."
-            )
-            rows.append(_row("isolate-skip", "Ikke isolate (hotspot)", why))
+        )
+    elif env in ("travel", "tether") or proto.get("isolatable"):
+        rows.append(_travel_harden_row(proto))
 
     if proto.get("rollback"):
         rows.append(
@@ -276,16 +299,19 @@ def actions_from_verdict(
         )
 
     if "HOST-RUNTIME" in ids:
-        title_bits = [
-            str(r.get("title") or "")
-            for r in findings
-            if r.get("id") == "HOST-RUNTIME"
-        ]
-        pin = _one_line("; ".join(t for t in title_bits if t), 120)
-        why = "HOST-RUNTIME: pin under min. Ingen auto-apt."
-        if pin:
-            why = f"HOST-RUNTIME: {pin}. Ingen auto-apt."
-        rows.append(_row("runtime-apt", "ja apt", why))
+        recs = [r for r in findings if r.get("id") == "HOST-RUNTIME"]
+        blob = " ".join(f"{r.get('title') or ''} {r.get('detail') or ''}" for r in recs)
+        if "brotli" in blob.lower() or "1.2.0" in blob:
+            why = f"libbrotli1 under pin. {BROTLI_ARCHIVE} Apt full-upgrade henter det ikke."
+        else:
+            why = _one_line(blob, 160) or "Runtime under pin. Ingen auto-apt."
+        rows.append(
+            _row(
+                "runtime-apt",
+                "Brotli: vent på Kali",
+                why,
+            )
+        )
 
     if not rows:
         verd = str(doc.get("verdict") or "").upper()
@@ -359,3 +385,76 @@ def port_actions(
         chosen["why"] = _one_line(why)
     rest = [dict(r) for i, r in enumerate(src) if i != idx]
     return [chosen] + rest
+
+
+def signal_port(
+    rows: list[dict[str, Any]] | None,
+    doc: dict[str, Any] | None = None,
+    protocol: dict[str, Any] | None = None,
+    picks: list[dict[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
+    """Signal writes why/text on existing rows. Text-only extra rows allowed. Unknown run dropped."""
+    out = [dict(r) for r in (rows or []) if isinstance(r, dict)]
+    proto = protocol if isinstance(protocol, dict) else {}
+    if not proto and isinstance((doc or {}).get("protocol"), dict):
+        proto = doc["protocol"]  # type: ignore[index]
+    auto: list[dict[str, Any]] = []
+    if _env_class(proto) in ("travel", "tether"):
+        harden = _travel_harden_row(proto)
+        auto.append(
+            {
+                "id": harden["id"],
+                "why": harden["why"],
+                "text": harden.get("text"),
+                "first": True,
+            }
+        )
+    for pick in list(auto) + list(picks or []):
+        if not isinstance(pick, dict):
+            continue
+        run = pick.get("run")
+        if run == "":
+            run = None
+        if run not in (None, "") and run not in CONFIRM_RUNS:
+            continue
+        if run not in (None, "") and run not in {r.get("run") for r in out}:
+            continue
+        aid = pick.get("id")
+        idx: int | None = None
+        if aid:
+            for i, r in enumerate(out):
+                if r.get("id") == aid:
+                    idx = i
+                    break
+        if idx is None and run not in (None, ""):
+            for i, r in enumerate(out):
+                if r.get("run") == run:
+                    idx = i
+                    break
+        why = pick.get("why")
+        text = pick.get("text")
+        title = pick.get("title")
+        if idx is None:
+            if run in (None, "") and aid in TEXT_ROW_IDS:
+                out.append(
+                    _row(
+                        str(aid),
+                        str(title or aid),
+                        str(why or ""),
+                        text=str(text) if text else None,
+                    )
+                )
+            continue
+        chosen = dict(out[idx])
+        if isinstance(why, str) and why.strip():
+            chosen["why"] = _one_line(why)
+        if isinstance(text, str) and text.strip():
+            chosen["text"] = text
+        if isinstance(title, str) and title.strip():
+            chosen["title"] = title
+        if pick.get("first"):
+            rest = [dict(r) for i, r in enumerate(out) if i != idx]
+            out = [chosen] + rest
+        else:
+            out[idx] = chosen
+    return out
