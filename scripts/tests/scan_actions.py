@@ -227,6 +227,61 @@ def test_isolate_home_vs_travel() -> None:
     print("OK isolate home vs travel-harden (gjestenett)")
 
 
+def test_proton_up_from_ring_not_stripped_ufw() -> None:
+    env = {"class": "travel", "ssid": "Breeze Guest"}
+    # Live bug: protocol.ufw has no allow_dns_proton, but ring has Proton.
+    proto = {
+        "isolatable": True,
+        "env": env,
+        "ufw": {"block": 99, "allow": 508, "hits_listen": 0, "lines": 1761},
+        "ring": [
+            {"id": "dns:Proton", "dst_family": "Proton", "sil": "NET-DNS"},
+            {"id": "dns:unknown", "dst_family": "unknown", "sil": "NET-DNS"},
+        ],
+    }
+    doc = {
+        "verdict": "WARN",
+        "findings": [
+            {
+                "severity": "INFO",
+                "id": "NET-DNS",
+                "title": "Nameserver er ProtonVPN-gw (ikke hijack)",
+                "detail": "",
+            },
+            {
+                "severity": "WARN",
+                "id": "FIM-AIDE",
+                "title": "AIDE snap_proton",
+                "detail": "/etc/udev/rules.d/70-snap.proton-vpn.rules",
+            },
+        ],
+    }
+    rows = actions_from_verdict(doc, protocol=proto)
+    th = next(r for r in rows if r["id"] == "travel-harden")
+    assert "oppe" in th["title"].lower() or "oppe" in th["why"].lower(), th
+    assert "nede" not in th["why"]
+    assert "ikke synlig" not in th["why"]
+    assert th["run"] is None
+    # snap-WARN alone is install, not tunnel
+    down = actions_from_verdict(
+        {
+            "verdict": "WARN",
+            "findings": [
+                {
+                    "severity": "WARN",
+                    "id": "FIM-AIDE",
+                    "title": "AIDE snap_proton",
+                    "detail": "/etc/udev/rules.d/70-snap.proton-vpn.rules",
+                }
+            ],
+        },
+        protocol={"env": env, "ufw": {"block": 1, "allow": 1, "hits_listen": 0, "lines": 10}},
+    )
+    th2 = next(r for r in down if r["id"] == "travel-harden")
+    assert "nede" in th2["why"] or "slå på VPN" in th2["why"], th2
+    print("OK proton-på-ark: ring/NET-DNS = oppe; snap-WARN alene = nede")
+
+
 def test_rollback_undo() -> None:
     rows = actions_from_verdict(
         {"verdict": "CLEAN", "findings": []}, protocol={"rollback": True}
@@ -379,6 +434,7 @@ def main() -> int:
     test_memfd_ask()
     test_helper_and_runtime_text()
     test_isolate_home_vs_travel()
+    test_proton_up_from_ring_not_stripped_ufw()
     test_rollback_undo()
     test_drop_unknown_run()
     test_port_rewrites_why_and_rank()

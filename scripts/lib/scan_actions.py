@@ -187,23 +187,49 @@ def _env_ssid(protocol: dict[str, Any] | None) -> str:
     return ""
 
 
-def _travel_harden_row(protocol: dict[str, Any]) -> dict[str, Any]:
+def _proton_up(doc: dict[str, Any] | None, protocol: dict[str, Any] | None) -> bool:
+    """Tunnel up: ring Proton, NET-DNS ProtonVPN, or digest allow_dns_proton. Snap-WARN is install."""
+    proto = protocol if isinstance(protocol, dict) else {}
+    ufw = proto.get("ufw") if isinstance(proto.get("ufw"), dict) else {}
+    try:
+        if int(ufw.get("allow_dns_proton") or 0) > 0:
+            return True
+    except (TypeError, ValueError):
+        pass
+    for it in proto.get("ring") or []:
+        if not isinstance(it, dict):
+            continue
+        fam = str(it.get("dst_family") or "").lower()
+        rid = str(it.get("id") or "").lower()
+        sil = str(it.get("sil") or "").lower()
+        if fam == "proton" or "proton" in rid or "proton" in sil:
+            return True
+    for rec in _findings(doc if isinstance(doc, dict) else {}):
+        if rec.get("id") != "NET-DNS":
+            continue
+        blob = f"{rec.get('title') or ''} {rec.get('detail') or ''}".lower()
+        if "proton" in blob:
+            return True
+    return False
+
+
+def _travel_harden_row(
+    protocol: dict[str, Any],
+    doc: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     env = _env_class(protocol)
     ssid = _env_ssid(protocol)
-    ufw = protocol.get("ufw") if isinstance(protocol.get("ufw"), dict) else {}
-    proton_dns = int(ufw.get("allow_dns_proton") or 0)
     net = f"Nett: {ssid}." if ssid else ("Tether." if env == "tether" else "Gjestenett/travel.")
-    if proton_dns:
-        proton = "Proton-DNS synlig i UFW-vindu."
+    if _proton_up(doc, protocol):
+        title = "Proton oppe — ikke isolate"
+        proton = "Proton-tunnel oppe (DNS/ring)."
+        text = "Proton-tunnel synlig · UFW inn reject · ikke isolate DNS"
     else:
-        proton = "Proton-tunnel ikke synlig — slå på VPN (snap er installert)."
+        title = "Sikre uten isolate"
+        proton = "Proton-tunnel nede — slå på VPN (snap er installert)."
+        text = "Proton VPN (snap) · UFW inn reject · mDNS på LAN · ikke isolate DNS"
     why = f"{net} UFW inn er reject. {proton} Isolate av unknown-DNS kutter nett."
-    return _row(
-        "travel-harden",
-        "Sikre uten isolate",
-        why,
-        text="Proton VPN (snap) · UFW inn reject · mDNS på LAN · ikke isolate DNS",
-    )
+    return _row("travel-harden", title, why, text=text)
 
 
 def actions_from_verdict(
@@ -275,7 +301,7 @@ def actions_from_verdict(
             )
         )
     elif env in ("travel", "tether") or proto.get("isolatable"):
-        rows.append(_travel_harden_row(proto))
+        rows.append(_travel_harden_row(proto, doc))
 
     if proto.get("rollback"):
         rows.append(
@@ -400,7 +426,7 @@ def signal_port(
         proto = doc["protocol"]  # type: ignore[index]
     auto: list[dict[str, Any]] = []
     if _env_class(proto) in ("travel", "tether"):
-        harden = _travel_harden_row(proto)
+        harden = _travel_harden_row(proto, doc)
         auto.append(
             {
                 "id": harden["id"],
