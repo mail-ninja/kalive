@@ -154,6 +154,14 @@ else
   fail=1
 fi
 
+echo "[test] scan_actions.py"
+if python3 "$ROOT/scripts/tests/scan_actions.py"; then
+  echo "  OK scan_actions"
+else
+  echo "  FAIL scan_actions"
+  fail=1
+fi
+
 echo "[test] testdata urørt"
 after="$(checksum_testdata)"
 if [[ "$before" != "$after" ]]; then

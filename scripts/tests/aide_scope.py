@@ -600,6 +600,36 @@ def test_gate_ack_stale_writes_paths() -> None:
     print("OK --ack-stale skriver ssh/passwd i scope, Proton ute")
 
 
+def test_gate_ack_stale_ok_on_deleted_alert() -> None:
+    data = _fake_data(
+        "ALERT",
+        [
+            {
+                "severity": "ALERT",
+                "id": "PROC-DELETED",
+                "title": "Kjørende binær er (deleted)",
+                "detail": "pid=1892 exe=/usr/libexec/at-spi-bus-launcher (deleted)",
+            },
+            _STALE_FINDING,
+        ],
+    )
+    dest = data / "aide-scope.json"
+    env = os.environ.copy()
+    env["KALIVED_AIDE_INIT_DRY"] = "1"
+    env["KALIVED_DATA"] = str(data)
+    env["KALIVED_AIDE_SCOPE"] = str(dest)
+    p = subprocess.run(
+        ["bash", str(INIT), "--ack-stale"],
+        capture_output=True,
+        text=True,
+        env=env,
+        check=False,
+    )
+    assert p.returncode == 0, (p.returncode, p.stdout, p.stderr)
+    assert dest.is_file(), dest
+    print("OK --ack-stale tillates på PROC-DELETED ALERT + STALE")
+
+
 def test_gate_ack_stale_denied_on_identity() -> None:
     data = _fake_data(
         "ALERT",
@@ -633,10 +663,13 @@ def test_ctl_never_all() -> None:
     text = CTL.read_text(encoding="utf-8")
     exec_lines = [ln for ln in text.splitlines() if "aide-init.sh" in ln and "exec" in ln]
     assert exec_lines, "mangler exec aide-init"
-    assert any("--force" in ln for ln in exec_lines)
+    force_only = [ln for ln in exec_lines if "--force" in ln and "--ack-stale" not in ln]
+    ack = [ln for ln in exec_lines if "--ack-stale" in ln]
+    assert force_only, "aide-init verb must stay --force only"
+    assert ack, "mangler aide-init-ack-stale → --ack-stale"
     assert all("--all" not in ln for ln in exec_lines)
-    assert all("--ack-stale" not in ln for ln in exec_lines)
-    print("OK ctl aide-init is --force only")
+    assert "aide-init-ack-stale" in text
+    print("OK ctl aide-init is --force; ack-stale is own verb")
 
 
 def main() -> int:
@@ -667,6 +700,7 @@ def main() -> int:
     test_gate_open_on_pkg_warn()
     test_gate_stale_denied_without_ack()
     test_gate_ack_stale_writes_paths()
+    test_gate_ack_stale_ok_on_deleted_alert()
     test_gate_ack_stale_denied_on_identity()
     test_aide_init_all_forbidden()
     test_ctl_never_all()

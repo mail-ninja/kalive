@@ -53,6 +53,23 @@ sys.exit(0 if sys.argv[2] in ids else 1)
 " "$dir/verdict.json" "$id"
 }
 
+# Identity FIM-AIDE ALERT only — PROC-DELETED ALERT must not block --ack-stale.
+kalived_latest_identity_alert() {
+  local dir
+  dir="$(kalived_latest_scan_dir)"
+  [[ -n "$dir" && -f "$dir/verdict.json" ]] || return 1
+  python3 -c "
+import json, sys
+doc = json.load(open(sys.argv[1], encoding='utf-8'))
+for f in doc.get('findings') or []:
+    if not isinstance(f, dict):
+        continue
+    if f.get('id') == 'FIM-AIDE' and str(f.get('severity') or '').upper() == 'ALERT':
+        sys.exit(0)
+sys.exit(1)
+" "$dir/verdict.json"
+}
+
 kalived_changelog() {
   local dest="${KALIVED_DATA:-$ROOT}/remediation/CHANGELOG.md"
   mkdir -p "$(dirname "$dest")"

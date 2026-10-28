@@ -39,13 +39,25 @@
       flows?: { exe?: string | null; dst_family?: string | null; n?: number }[]
     } | null
   }
+  type Action = {
+    id?: string
+    title?: string
+    why?: string
+    run?: string | null
+    confirm?: boolean
+    text?: string
+    extra?: Record<string, unknown>
+  }
   type Verdict = {
     verdict?: string
     stamp?: string
     exit_code?: number
     findings?: Finding[]
     protocol?: Protocol
+    actions?: Action[]
   }
+
+  const SHEET_KEY = 'kalived.hiroshima.sheet'
 
   let doc = $state<Verdict | null>(null)
   let err = $state('')
@@ -54,6 +66,33 @@
   let split = $state(42)
   let envClass = $state('tether')
   let pending = $state('')
+  let sheetOpen = $state(false)
+
+  function dismissedStamp(): string {
+    try {
+      return sessionStorage.getItem(SHEET_KEY) || ''
+    } catch {
+      return ''
+    }
+  }
+
+  function maybeOpenSheet(stamp?: string) {
+    if (!stamp) return
+    sheetOpen = dismissedStamp() !== stamp
+  }
+
+  function dismissSheet() {
+    const s = doc?.stamp
+    if (s) {
+      try {
+        sessionStorage.setItem(SHEET_KEY, s)
+      } catch {
+        /* private mode */
+      }
+    }
+    sheetOpen = false
+    pending = ''
+  }
 
   async function load() {
     err = ''
@@ -68,8 +107,21 @@
       doc = j
       const c = j?.protocol?.env?.class
       if (c) envClass = c
+      maybeOpenSheet(j.stamp)
     } catch (e) {
       err = String(e)
+    }
+  }
+
+  async function pollStamp() {
+    if (scanning) return
+    try {
+      const r = await fetch('/v1/hiroshima/health')
+      const j = await r.json()
+      const stamp = j.latest
+      if (stamp && stamp !== doc?.stamp) await load()
+    } catch {
+      /* timer-scan poll is best-effort */
     }
   }
 
@@ -145,6 +197,7 @@
       jobNote = 'Confirm ' + name + ' — trykk igjen'
       return
     }
+    dismissSheet()
     startRun(name, extra)
   }
 
@@ -163,16 +216,19 @@
         }
       })
       .catch(() => {})
+    const t = setInterval(pollStamp, 15000)
+    return () => clearInterval(t)
   })
 
   const word = $derived(doc?.verdict || '—')
   const proto = $derived(doc?.protocol)
+  const actions = $derived(doc?.actions || [])
 </script>
 
 <div class="flex h-full min-h-0 flex-col bg-ink">
   <Split direction="vertical" bind:value={split}>
     {#snippet a()}
-      <section class="flex h-full min-h-0 flex-col overflow-hidden p-4">
+      <section class="relative flex h-full min-h-0 flex-col overflow-hidden p-4">
         <p class="kicker">siste scan · cockpit :8788</p>
         <h1 class="verdict" class:CLEAN={word === 'CLEAN'} class:WARN={word === 'WARN'} class:ALERT={word === 'ALERT'} class:ERROR={word === 'ERROR'}>
           {word}
@@ -248,7 +304,7 @@
               {pending === 'rkhunter-setup' ? 'Confirm rkhunter-setup' : 'rkhunter-setup'}
             </button>
           {/if}
-          {#if proto?.isolatable}
+          {#if proto?.isolatable && proto?.env?.class === 'home'}
             <button
               class="rounded-full border border-alert/50 px-3 py-1 text-sm text-alert disabled:opacity-50"
               disabled={scanning}
@@ -302,6 +358,47 @@
             </article>
           {/each}
         </div>
+        {#if sheetOpen && doc}
+          <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+            <div class="sheet-card">
+              <p class="kicker">etter scan</p>
+              <h2 id="sheet-title" class="sheet-title">{word}</h2>
+              <p class="mb-3 text-xs text-paper/50">
+                {doc.stamp || 'ingen snapshot'}{#if doc.exit_code != null}
+                  · exit {doc.exit_code}{/if}
+              </p>
+              <div class="space-y-2">
+                {#each actions as a}
+                  <article class="rounded-lg border border-white/10 p-2 text-sm">
+                    <div class="text-[0.7rem] tracking-wide text-paper/45">{a.id}</div>
+                    <div class="text-paper">{a.title}</div>
+                    {#if a.why}
+                      <p class="mt-1 text-xs text-paper/65">{a.why}</p>
+                    {/if}
+                    {#if a.text}
+                      <pre class="mt-1 overflow-x-auto text-[0.7rem] text-paper/55">{a.text}</pre>
+                    {/if}
+                    {#if a.confirm && a.run}
+                      <button
+                        class="mt-2 rounded-full border border-warn/50 px-3 py-1 text-sm text-warn disabled:opacity-50"
+                        disabled={scanning}
+                        onclick={() => confirmRun(a.run || '', a.extra || {})}
+                      >
+                        {pending === a.run ? 'Confirm ' + (a.title || a.run) : a.title}
+                      </button>
+                    {/if}
+                  </article>
+                {/each}
+              </div>
+              <button
+                class="mt-3 rounded-full bg-paper px-3 py-1 text-sm text-ink"
+                onclick={dismissSheet}
+              >
+                Lukk
+              </button>
+            </div>
+          </div>
+        {/if}
       </section>
     {/snippet}
     {#snippet b()}
@@ -351,5 +448,31 @@
   }
   :global(.sev-INFO) {
     border-left: 3px solid #7eb6ff;
+  }
+  .sheet {
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 1.1rem 0.7rem;
+    background: rgba(11, 16, 32, 0.78);
+    overflow-y: auto;
+  }
+  .sheet-card {
+    width: min(36rem, 100%);
+    margin-top: 0.6rem;
+    background: #080b14;
+    border: 1px solid rgba(244, 239, 228, 0.16);
+    border-radius: 0.9rem;
+    padding: 1rem 1.1rem 1.15rem;
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+  }
+  .sheet-title {
+    font-family: var(--font-serif, Palatino, Georgia, serif);
+    font-size: 1.65rem;
+    line-height: 1;
+    margin: 0.2rem 0 0.35rem;
   }
 </style>

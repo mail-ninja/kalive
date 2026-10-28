@@ -70,9 +70,14 @@ print('\n'.join(stale_paths_from_verdict(doc)))
 fi
 if [[ "$FORCE_ALERT" == "1" ]]; then
   echo "aide-init --force-alert: hopper over ALERT-gate (evidens må allerede være lagret)" >&2
+elif [[ "$ACK_STALE" == "1" ]]; then
+  if kalived_latest_identity_alert; then
+    echo "GATE FAIL: identity-ALERT — --ack-stale nektes. PROC-DELETED alene stenger ikke." >&2
+    exit 2
+  fi
 else
   kalived_require_not_alert
-  if [[ "$ACK_STALE" != "1" ]] && kalived_latest_has_id FIM-AIDE-STALE; then
+  if kalived_latest_has_id FIM-AIDE-STALE; then
     echo "GATE FAIL: FIM-AIDE-STALE uacka — stale alene åpner ikke gaten." >&2
     echo "  Bruk --ack-stale for å fryse ssh/passwd (ikke Proton). Identity-ALERT nektes fortsatt." >&2
     exit 2

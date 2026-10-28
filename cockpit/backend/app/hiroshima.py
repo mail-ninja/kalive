@@ -26,6 +26,7 @@ RUNS = {
     "scan": ["sudo", "-n", "kalived-ctl", "scan"],
     "defs": ["sudo", "-n", "kalived-ctl", "defs"],
     "aide-init": ["sudo", "-n", "kalived-ctl", "aide-init"],
+    "aide-init-ack-stale": ["sudo", "-n", "kalived-ctl", "aide-init-ack-stale"],
     "rkhunter-setup": ["sudo", "-n", "kalived-ctl", "rkhunter-setup"],
     "isolate-dst": ["sudo", "-n", "kalived-ctl", "isolate-dst"],
     "isolate-undo": ["sudo", "-n", "kalived-ctl", "isolate-undo"],
@@ -39,6 +40,7 @@ ROLLBACK_PATH = Path.home() / ".config" / "kalived" / "isolate-rollback.json"
 PLAYBOOK_RUNS = frozenset(
     {
         "aide-init",
+        "aide-init-ack-stale",
         "rkhunter-setup",
         "isolate-dst",
         "isolate-undo",
@@ -63,6 +65,7 @@ def _ctl() -> str | None:
 
 
 def latest_snapshot() -> Path | None:
+    """Same oracle as kalived_latest_scan_dir: live sudo=1, not fixture, not test noise."""
     if not STATUS.is_dir():
         return None
     best: Path | None = None
@@ -70,7 +73,17 @@ def latest_snapshot() -> Path | None:
         if not d.is_dir() or not (d / "verdict.json").is_file():
             continue
         meta = d / "meta.txt"
-        if meta.is_file() and "kalived_scan=1" not in meta.read_text(encoding="utf-8", errors="replace"):
+        if not meta.is_file():
+            continue
+        try:
+            text = meta.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        if "kalived_scan=1" not in text:
+            continue
+        if "fixture=1" in text:
+            continue
+        if "sudo=1" not in text:
             continue
         if best is None or d.name > best.name:
             best = d
@@ -97,7 +110,7 @@ def _attach_protocol(doc: dict, snap: Path, *, refresh: bool = False) -> dict:
         proto = ensure_protocol(snap, refresh=refresh)
     except Exception as e:
         doc["protocol_error"] = str(e)[:200]
-        return doc
+        return _attach_actions(doc)
     ring = []
     for it in proto.get("ring") or []:
         if not isinstance(it, dict):
@@ -144,6 +157,35 @@ def _attach_protocol(doc: dict, snap: Path, *, refresh: bool = False) -> dict:
         "watch": watch,
         "watch_unknown": int((watch or {}).get("unknown") or 0),
     }
+    return _attach_actions(doc)
+
+
+def _attach_actions(doc: dict) -> dict:
+    """Rule table owns Confirm rows. Agent may rewrite why/rank on an existing row."""
+    lib = str(REPO / "scripts" / "lib")
+    if lib not in sys.path:
+        sys.path.insert(0, lib)
+    try:
+        from scan_actions import actions_from_verdict, port_actions  # type: ignore
+    except Exception as e:
+        doc["actions_error"] = str(e)[:200]
+        doc["actions"] = []
+        return doc
+    proto = doc.get("protocol") if isinstance(doc.get("protocol"), dict) else {}
+    rows = actions_from_verdict(doc, protocol=proto)
+    merc = proto.get("mercury") if isinstance(proto.get("mercury"), dict) else {}
+    pick: dict = {}
+    why = merc.get("why")
+    if isinstance(why, str) and why.strip():
+        pick["why"] = why
+    pb = merc.get("playbook") or proto.get("playbook")
+    if pb == "ask_operator":
+        pick["id"] = "ask-operator"
+    elif pb in ("isolate-dst", "isolate-undo", "aide-init-ack-stale"):
+        pick["run"] = pb
+    if pick:
+        rows = port_actions(rows, pick)
+    doc["actions"] = rows
     return doc
 
 
