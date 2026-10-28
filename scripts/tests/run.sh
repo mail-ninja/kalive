@@ -146,6 +146,14 @@ else
   fail=1
 fi
 
+echo "[test] protocol_h6.py"
+if python3 "$ROOT/scripts/tests/protocol_h6.py"; then
+  echo "  OK protocol_h6"
+else
+  echo "  FAIL protocol_h6"
+  fail=1
+fi
+
 echo "[test] runtime_sil.py"
 if python3 "$ROOT/scripts/tests/runtime_sil.py"; then
   echo "  OK runtime_sil"

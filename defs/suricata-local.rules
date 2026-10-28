@@ -1,0 +1,5 @@
+# kalived local IDS rules. No drop, no reject, no exploit payload bytes.
+# Emerging Threats Open comes from suricata-update after ja apt (not vendored).
+
+# DNS to .onion — string match, not shellcode/content-bytes.
+alert dns $HOME_NET any -> any any (msg:"KALIVED DNS onion"; dns.query; content:".onion"; nocase; sid:7500001; rev:1;)

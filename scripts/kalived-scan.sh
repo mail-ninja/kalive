@@ -49,6 +49,8 @@ source "$ROOT/scripts/lib/check-pcap.sh"
 source "$ROOT/scripts/lib/check-ufw-digest.sh"
 # shellcheck source=lib/check-falco.sh
 source "$ROOT/scripts/lib/check-falco.sh"
+# shellcheck source=lib/check-suricata.sh
+source "$ROOT/scripts/lib/check-suricata.sh"
 # shellcheck source=lib/check-runtime.sh
 source "$ROOT/scripts/lib/check-runtime.sh"
 
@@ -272,6 +274,9 @@ if kalived_is_live; then
       fi
     fi
   fi
+  if ! "$ROOT/scripts/kalived-suricata.sh"; then
+    add_finding WARN SCAN "suricata harvest feilet" "se hunt_suricata.txt"
+  fi
 fi
 
 # Orchestrator-owned meta.txt (append keys, do not clobber collect fields we moved).
@@ -324,6 +329,7 @@ run_mod helperstale check_helper_stale
 run_mod procs check_procs
 run_mod pcap check_pcap
 run_mod falco check_falco
+run_mod suricata check_suricata
 run_mod runtime check_runtime
 
 # PR 2 dummy: SUDO-MISS-INPUT only on live sudo=0 (should not happen — we ERROR earlier).

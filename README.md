@@ -52,9 +52,8 @@ Leserekkefølge: denne fila → [docs/NOW.md](docs/NOW.md) → [docs/HIROSHIMA.m
 | Flate | I treet |
 |-------|---------|
 | Arbeid | cli (`build`) · tre+Monaco · preview samtidig, `repo_*` + `repo_bash` + `repo_git`, PTY bak knapp, MiniLM + Jev-gate |
-| Hiroshima H0–H5 | Scan, digest-port, ring + Kuzu-graf, miljøklasse, Confirm-playbooks, 5-min egress-watch, Falco host-burst |
+| Hiroshima H0–H6 | Scan, digest-port, ring + Kuzu-graf, miljøklasse, Confirm-playbooks, 5-min egress-watch, Falco host-burst, Suricata IDS (apt venter) |
 | Settings | Maskin (`config.toml`) og nøkler (`env` 0600) |
-| H6 Suricata | Valgfri, ikke påbegynt |
 | Port C | Sandbox-VM, tale, mobil — destinasjon |
 
 ---
@@ -163,6 +162,8 @@ Watch (rullende): `connect()`-audit + `ss` ESTAB. Vindu: exe, dest-familie, port
 
 Falco: host-regler i `defs/falco-host.yaml` (ikke stock). `engine.kind=modern_ebpf`. Burst ~8 s. Tom jsonl = ingen finding. Falco alene = WARN/candidate. Falco + FIM eller Falco + nett = ALERT. Dual leser høyeste severity per funn-id. Pakke mangler = INFO, scan hever ikke. Ingen always-on unit.
 
+Suricata: IDS (AF_PACKET på `wlan0`/`proton0`), ikke IPS. Unit mens lenken er oppe. `hunt_suricata.jsonl` (`sid`, `signature`, `app_proto`, exe-familie). Tom = ingen finding. Treff alene = WARN. Treff + FIM eller treff + nett = ALERT. Pakke mangler = INFO «suricata absent». Ark: «Suricata så X», ikke auto-isolate/drop. Playbook printer apt.
+
 WARN er hygiene (AIDE etter egen install, gammel lsmod-freeze, kjent chkrootkit-støy, VPN-snap). ALERT er noe å løse.
 
 ---
@@ -213,6 +214,7 @@ Paste-tester: [docs/CHAT-TESTS.md](docs/CHAT-TESTS.md). `logs/` er ikke i git.
 | `scripts/kalived-scan.sh` | SOC-orkestrator |
 | `scripts/kalived-watch.sh` | egress-sample |
 | `scripts/kalived-falco.sh` | host-burst |
+| `scripts/kalived-suricata.sh` | eve → hunt_suricata.jsonl |
 | `scripts/lib/check-*.sh` | detektorer |
 | `prompts/playbooks/` | signal / build / forge / … |
 | `playbooks/` | muterende install (gate: ikke ALERT) |

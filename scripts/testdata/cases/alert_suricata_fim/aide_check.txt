@@ -1,0 +1,14 @@
+Start timestamp: 2026-10-01 00:00:00 +0200 (AIDE 0.19.3)
+AIDE found differences between database and filesystem!!
+
+Summary:
+  Total number of entries:	10
+  Added entries:		0
+  Removed entries:		0
+  Changed entries:		1
+
+---------------------------------------------------
+Changed entries:
+---------------------------------------------------
+
+f >.... m ..H      : /etc/sudoers.d/kalived

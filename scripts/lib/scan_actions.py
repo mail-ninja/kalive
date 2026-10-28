@@ -34,7 +34,7 @@ _EXE = re.compile(r"exe=(\S+)")
 HELPER_PTY = "pkexec bash playbooks/install-kalived-helper.sh"
 # libbrotli 1.2.1 is the pin; kali-rolling had 1.2.0-4+b2 as of 2026-10-27.
 BROTLI_ARCHIVE = "1.2.1 ikke i kali-rolling (sist sett 2026-10-27). Node 24.22.1 er inne."
-TEXT_ROW_IDS = frozenset({"travel-harden", "runtime-apt", "helper-pty", "isolate-skip"})
+TEXT_ROW_IDS = frozenset({"travel-harden", "runtime-apt", "helper-pty", "isolate-skip", "suricata-seen"})
 
 NOISE_IDS = frozenset(
     {
@@ -323,6 +323,25 @@ def actions_from_verdict(
                 text=HELPER_PTY,
             )
         )
+
+    if "HOST-SURICATA" in ids:
+        recs = [
+            r
+            for r in findings
+            if r.get("id") == "HOST-SURICATA"
+            and str(r.get("severity") or "").upper() in ("WARN", "ALERT")
+        ]
+        if recs:
+            blob = recs[0].get("detail") or recs[0].get("title") or "alert"
+            short = _one_line(str(blob).splitlines()[0] if blob else "alert", 80)
+            rows.append(
+                _row(
+                    "suricata-seen",
+                    f"Suricata så {short}",
+                    "IDS-treff. Ikke auto-isolate, ikke auto-drop.",
+                    text=f"Suricata så {short}. IDS, ikke drop. Ingen isolate fra arket.",
+                )
+            )
 
     if "HOST-RUNTIME" in ids:
         recs = [r for r in findings if r.get("id") == "HOST-RUNTIME"]

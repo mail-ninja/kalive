@@ -1,0 +1,15 @@
+[Unit]
+Description=kalived Suricata IDS (AF_PACKET, not IPS)
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/usr/bin/suricata
+
+[Service]
+Type=simple
+ExecStart=/usr/local/lib/kalived/scripts/kalived-suricata-run.sh
+Restart=on-failure
+RestartSec=20
+SuccessExitStatus=0 75
+
+[Install]
+WantedBy=multi-user.target

@@ -1,6 +1,6 @@
 # Hiroshima-protokollen
 
-H0–H5 er i treet og på verten. H6 er valgfri. Scan-sannhet er `logs/status/<stamp>/verdict.json`. Cockpit er klient. Produkt: [../README.md](../README.md).
+H0–H6 er i treet. H6-pakke venter på «ja apt». Scan-sannhet er `logs/status/<stamp>/verdict.json`. Cockpit er klient. Produkt: [../README.md](../README.md).
 
 Hiroshima er host-SOC på én laptop. Ikke SIEM, Huntress, LAN-scanner eller sky-EDR.
 
@@ -156,9 +156,15 @@ Regler: `defs/falco-host.yaml` (ikke stock `falco_rules.yaml`). `spawned_process
 
 Playbook `install-falco-host.sh` printer tredjeparts-apt hvis binær mangler; kjører den ikke. Fixture `protocol_h5.py`.
 
-### H6 — Suricata (valgfri)
+### H6 — Suricata IDS (ikke IPS)
 
-eve.json på aktiv uplink. Ingen pcap-dump. Zeek ut.
+AF_PACKET på aktiv uplink (`proton0` / `wlan0`), aldri `lo`, aldri nfqueue/inline. Unit mens lenken er oppe (burst er feil tak: C2 skjer mellom samples). `HOME_NET` = RFC1918 + Proton `10.2.0.0/16`. `EXTERNAL_NET` = `!$HOME_NET`.
+
+eve.json: `alert`, `dns`, `tls`, `flow`. Ingen pcap-fil. Ingen web-UI. Ingen `0.0.0.0`. Scan skriver `hunt_suricata.jsonl` (`sid`, `signature`, `app_proto`, `exe` hvis ss matcher). Rå dest-IP går ikke til modellene.
+
+Tom jsonl = ingen finding. Treff alene = WARN/candidate. Treff + FIM eller treff + nett = ALERT. Pakke mangler = INFO «suricata absent». Ark: tekst «Suricata så X» — ikke auto-isolate, ikke auto-drop.
+
+ET Open via `suricata-update` etter ja apt. Lokal fil `defs/suricata-local.rules` (ingen exploit-payload). Playbook `install-suricata-host.sh` printer apt og stopper. Fixture `protocol_h6.py`.
 
 ## Minne
 

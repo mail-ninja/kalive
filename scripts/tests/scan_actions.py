@@ -395,6 +395,49 @@ def test_signal_port_drops_unknown_run_and_rewrites_why() -> None:
     print("OK signal_port dropper ukjent run, porter why, travel først")
 
 
+def test_suricata_seen_text_only() -> None:
+    rows = actions_from_verdict(
+        {
+            "verdict": "WARN",
+            "findings": [
+                {
+                    "severity": "WARN",
+                    "id": "HOST-SURICATA",
+                    "title": "Suricata candidate",
+                    "detail": "sid=2018959 ET MALWARE Suspicious TLS to x app=tls n=1",
+                }
+            ],
+        }
+    )
+    assert "suricata-seen" in _ids(rows), rows
+    seen = next(r for r in rows if r["id"] == "suricata-seen")
+    assert seen["run"] is None and seen["confirm"] is False
+    assert seen["title"].startswith("Suricata så ")
+    assert "IDS" in (seen.get("text") or "")
+    assert "isolate-dst" not in _runs(rows)
+    dual = actions_from_verdict(
+        {
+            "verdict": "ALERT",
+            "findings": [
+                {"severity": "ALERT", "id": "HOST-SURICATA", "title": "Suricata + FIM", "detail": "sid=7500001"},
+                {"severity": "WARN", "id": "FIM-AIDE", "title": "self_sudoers", "detail": "/etc/sudoers.d/kalived"},
+            ],
+        }
+    )
+    assert "suricata-seen" in _ids(dual)
+    assert "isolate-dst" not in _runs(dual)
+    info = actions_from_verdict(
+        {
+            "verdict": "CLEAN",
+            "findings": [
+                {"severity": "INFO", "id": "HOST-SURICATA", "title": "suricata absent", "detail": ""}
+            ],
+        }
+    )
+    assert "suricata-seen" not in _ids(info)
+    print("OK Suricata så X, ingen isolate; absent uten rad")
+
+
 def test_no_invented_runs() -> None:
     assert "kill-pid" not in ALLOWED_RUNS
     assert "aide-init" not in ALLOWED_RUNS
@@ -440,6 +483,7 @@ def main() -> int:
     test_port_rewrites_why_and_rank()
     test_mercury_ask_does_not_hide_safe_row()
     test_signal_port_drops_unknown_run_and_rewrites_why()
+    test_suricata_seen_text_only()
     test_no_invented_runs()
     test_ctl_ack_stale_verb()
     print("ALL OK scan_actions")

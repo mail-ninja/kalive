@@ -2,7 +2,7 @@
 
 Retningen: det feteste *lokale* kodemiljøet vi klarer, med Hiroshima som sikkerhetsrom som allerede ser. Ikke en omvei rundt SOC-kjernen. Ikke et nytt rammeverk.
 
-H0–H5 er i treet og på verten. H6 Suricata er valgfri destinasjon. Tre kolonner, `repo_write`, grep→linje, loopback-preview, `repo_git` og cli som stopper etter verifikasjon er inne. **Neste er å bruke loopen på større systemer og stramme der den gnisser.**
+H0–H6 er i treet. H6 Suricata IDS venter på «ja apt» (playbook printer, kjører ikke). Tre kolonner, `repo_write`, grep→linje, loopback-preview, `repo_git` og cli som stopper etter verifikasjon er inne. **Neste er å bruke loopen på større systemer og stramme der den gnisser.**
 
 ---
 
@@ -60,7 +60,7 @@ Burst-scan, fire siler, scoped AIDE, oneshot `kalived-ctl` fra skuffen, `signal`
 
 Jev porter digest; Mercury på candidate; `signal` forklarer; ctl utfører. Telefon-hotspot = `tether` / `env_shift`. Falco alene = candidate; Falco+FIM/nett = ALERT. Scan-kjernen røres ikke «fordi UI».
 
-Valgfritt senere: Kuzu-tidslinje over stamps og Confirm; H6 Suricata på aktiv uplink.
+Valgfritt senere: Kuzu-tidslinje over stamps og Confirm. H6 Suricata i treet, apt venter.
 
 ---
 
