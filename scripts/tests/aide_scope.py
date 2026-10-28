@@ -19,6 +19,8 @@ from aide_classify import (  # noqa: E402
     findings_from_report,
     is_identity_binary,
     parse_paths,
+    union_prefixes,
+    write_scope,
 )
 
 WARN_FIX = ROOT / "scripts" / "testdata" / "cases" / "warn_aide_classes" / "aide_check.txt"
@@ -575,6 +577,79 @@ def test_gate_stale_denied_without_ack() -> None:
     print("OK gate stengt på uacka STALE")
 
 
+def test_write_scope_unions_and_drops_proton() -> None:
+    td = Path(tempfile.mkdtemp())
+    dest = td / "aide-scope.json"
+    write_scope(dest, list(DEFAULT_SCOPE) + ["/usr/bin/sudo"], union_existing=False)
+    write_scope(
+        dest,
+        list(DEFAULT_SCOPE)
+        + [
+            "/etc/ssh/ssh_config",
+            "/usr/bin/passwd",
+            "/snap/proton-vpn-1",
+        ],
+        union_existing=True,
+    )
+    prefs = json.loads(dest.read_text(encoding="utf-8")).get("prefixes") or []
+    assert "/usr/bin/sudo" in prefs
+    assert "/etc/ssh/ssh_config" in prefs
+    assert "/usr/bin/passwd" in prefs
+    assert "/etc/sudoers.d/kalived" in prefs
+    assert not any("proton" in str(x).lower() for x in prefs)
+    assert union_prefixes(["/usr/bin/sudo"], ["/usr/bin/sudo", "/etc/passwd"]) == [
+        "/usr/bin/sudo",
+        "/etc/passwd",
+    ]
+    print("OK write_scope unionerer sudo, dropper Proton")
+
+
+def test_gate_ack_stale_unions_existing() -> None:
+    data = _fake_data("WARN", [_STALE_FINDING])
+    dest = data / "aide-scope.json"
+    write_scope(dest, list(DEFAULT_SCOPE) + ["/usr/bin/sudo"], union_existing=False)
+    env = os.environ.copy()
+    env["KALIVED_AIDE_INIT_DRY"] = "1"
+    env["KALIVED_DATA"] = str(data)
+    env["KALIVED_AIDE_SCOPE"] = str(dest)
+    p = subprocess.run(
+        ["bash", str(INIT), "--ack-stale"],
+        capture_output=True,
+        text=True,
+        env=env,
+        check=False,
+    )
+    assert p.returncode == 0, (p.returncode, p.stdout, p.stderr)
+    prefs = json.loads(dest.read_text(encoding="utf-8")).get("prefixes") or []
+    assert "/usr/bin/sudo" in prefs, prefs
+    assert "/etc/ssh/ssh_config" in prefs
+    assert "/usr/bin/passwd" in prefs
+    assert "/usr/bin/su" in prefs
+    assert not any("proton" in str(x).lower() for x in prefs)
+    print("OK --ack-stale unionerer eksisterende /usr/bin/sudo")
+
+
+def test_force_keeps_acked_sudo() -> None:
+    data = _fake_data("WARN")
+    dest = data / "aide-scope.json"
+    write_scope(dest, list(DEFAULT_SCOPE) + ["/usr/bin/sudo"], union_existing=False)
+    env = os.environ.copy()
+    env["KALIVED_AIDE_INIT_DRY"] = "1"
+    env["KALIVED_DATA"] = str(data)
+    env["KALIVED_AIDE_SCOPE"] = str(dest)
+    p = subprocess.run(
+        ["bash", str(INIT), "--force"],
+        capture_output=True,
+        text=True,
+        env=env,
+        check=False,
+    )
+    assert p.returncode == 0, (p.returncode, p.stdout, p.stderr)
+    prefs = json.loads(dest.read_text(encoding="utf-8")).get("prefixes") or []
+    assert "/usr/bin/sudo" in prefs, prefs
+    print("OK --force unionerer, dropper ikke acked sudo")
+
+
 def test_gate_ack_stale_writes_paths() -> None:
     data = _fake_data("WARN", [_STALE_FINDING])
     dest = data / "aide-scope.json"
@@ -699,6 +774,9 @@ def main() -> int:
     test_aide_init_force_warn_scoped()
     test_gate_open_on_pkg_warn()
     test_gate_stale_denied_without_ack()
+    test_write_scope_unions_and_drops_proton()
+    test_gate_ack_stale_unions_existing()
+    test_force_keeps_acked_sudo()
     test_gate_ack_stale_writes_paths()
     test_gate_ack_stale_ok_on_deleted_alert()
     test_gate_ack_stale_denied_on_identity()

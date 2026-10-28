@@ -5,8 +5,8 @@
 # --all er forbudt (skjuler Proton). Confirm / kalived-ctl kaller scoped --force.
 # --force: hopp over always_prompt / clean_only. NEKTES ved siste verdict ALERT|ERROR
 #   og ved uacka FIM-AIDE-STALE. Stale alene åpner ikke gaten.
-# --ack-stale: tillat stale WARN; legg ssh/passwd-stiene i scoped overlay. Identity-ALERT
-#   nektes fortsatt. Proton uendret.
+# --ack-stale: tillat stale WARN; unioner stale-stier inn i scoped overlay (beholder
+#   tidligere prefixes, f.eks. /usr/bin/sudo). Identity-ALERT nektes. Proton uendret.
 # --force-alert: re-baseline selv om siste scan er ALERT (kun etter evidens er lagret).
 # Rollback scoped: rm -f ~/.config/kalived/aide-scope.json /var/lib/aide/kalived-scope.json
 # Rollback --all: rm -f /var/lib/aide/kalived.db.gz /etc/aide/kalived.conf

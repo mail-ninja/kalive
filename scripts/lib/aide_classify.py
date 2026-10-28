@@ -554,10 +554,44 @@ def findings_from_report(
     return recs
 
 
-def write_scope(dest: Path, prefixes: list[str] | None = None) -> dict[str, Any]:
+def keep_prefix(path: str) -> bool:
+    """Scoped overlay never absorbs Proton/snap. Identity and kalived-self stay."""
+    p = decode_path(path)
+    if not p.startswith("/"):
+        return False
+    cls = classify_path(p)
+    return cls not in ("snap_proton", "snap_other")
+
+
+def union_prefixes(*groups: list[str]) -> list[str]:
+    """Stable union. First occurrence wins. Proton/snap dropped."""
+    seen: set[str] = set()
+    out: list[str] = []
+    for group in groups:
+        for raw in group or []:
+            p = decode_path(str(raw))
+            if not keep_prefix(p) or p in seen:
+                continue
+            seen.add(p)
+            out.append(p)
+    return out
+
+
+def write_scope(
+    dest: Path,
+    prefixes: list[str] | None = None,
+    *,
+    union_existing: bool = True,
+) -> dict[str, Any]:
     import time
 
     prefs = list(prefixes or DEFAULT_SCOPE)
+    if union_existing and dest.is_file():
+        old = load_scope(dest)
+        old_prefs = [str(x) for x in (old.get("prefixes") or [])]
+        prefs = union_prefixes(old_prefs, prefs)
+    else:
+        prefs = union_prefixes(prefs)
     hashes: dict[str, str] = {}
     for p in prefs:
         fp = Path(p)
