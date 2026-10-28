@@ -33,6 +33,9 @@ NET_DUAL = frozenset(
         "PROC-TMPNET",
     }
 )
+# Suricata decoder/stream events (not ET/malware). 2200121 Ethertype unknown is wifi noise.
+DECODER_SID_MIN = 2_200_000
+DECODER_SID_MAX = 2_299_999
 
 
 def _basename_exe(raw: str) -> str:
@@ -218,6 +221,52 @@ def dual_domains(ids: dict[str, str]) -> tuple[bool, bool]:
     return fim, net
 
 
+def is_decoder_sid(sid: int | str) -> bool:
+    try:
+        n = int(sid)
+    except (TypeError, ValueError):
+        return False
+    return DECODER_SID_MIN <= n <= DECODER_SID_MAX
+
+
+def _row_sid(row: dict[str, Any]) -> int:
+    try:
+        return int(row.get("sid") or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _flow_match(rows: list[dict[str, Any]], ids: dict[str, str]) -> bool:
+    """Decoder dual only when this alert's flow matches nett or Falco. FIM is not a flow."""
+    if not any(str(r.get("exe") or "").strip() for r in rows):
+        return False
+    _, net = dual_domains(ids)
+    falco = ids.get("HOST-FALCO") in ("WARN", "ALERT")
+    return bool(net or falco)
+
+
+def _bits(rows: list[dict[str, Any]]) -> tuple[list[str], str]:
+    shown = rows[:8]
+    extra = f" (+{len(rows) - 8})" if len(rows) > 8 else ""
+    bits: list[str] = []
+    for r in shown:
+        bit = f"sid={r['sid']} {r['signature']} app={r['app_proto']} n={r['n']}"
+        if r.get("exe"):
+            bit += f" exe={r['exe']}"
+        bits.append(bit)
+    return bits, extra
+
+
+def _host_finding(sev: str, title: str, bits: list[str]) -> dict[str, str]:
+    return {
+        "severity": sev,
+        "id": "HOST-SURICATA",
+        "title": title[:240],
+        "detail": "\n".join(bits),
+        "source": "hunt_suricata.jsonl",
+    }
+
+
 def findings_from_rows(
     rows: list[dict[str, Any]],
     *,
@@ -249,30 +298,22 @@ def findings_from_rows(
     if not rows:
         return []
     ids = ids or {}
-    fim, net = dual_domains(ids)
-    dual = fim or net
-    sev = "ALERT" if dual else "WARN"
-    shown = rows[:8]
-    extra = f" (+{len(rows) - 8})" if len(rows) > 8 else ""
-    bits = []
-    for r in shown:
-        bit = f"sid={r['sid']} {r['signature']} app={r['app_proto']} n={r['n']}"
-        if r.get("exe"):
-            bit += f" exe={r['exe']}"
-        bits.append(bit)
-    if dual:
-        title = f"Suricata + {'FIM' if fim else 'nett'}: {', '.join(bits)}{extra}"
-    else:
-        title = f"Suricata candidate: {', '.join(bits)}{extra}"
-    return [
-        {
-            "severity": sev,
-            "id": "HOST-SURICATA",
-            "title": title[:240],
-            "detail": "\n".join(bits),
-            "source": "hunt_suricata.jsonl",
-        }
-    ]
+    signal = [r for r in rows if not is_decoder_sid(_row_sid(r))]
+    decoder = [r for r in rows if is_decoder_sid(_row_sid(r))]
+    if signal:
+        fim, net = dual_domains(ids)
+        dual = fim or net
+        sev = "ALERT" if dual else "WARN"
+        bits, extra = _bits(signal)
+        if dual:
+            title = f"Suricata + {'FIM' if fim else 'nett'}: {', '.join(bits)}{extra}"
+        else:
+            title = f"Suricata candidate: {', '.join(bits)}{extra}"
+        return [_host_finding(sev, title, bits)]
+    bits, extra = _bits(decoder)
+    if _flow_match(decoder, ids):
+        return [_host_finding("ALERT", f"Suricata + flow: {', '.join(bits)}{extra}", bits)]
+    return [_host_finding("INFO", f"Suricata decoder: {', '.join(bits)}{extra}", bits)]
 
 
 def digest_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:

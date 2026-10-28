@@ -64,7 +64,7 @@ check_rootkit() {
       if echo "$line" | grep -q '\[From Debian package:'; then
         continue
       fi
-      if echo "$line" | grep -qE 'PACKET SNIFFER\(/usr/sbin/NetworkManager|PACKET SNIFFER\(/usr/sbin/wpa_supplicant|PACKET SNIFFER\(/usr/sbin/tcpdump'; then
+      if echo "$line" | grep -qE 'PACKET SNIFFER\(/usr/sbin/NetworkManager|PACKET SNIFFER\(/usr/sbin/wpa_supplicant|PACKET SNIFFER\(/usr/sbin/tcpdump|PACKET SNIFFER\(/usr/bin/suricata'; then
         continue
       fi
       if _allow_hit "$line" "$allow_ck"; then

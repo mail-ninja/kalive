@@ -14,9 +14,10 @@ _LIB = Path(__file__).resolve().parents[3] / "scripts" / "lib"
 if _LIB.is_dir() and str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
 from hiroshima_act import flow_family as flow_family  # noqa: E402
+from suricata_eve import is_decoder_sid as is_decoder_sid  # noqa: E402
 
 SCHEMA = 2
-RING_REV = 5
+RING_REV = 6
 
 QUESTIONS = {
     "class": {
@@ -572,7 +573,7 @@ def ring_from_snapshot(snap: Path, digest: dict | None = None) -> list[dict[str,
         sig = str(row.get("signature") or "")
         proto = str(row.get("app_proto") or "")
         exe = str(row.get("exe") or "")
-        if not sid:
+        if not sid or is_decoder_sid(sid):
             continue
         add(
             {
@@ -882,7 +883,9 @@ def rule_one(state: dict, qid: str, spec: dict) -> dict:
             choice = "candidate"
         elif env_c in ("tether", "travel"):
             choice = "env_shift"
-        elif sevs & {"WARN", "ERROR"} and (ids - NOISE_IDS - {"FIM-AIDE", "HELPER-STALE", "F-007"}):
+        elif sevs & {"WARN", "ERROR"} and (
+            ids - NOISE_IDS - {"FIM-AIDE", "HELPER-STALE", "F-007", SURICATA_ID}
+        ):
             choice = "candidate"
         else:
             choice = "noise"

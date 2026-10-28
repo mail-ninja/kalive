@@ -6,6 +6,7 @@ nothing detected
 PACKET SNIFFER(/usr/sbin/NetworkManager
 PACKET SNIFFER(/usr/sbin/wpa_supplicant
 PACKET SNIFFER(/usr/sbin/tcpdump
+PACKET SNIFFER(/usr/bin/suricata
 llvm-19-tools
 llvm-18-tools
 firmware-atheros

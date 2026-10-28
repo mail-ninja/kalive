@@ -1,5 +1,6 @@
 # shellcheck shell=bash
-# Suricata alene = WARN (candidate). Suricata + FIM eller Suricata + nett = ALERT.
+# ET/malware alene = WARN (candidate). ET + FIM eller ET + nett = ALERT.
+# Decoder/stream sid 2200000–2299999 = INFO. Dual ALERT bare når flow matcher nett/Falco.
 # Tom jsonl = ingen finding. suricata absent = INFO, ikke ERROR.
 
 check_suricata() {

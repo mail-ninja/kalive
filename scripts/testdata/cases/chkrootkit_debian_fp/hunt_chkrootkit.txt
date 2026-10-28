@@ -5,3 +5,4 @@ WARNING: The following suspicious files and directories were found:
 WARNING: Output from ifpromisc:
 eth0: PACKET SNIFFER(/usr/sbin/NetworkManager[1079])
 wlan0: PACKET SNIFFER(/usr/sbin/wpa_supplicant[1236])
+wlan0: PACKET SNIFFER(/usr/bin/suricata[4242])

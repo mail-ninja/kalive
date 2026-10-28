@@ -162,7 +162,7 @@ AF_PACKET på aktiv uplink (`proton0` / `wlan0`), aldri `lo`, aldri nfqueue/inli
 
 eve.json: `alert`, `dns`, `tls`, `flow`. Ingen pcap-fil. Ingen web-UI. Ingen `0.0.0.0`. Scan skriver `hunt_suricata.jsonl` (`sid`, `signature`, `app_proto`, `exe` hvis ss matcher). Rå dest-IP går ikke til modellene.
 
-Tom jsonl = ingen finding. Treff alene = WARN/candidate. Treff + FIM eller treff + nett = ALERT. Pakke mangler = INFO «suricata absent». Ark: tekst «Suricata så X» — ikke auto-isolate, ikke auto-drop.
+Tom jsonl = ingen finding. ET/malware alene = WARN/candidate. ET + FIM eller ET + nett = ALERT. Decoder/stream sid 2200000–2299999 (f.eks. 2200121 Ethertype unknown) = INFO, ikke candidate; dual til ALERT bare når alertens flow matcher en annen sensor (exe + nett/Falco). FIM alene løfter ikke decoder. Pakke mangler = INFO «suricata absent». Ark: tekst «Suricata så X» — ikke auto-isolate, ikke auto-drop.
 
 ET Open via `suricata-update` etter ja apt. Lokal fil `defs/suricata-local.rules` (ingen exploit-payload). Playbook `install-suricata-host.sh` printer apt og stopper. Fixture `protocol_h6.py`.
 

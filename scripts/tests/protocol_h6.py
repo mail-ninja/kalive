@@ -18,6 +18,7 @@ from suricata_eve import (  # noqa: E402
     aggregate,
     digest_rows,
     findings_from_rows,
+    is_decoder_sid,
     leaks,
     load_jsonl,
     parse_event,
@@ -130,6 +131,45 @@ def test_findings() -> None:
         ids={"FIM-AIDE": "INFO"},
     )
     assert quiet[0]["severity"] == "WARN", quiet
+    assert is_decoder_sid(2_200_000) and is_decoder_sid(2_299_999)
+    assert is_decoder_sid(2_200_121)
+    assert not is_decoder_sid(2_199_999) and not is_decoder_sid(2_300_000)
+    assert not is_decoder_sid(2_018_959) and not is_decoder_sid(7_500_001)
+    eth = [{"sid": 2200121, "signature": "SURICATA Ethertype unknown", "app_proto": "unknown", "n": 3}]
+    dec = findings_from_rows(eth)
+    assert dec[0]["severity"] == "INFO" and "decoder" in dec[0]["title"].lower(), dec
+    assert "candidate" not in dec[0]["title"].lower(), dec
+    dec_fim = findings_from_rows(eth, ids={"FIM-AIDE": "WARN"})
+    assert dec_fim[0]["severity"] == "INFO", dec_fim
+    et_fim = findings_from_rows(
+        [{"sid": 2018959, "signature": "ET MALWARE Suspicious TLS to x", "app_proto": "tls", "n": 1}],
+        ids={"FIM-AIDE": "WARN"},
+    )
+    assert et_fim[0]["severity"] == "ALERT", et_fim
+    mixed = findings_from_rows(
+        eth
+        + [{"sid": 2018959, "signature": "ET MALWARE Suspicious TLS to x", "app_proto": "tls", "n": 1}],
+        ids={"FIM-AIDE": "WARN"},
+    )
+    assert mixed[0]["severity"] == "ALERT", mixed
+    assert "2200121" not in mixed[0]["title"] and "2018959" in mixed[0]["title"], mixed
+    flow = findings_from_rows(
+        [{"sid": 2200121, "signature": "SURICATA Ethertype unknown", "app_proto": "unknown", "n": 1, "exe": "ncat"}],
+        ids={"NET-ESTAB": "ALERT"},
+    )
+    assert flow[0]["severity"] == "ALERT" and "flow" in flow[0]["title"].lower(), flow
+    falco = findings_from_rows(
+        [{"sid": 2200121, "signature": "SURICATA Ethertype unknown", "app_proto": "unknown", "n": 1, "exe": "bash"}],
+        ids={"HOST-FALCO": "WARN"},
+    )
+    assert falco[0]["severity"] == "ALERT", falco
+    dec_exe_fim = findings_from_rows(
+        [{"sid": 2200121, "signature": "SURICATA Ethertype unknown", "app_proto": "unknown", "n": 1, "exe": "firefox-esr"}],
+        ids={"FIM-AIDE": "WARN"},
+    )
+    assert dec_exe_fim[0]["severity"] == "INFO", dec_exe_fim
+    dec_net = findings_from_rows(eth, ids={"NET-LISTEN-EXT": "ALERT"})
+    assert dec_net[0]["severity"] == "INFO", dec_net
     print("OK findings WARN/ALERT/INFO")
 
 
@@ -245,6 +285,36 @@ def test_port(tmp: Path) -> None:
     p4 = port(absent, live=False)
     assert p4["class"] != "candidate", p4
     assert p4["class"] != "alert_family", p4
+
+    decoder_rows = [
+        {"sid": 2200121, "signature": "SURICATA Ethertype unknown", "app_proto": "unknown", "n": 3}
+    ]
+    decoder = _snap(
+        tmp / "decoder",
+        rows=decoder_rows,
+        findings=[{"severity": "INFO", "id": "HOST-SURICATA", "title": "Suricata decoder"}],
+        verdict="CLEAN",
+    )
+    p5 = port(decoder, live=False)
+    assert p5["class"] != "candidate", p5
+    assert p5["class"] != "alert_family", p5
+    ring_d = ring_from_snapshot(decoder, digest_from_snapshot(decoder))
+    assert not any(x.get("kind") == "suricata" for x in ring_d), ring_d
+    decoder_fim = _snap(
+        tmp / "decoder_fim",
+        rows=decoder_rows,
+        findings=[
+            {"severity": "WARN", "id": "FIM-AIDE", "title": "AIDE self_sudoers"},
+            {"severity": "INFO", "id": "HOST-SURICATA", "title": "Suricata decoder"},
+        ],
+        verdict="WARN",
+    )
+    p6 = port(decoder_fim, live=False)
+    assert p6["class"] != "alert_family", p6
+    assert p6["class"] != "candidate", p6
+    merc6 = p6.get("mercury") or mercury_rules(digest_from_snapshot(decoder_fim), [])
+    assert merc6.get("why") != "suricata-candidate", merc6
+    assert merc6.get("why") != "suricata-dual", merc6
     print("OK port empty/candidate/alert/absent")
 
 
@@ -271,6 +341,21 @@ def test_sheet() -> None:
     assert "isolate" in (seen[0].get("text") or "").lower()
     assert "drop" in (seen[0].get("text") or "").lower()
     assert "isolate-dst" not in [r.get("run") for r in rows]
+    info_sheet = actions_from_verdict(
+        {
+            "verdict": "WARN",
+            "findings": [
+                {
+                    "severity": "INFO",
+                    "id": "HOST-SURICATA",
+                    "title": "Suricata decoder: sid=2200121 SURICATA Ethertype unknown",
+                    "detail": "sid=2200121 SURICATA Ethertype unknown app=unknown n=3",
+                },
+                {"severity": "WARN", "id": "FIM-AIDE", "title": "self_sudoers"},
+            ],
+        }
+    )
+    assert not any(r.get("id") == "suricata-seen" for r in info_sheet), info_sheet
     print("OK sheet Suricata så X, ingen isolate/drop")
 
 
@@ -392,6 +477,20 @@ def test_tree() -> None:
     assert "kalived-suricata.sh" in scan
     assert "suricata-seen" in actions
     assert "isolate-dst" in actions
+    allow = (ROOT / "defs" / "kali-allow" / "chkrootkit-allow.txt").read_text(encoding="utf-8")
+    assert "PACKET SNIFFER(/usr/bin/suricata" in allow
+    ck = (ROOT / "scripts" / "lib" / "check-rootkit.sh").read_text(encoding="utf-8")
+    assert r"PACKET SNIFFER\(/usr/bin/suricata" in ck
+    eve = (ROOT / "scripts" / "lib" / "suricata_eve.py").read_text(encoding="utf-8")
+    assert "DECODER_SID_MIN" in eve and "is_decoder_sid" in eve
+    eth = CASES / "warn_suricata_ethertype_fim"
+    assert (eth / "hunt_suricata.jsonl").is_file()
+    assert "2200121" in (eth / "hunt_suricata.jsonl").read_text(encoding="utf-8")
+    assert "VERDICT=WARN" in (eth / "expected_verdict.txt").read_text(encoding="utf-8")
+    assert "IDS=FIM-AIDE" in (eth / "expected_verdict.txt").read_text(encoding="utf-8")
+    et = CASES / "alert_suricata_fim"
+    assert "2018959" in (et / "hunt_suricata.jsonl").read_text(encoding="utf-8")
+    assert "VERDICT=ALERT" in (et / "expected_verdict.txt").read_text(encoding="utf-8")
     start = hiro.index("PLAYBOOK_RUNS")
     chunk = hiro[start : start + 500]
     assert "suricata" not in chunk.lower()
