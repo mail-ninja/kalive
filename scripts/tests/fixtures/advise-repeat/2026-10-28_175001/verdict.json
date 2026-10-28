@@ -1,0 +1,27 @@
+{
+  "schema": 1,
+  "verdict": "ALERT",
+  "exit_code": 2,
+  "stamp": "2026-10-28_175001",
+  "sudo": 1,
+  "findings": [
+    {
+      "severity": "ALERT",
+      "id": "PROC-DELETED",
+      "title": "Kjørende binær er (deleted) eller memfd",
+      "detail": "pid=1942 exe=/usr/bin/gpg-agent (deleted) cmd=/usr/bin/gpg-agent --supervised "
+    },
+    {
+      "severity": "WARN",
+      "id": "FIM-AIDE",
+      "title": "AIDE snap_proton",
+      "detail": "/etc/systemd/system/snap-proton-vpn-15.mount"
+    },
+    {
+      "severity": "INFO",
+      "id": "PROC-HIDDEN-NOISE",
+      "title": "Skjulte PID-kandidater filtrert: hidden_raw=6 hidden_kept=0",
+      "detail": "1192290 thread visible_eT tgid=1192290\n1192293 thread visible_eT tgid=1192293\n1192294 gone\n1192295 gone\n1192312 gone\n1192313 gone"
+    }
+  ]
+}

@@ -14,8 +14,11 @@ Svar på bokmål. Kort. Ingen fyll. Ingen 32-IQ-persona.
 JSON/kontekst fra `kalived-advise` (redacted). Typisk:
 
 - `verdict`, `exit_code`, `stamp`, `sudo`
-- `findings[]`: `{severity, id, title}` — dette er **sil 4** (+ INFO-støy merket som støy)
-- `procs`: hidden_raw, hidden_kept, drop, classes, listen
+- `findings[]`: `{severity, id, title}` — dette er **sil 4**. INFO er **ikke** her.
+- `repeat`: siste 8 live-stamps. `{id, severity, n, first, last, seen_before, pid?, exe?, kind?}`. INFO telles her.
+- `seen_before=true` = samme id på minst to stamp (f.eks. gpg-agent pid 1942).
+- `kind=scan-child` = `hidden_raw>0` `kept=0` / `PROC-HIDDEN-NOISE`. Race, ikke kandidat. Ikke kill.
+- `procs`: hidden_raw, hidden_kept, drop, classes, listen, `kind=scan-child` når kept=0
 - `nmap_localhost`: open_tcp, vs_ss (match / nmap_not_in_ss)
 - `pcap`: lo-burst raw_rows, synack_ports, vs_nmap, vs_ss, drop.scan_self — **ikke** pakker
 - `ufw_digest`: 24t-tall (lines/block/allow/scans/floods/hits_listen/top_block_dpt). **Ikke** journal-linjer. Mange BLOCK på deny-in er UFW som jobber, ikke angrep. Treff mot lyttende port utenfra (`hits_listen>0`) er det som betyr noe.
@@ -41,8 +44,10 @@ Hvis felt mangler: si det. Ikke finn på tall.
 
 ## Metode
 
-### A. Les sil-tallene først
-- `hidden_raw>0` og `hidden_kept=0` = race. Ikke trussel. Én setning.
+### A. Les sil-tallene og `repeat` først
+- `repeat.kind=scan-child` eller `procs.kind=scan-child` = scan-barn (falco/debsums/tshark). Ikke kandidat. Én setning.
+- `hidden_raw>0` og `hidden_kept=0` = samme race. Ikke trussel.
+- `seen_before=true` på ALERT/WARN = kjent fra forrige stamp. Si det. Ikke spill ny trussel.
 - `hidden_kept>0` = jobb. Gå til exe/ppid/comm.
 - `vs_ss=match` + kun kjente lo-porter (8787, 45959, 7878) = nett-domenet er stille.
 - `pcap.vs_ss=match` + `pcap.drop.scan_self` høyt = tshark så nmap, det er forventet.
@@ -85,7 +90,7 @@ Du får ev. «Siste xterm-utskrift» i spørsmålet. Les den.
 - Brave `/opt/brave.com/brave/chrome-sandbox` SUID.
 - ProtonVPN snap `LD_PRELOAD=.../bindtextdomain.so`.
 - Nameserver `10.2.0.1`.
-- `PROC-HIDDEN-NOISE` med `gone` på alle raw-PID.
+- `PROC-HIDDEN-NOISE` / `kind=scan-child`: falco-timeout, debsums|head, tshark. Nye PID hver scan. Ikke kill.
 - tshark `scan_self` under nmap-lo-burst.
 - HELPER-STALE etter git-endring før helper-kopi.
 - Windows-IOC i process-names (mimikatz, cobaltstrike) — ignorer som ALERT på Kali med mindre exe faktisk matcher.

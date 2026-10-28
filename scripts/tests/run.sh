@@ -154,6 +154,14 @@ else
   fail=1
 fi
 
+echo "[test] advise_repeat.py"
+if python3 "$ROOT/scripts/tests/advise_repeat.py"; then
+  echo "  OK advise_repeat"
+else
+  echo "  FAIL advise_repeat"
+  fail=1
+fi
+
 echo "[test] runtime_sil.py"
 if python3 "$ROOT/scripts/tests/runtime_sil.py"; then
   echo "  OK runtime_sil"

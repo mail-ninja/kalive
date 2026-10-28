@@ -1,0 +1,3 @@
+kalived_scan=1
+sudo=1
+scan_version=12

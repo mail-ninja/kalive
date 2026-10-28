@@ -53,7 +53,7 @@ Jev ser det som overlevde silene. TypeSafe: filtrer først. Jev teller ikke, par
 
 ### 2 — Digest
 
-`scripts/kalived-advise.py` + `hiroshima_decide.py`. Kort JSON: stamp, verdict, env, finding-ider, procs-tall, nmap vs ss, pcap-tall, ufw_digest-tall. Aldri pakke-payload, pcapng, full URL, journal, API-nøkler, raw `ps`.
+`scripts/kalived-advise.py` + `hiroshima_decide.py`. Kort JSON: stamp, verdict, env, finding-ider, procs-tall, nmap vs ss, pcap-tall, ufw_digest-tall, `repeat` (siste 8 live-stamps: id, n, first/last, pid/exe, `seen_before`; INFO telles, ikke i `findings[]`; `kind=scan-child` for hidden_raw kept=0). Aldri pakke-payload, pcapng, full URL, journal, API-nøkler, raw `ps`.
 
 Digestet lander som `protocol.json` ved siden av `verdict.json` når cockpit reaper scan eller `GET /v1/hiroshima/verdict`. GUI leser begge. Verdict overskrives ikke.
 
@@ -168,7 +168,7 @@ ET Open via `suricata-update` etter ja apt. Lokal fil `defs/suricata-local.rules
 
 ## Minne
 
-Etter port: `signal`-namespace får `digest` / `env_shift` / én `finding`. Kuzu-kanter over. Falco-burst alene er utenfor `PLAYBOOK_RUNS`. Disk forblir orakel. Tidslinje tvers av stamps er ønsket, ikke bygd.
+Etter port: `signal`-namespace får `digest` / `env_shift` / én `finding`. Kuzu-kanter over. Falco-burst alene er utenfor `PLAYBOOK_RUNS`. Disk forblir orakel. Advise-payloaden har `repeat` over siste 8 live-stamps.
 
 ## Vedtak (kort)
 

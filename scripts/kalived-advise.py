@@ -135,6 +135,226 @@ def pick_live_snapshot(status: Path) -> Path | None:
     return best[2]
 
 
+REPEAT_WINDOW = 8
+_SEV_RANK = {"ALERT": 3, "ERROR": 3, "WARN": 2, "INFO": 1}
+_PID_RE = re.compile(r"\bpid=(\d+)")
+_EXE_RE = re.compile(r"\bexe=(\S+)")
+_SCAN_CHILD_IDS = frozenset({"PROC-HIDDEN-NOISE", "PROC-HIDDEN-RAW"})
+
+
+def _read_meta(snap: Path) -> dict[str, str]:
+    out: dict[str, str] = {}
+    mp = snap / "meta.txt"
+    if not mp.is_file():
+        return out
+    for line in mp.read_text(encoding="utf-8", errors="replace").splitlines():
+        if "=" in line:
+            k, _, v = line.partition("=")
+            out[k.strip()] = v.strip()
+    return out
+
+
+def _read_verdict(snap: Path) -> dict | None:
+    vp = snap / "verdict.json"
+    if not vp.is_file():
+        return None
+    try:
+        data = json.loads(vp.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def _pid_exe(text: str) -> tuple[str, str]:
+    pid = ""
+    m = _PID_RE.search(text or "")
+    if m:
+        pid = m.group(1)
+    exe = ""
+    m = _EXE_RE.search(text or "")
+    if m:
+        raw = m.group(1).replace("(deleted)", "").replace("deleted)", "").strip().strip("()")
+        if "/" in raw:
+            raw = raw.rsplit("/", 1)[-1]
+        exe = raw[:80]
+        if not exe or exe in {"deleted", "-"}:
+            exe = ""
+    return pid, exe
+
+
+def _is_live_snap(snap: Path, verd: dict | None = None) -> bool:
+    meta = _read_meta(snap)
+    if meta.get("fixture") == "1":
+        return False
+    verd = verd if verd is not None else _read_verdict(snap)
+    if not verd:
+        return False
+    sudo = str(verd.get("sudo") or meta.get("sudo") or "0") == "1"
+    if not sudo:
+        return False
+    if verd.get("verdict") == "ERROR" and not sudo:
+        return False
+    return True
+
+
+def list_live_snapshots(status: Path, *, limit: int = REPEAT_WINDOW) -> list[Path]:
+    """Newest first. sudo=1, skip fixture=1."""
+    if not status.is_dir() or limit <= 0:
+        return []
+    hits: list[tuple[str, Path]] = []
+    for p in status.iterdir():
+        if not p.is_dir():
+            continue
+        verd = _read_verdict(p)
+        if not _is_live_snap(p, verd):
+            continue
+        stamp = str((verd or {}).get("stamp") or p.name)
+        hits.append((stamp, p))
+    hits.sort(key=lambda x: x[0], reverse=True)
+    return [p for _, p in hits[:limit]]
+
+
+def _status_dir(snapshot: Path | None) -> Path | None:
+    env = os.environ.get("KALIVED_STATUS")
+    if env:
+        return Path(env)
+    if snapshot is not None and snapshot.parent.name == "status":
+        return snapshot.parent
+    return None
+
+
+def _scan_child_procs(snapshot: Path) -> bool:
+    p = snapshot / "hunt_procs_summary.json"
+    if not p.is_file():
+        return False
+    try:
+        raw = json.loads(p.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return False
+    try:
+        raw_n = int(raw.get("hidden_raw") if raw.get("hidden_raw") is not None else 0)
+        kept = int(raw.get("hidden_kept") if raw.get("hidden_kept") is not None else -1)
+    except (TypeError, ValueError):
+        return False
+    return raw_n > 0 and kept == 0
+
+
+def repeat_from_status(
+    status: Path | None,
+    current: Path | None = None,
+    *,
+    window: int = REPEAT_WINDOW,
+) -> dict:
+    """Last N live stamps: id, severity, n, first/last, pid/exe if stable. INFO counted."""
+    snaps: list[Path] = list_live_snapshots(status, limit=window) if status else []
+    if current is not None and current.is_dir():
+        resolved = {p.resolve() for p in snaps}
+        if current.resolve() not in resolved:
+            verd = _read_verdict(current)
+            if verd and _is_live_snap(current, verd):
+                snaps = [current] + snaps
+                snaps = snaps[:window]
+    # Newest first; chronological first/last uses stamp name.
+    by_id: dict[str, dict] = {}
+    stamp_names: list[str] = []
+    for snap in snaps:
+        verd = _read_verdict(snap) or {}
+        stamp = str(verd.get("stamp") or snap.name)
+        stamp_names.append(stamp)
+        scan_child_snap = _scan_child_procs(snap)
+        seen_ids: set[str] = set()
+        for f in verd.get("findings") or []:
+            if not isinstance(f, dict) or not f.get("id"):
+                continue
+            fid = str(f.get("id"))
+            if fid in seen_ids:
+                continue
+            seen_ids.add(fid)
+            sev = str(f.get("severity") or "")
+            blob = f"{f.get('title') or ''} {f.get('detail') or ''}"
+            pid, exe = _pid_exe(blob)
+            rec = by_id.get(fid)
+            kind = "scan-child" if fid in _SCAN_CHILD_IDS or (fid.startswith("PROC-HIDDEN") and scan_child_snap) else ""
+            if rec is None:
+                by_id[fid] = {
+                    "id": fid,
+                    "severity": sev,
+                    "n": 1,
+                    "first": stamp,
+                    "last": stamp,
+                    "pids": {pid} if pid else set(),
+                    "exes": {exe} if exe else set(),
+                    "kind": kind,
+                }
+            else:
+                rec["n"] += 1
+                rec["last"] = stamp  # snaps are newest-first; fix after loop
+                rec["first"] = stamp  # will min/max by name below
+                rec["_stamps"] = rec.get("_stamps", [])
+                if pid:
+                    rec["pids"].add(pid)
+                if exe:
+                    rec["exes"].add(exe)
+                if kind:
+                    rec["kind"] = kind
+                rank = _SEV_RANK.get(sev, 0)
+                if rank >= _SEV_RANK.get(str(rec.get("severity") or ""), 0):
+                    rec["severity"] = sev
+            by_id[fid].setdefault("_stamps", []).append(stamp)
+        if scan_child_snap and "PROC-HIDDEN-NOISE" not in seen_ids:
+            rec = by_id.get("PROC-HIDDEN-NOISE")
+            if rec is None:
+                by_id["PROC-HIDDEN-NOISE"] = {
+                    "id": "PROC-HIDDEN-NOISE",
+                    "severity": "INFO",
+                    "n": 1,
+                    "first": stamp,
+                    "last": stamp,
+                    "pids": set(),
+                    "exes": set(),
+                    "kind": "scan-child",
+                    "_stamps": [stamp],
+                }
+            else:
+                rec["n"] += 1
+                rec["_stamps"].append(stamp)
+                rec["kind"] = "scan-child"
+    rows: list[dict] = []
+    for rec in by_id.values():
+        stamps_hit = sorted(set(rec.get("_stamps") or [rec["first"], rec["last"]]))
+        first, last = (stamps_hit[0], stamps_hit[-1]) if stamps_hit else (rec["first"], rec["last"])
+        pids = rec.get("pids") or set()
+        exes = rec.get("exes") or set()
+        row: dict = {
+            "id": rec["id"],
+            "severity": rec["severity"],
+            "n": rec["n"],
+            "first": first,
+            "last": last,
+            "seen_before": rec["n"] >= 2,
+        }
+        if len(pids) == 1:
+            row["pid"] = next(iter(pids))
+        if len(exes) == 1:
+            row["exe"] = next(iter(exes))
+        if rec.get("kind"):
+            row["kind"] = rec["kind"]
+        rows.append(row)
+    rows.sort(
+        key=lambda r: (
+            -int(bool(r.get("seen_before"))),
+            -_SEV_RANK.get(str(r.get("severity") or ""), 0),
+            -int(r.get("n") or 0),
+            str(r.get("id") or ""),
+        )
+    )
+    return {
+        "window": window,
+        "stamps": stamp_names[:window],
+        "rows": rows[:32],
+    }
+
+
 def procs_summary(snapshot: Path) -> dict:
     """Counts + listen owners. No full ps dump."""
     p = snapshot / "hunt_procs_summary.json"
@@ -153,7 +373,7 @@ def procs_summary(snapshot: Path) -> dict:
     raw_n = raw.get("hidden_raw")
     if raw_n is None:
         raw_n = raw.get("hidden_count")
-    return {
+    out = {
         "status": "ran",
         "visible_count": raw.get("visible_count"),
         "hidden_raw": raw_n,
@@ -165,6 +385,14 @@ def procs_summary(snapshot: Path) -> dict:
         "listen": (raw.get("listen") or [])[:20],
         "sample_comm": (raw.get("sample_comm") or [])[:30],
     }
+    try:
+        raw_i = int(raw_n) if raw_n is not None else 0
+        kept_i = int(kept) if kept is not None else -1
+    except (TypeError, ValueError):
+        raw_i, kept_i = 0, -1
+    if raw_i > 0 and kept_i == 0:
+        out["kind"] = "scan-child"
+    return out
 
 
 def nmap_summary(snapshot: Path) -> dict:
@@ -312,7 +540,7 @@ def ufw_digest_summary(snapshot: Path) -> dict:
     }
 
 
-def redact(verdict: dict, snapshot: Path | None = None) -> dict:
+def redact(verdict: dict, snapshot: Path | None = None, *, status_dir: Path | None = None) -> dict:
     findings = []
     info_n = 0
     for f in verdict.get("findings") or []:
@@ -331,6 +559,7 @@ def redact(verdict: dict, snapshot: Path | None = None) -> dict:
     findings = findings[:16]
     data_root = Path(os.environ.get("KALIVED_DATA", ROOT))
     defs = defs_summary(data_root)
+    status = status_dir if status_dir is not None else _status_dir(snapshot)
     out = {
         "verdict": verdict.get("verdict"),
         "exit_code": verdict.get("exit_code"),
@@ -341,6 +570,7 @@ def redact(verdict: dict, snapshot: Path | None = None) -> dict:
         "allowed_commands": PLAYBOOKS,
         "defs": defs,
         "suggested_commands": suggested_commands(verdict, defs),
+        "repeat": repeat_from_status(status, snapshot),
     }
     if snapshot is not None:
         out["nmap_localhost"] = nmap_summary(snapshot)
