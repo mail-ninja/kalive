@@ -14,6 +14,27 @@
   let ready = $state('')
   let wait = $state('')
   let err = $state('')
+  let box: HTMLDivElement | undefined = $state()
+  let full = $state(false)
+
+  function onfs() {
+    full = !!box && document.fullscreenElement === box
+  }
+
+  async function toggleFull() {
+    if (!box) return
+    try {
+      if (document.fullscreenElement === box) await document.exitFullscreen()
+      else await box.requestFullscreen()
+    } catch {
+      /* browser blocked or no gesture */
+    }
+  }
+
+  $effect(() => {
+    document.addEventListener('fullscreenchange', onfs)
+    return () => document.removeEventListener('fullscreenchange', onfs)
+  })
 
   function fileSrc(p: string, r: number) {
     if (!p) return ''
@@ -79,11 +100,14 @@
   })
 </script>
 
-<div class="wrap">
+<div class="wrap" bind:this={box}>
   {#if ready}
     {#key ready + ':' + rev}
-      <iframe title="preview" class="frame" src={ready}></iframe>
+      <iframe title="preview" class="frame" src={ready} allowfullscreen></iframe>
     {/key}
+    <button type="button" class="fs" onclick={toggleFull} title={full ? 'Esc lukker' : 'Fullskjerm'}>
+      {full ? 'lukk' : 'fullskjerm'}
+    </button>
   {:else if wait}
     <div class="empty">
       <p>{wait}</p>
@@ -135,5 +159,26 @@
   .hint {
     color: rgba(244, 239, 228, 0.35);
     font-size: 0.75rem;
+  }
+  .fs {
+    position: absolute;
+    top: 0.4rem;
+    right: 0.4rem;
+    z-index: 2;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: rgba(13, 17, 23, 0.72);
+    color: rgba(244, 239, 228, 0.9);
+    font-size: 0.7rem;
+    letter-spacing: 0.02em;
+    padding: 0.15rem 0.55rem;
+    cursor: pointer;
+  }
+  .fs:hover {
+    background: rgba(13, 17, 23, 0.9);
+  }
+  .wrap:fullscreen {
+    background: #010409;
+    border-radius: 0;
   }
 </style>

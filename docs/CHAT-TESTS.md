@@ -115,6 +115,38 @@ Forvent: tool `repo_write` (ikke `repo_edit` med old_string). Fila åpnes i Mona
 
 Live 2026-10-20: `repo_write` + `preview_set`, **DONE**, ingen grep. Fila: `docs/_lab/hello.html`.
 
+### P6 — Pac-Man-klone, vagt follow-up (hake **på**)
+
+Første lim (hake av) skal **BLOCKED**. Huk av, så andre lim:
+
+```
+lag en pacman-klone. detaljene er opp til deg. kjør på!
+```
+
+Deretter:
+
+```
+ok den er huket av. lag klonen i en undermappe i docs-mappa!
+```
+
+Forvent: `docs/pacman/index.html` via `repo_write` (ikke `git clone`, ikke spørsmål om repo-URL). Preview i iframe. **DONE** uten ritual-les av NOW/NEXT. Hvis den leser mer enn 4 see-tools: sys-linje `orchestrator: skriv fila — kutter lesing`.
+
+Live probe: klikk `docs/pacman/index.html` i treet. CrackMan, piltaster / WASD, Space pause. Alle rivotril-prikker må kunne nås (ingen evig labyrint).
+
+### P7 — Super Mario, første forsøk (hake **på**)
+
+Live 2026-10-29: build skrev `docs/mario/index.html` («Pippa – mot flagget»), `preview_serve` :8765, spillbar iframe.
+
+### P8 — ape-prompt (hake **på**)
+
+```
+lag tetris!
+```
+
+Forvent: `docs/tetris/index.html` via `repo_write`, iframe, **DONE**. Ikke spørsmål. Ikke git clone. Ikke NOW/NEXT. Fallende brikker, rotasjon, linjerydding, poeng, game over.
+
+Samme mønster: `pong!` · `bygg snake` · `lag breakout`.
+
 ---
 
 ## H — Hiroshima-protokoll

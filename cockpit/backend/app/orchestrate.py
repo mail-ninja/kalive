@@ -5,12 +5,22 @@ from typing import Any
 
 SEE = frozenset({"repo_glob", "repo_grep", "repo_read", "ping", "repo_git"})
 EDIT = frozenset({"repo_edit", "repo_write", "iframe_write"})
+WRITE_KEEP = frozenset(
+    {"repo_write", "repo_edit", "repo_bash", "preview_serve", "preview_set", "repo_git"}
+)
+SEE_CAP = 4
+WRITE_NUDGE_AT = 3
 SHORT_DONE = (
     "Svar på under 8 setninger. DONE / NEEDS_INPUT / BLOCKED. Ingen essay. Ingen nye tools."
 )
 NUDGE_DONE = (
     "Verifikasjon OK. Hvis oppgaven er ferdig: svar DONE uten tools. "
     "Ett fiks-kall bare hvis noe konkret mangler. Ikke grep/glob mer."
+)
+NUDGE_WRITE = (
+    "Du har lest nok. Skriv fila nå med repo_write (ny fil) eller repo_edit (patch). "
+    "Ikke glob/grep/read mer. Ikke spør om git-URL med mindre operator sa git clone. "
+    "Fyll hull selv: mappe, filnavn, ferdig artifact + preview."
 )
 
 
@@ -73,23 +83,35 @@ def next_brake(
     got_verify: bool,
     got_edit: bool,
     got_fail: bool,
+    see_only_count: int = 0,
 ) -> dict[str, Any]:
-    """After one tool-round: maybe nudge, maybe force a short DONE."""
+    """After one tool-round: maybe nudge, maybe force a short DONE, maybe force a write."""
     streak = see_streak
     v = verified
+    see_n = int(see_only_count or 0)
+    seeing = only_see(names, args_list)
     if got_fail:
-        v, streak = False, 0
+        v, streak, see_n = False, 0, 0
     elif got_verify:
-        v, streak = True, 0
+        v, streak, see_n = True, 0, 0
     elif got_edit:
-        v, streak = False, 0
-    elif v and only_see(names, args_list):
-        streak = see_streak + 1
+        v, streak, see_n = False, 0, 0
+    elif seeing:
+        see_n = see_n + 1
+        if v:
+            streak = see_streak + 1
+    else:
+        see_n = 0
     force = bool(v and streak >= 1)
     nudge = bool(got_verify and not force)
+    write_nudge = bool((not v) and see_n >= WRITE_NUDGE_AT and not force)
+    see_cap_hit = bool((not v) and see_n >= SEE_CAP and not force)
     return {
         "verified": v,
         "see_streak": streak,
+        "see_only_count": see_n,
         "force_stop": force,
         "nudge": nudge,
+        "write_nudge": write_nudge,
+        "see_cap_hit": see_cap_hit,
     }

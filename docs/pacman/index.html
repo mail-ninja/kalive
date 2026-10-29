@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CrackMan</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --panel: #161b22;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --grid: #21262d;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, sans-serif;
+    }
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 100%;
+      padding: 10px;
+    }
+    h1 { font-size: 1.15rem; font-weight: 700; letter-spacing: 0.12em; }
+    .hud {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 14px 18px;
+      font-variant-numeric: tabular-nums;
+      font-size: 0.85rem;
+    }
+    .hud span { color: var(--muted); }
+    .hud strong { color: var(--text); }
+    canvas {
+      background: #010409;
+      border: 2px solid var(--grid);
+      border-radius: 8px;
+      image-rendering: pixelated;
+      display: block;
+      max-width: 100%;
+      height: auto;
+      outline: none;
+    }
+    .hint, .cast { color: var(--muted); font-size: 0.75rem; text-align: center; }
+    .cast b { font-weight: 600; }
+    .snut { color: #ff4d4d; }
+    .nho { color: #ff9ec8; }
+    .cia { color: #58a6ff; }
+    .pst { color: #f0883e; }
+    kbd {
+      background: var(--grid);
+      border: 1px solid #30363d;
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-size: 0.7rem;
+    }
+    .pad {
+      display: none;
+      grid-template-columns: 48px 48px 48px;
+      grid-template-rows: 40px 40px 40px;
+      gap: 4px;
+    }
+    .pad button {
+      background: var(--panel);
+      color: var(--text);
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    .pad .up { grid-column: 2; grid-row: 1; }
+    .pad .left { grid-column: 1; grid-row: 2; }
+    .pad .right { grid-column: 3; grid-row: 2; }
+    .pad .down { grid-column: 2; grid-row: 3; }
+    @media (max-width: 520px) { .pad { display: grid; } }
+  </style>
+</head>
+<body>
+  <h1>CRACK-MAN</h1>
+  <div class="hud">
+    <div><span>Poeng</span> <strong id="score">0</strong></div>
+    <div><span>Beste</span> <strong id="best">0</strong></div>
+    <div><span>Liv</span> <strong id="lives">3</strong></div>
+    <div><span>Nivå</span> <strong id="level">1</strong></div>
+    <div><span>Rivotril</span> <strong id="pills">0</strong></div>
+  </div>
+  <canvas id="game" width="380" height="400" tabindex="0" aria-label="CrackMan"></canvas>
+  <p class="hint" id="status">Klikk brettet · <kbd>↑↓←→</kbd> / <kbd>WASD</kbd> · <kbd>Space</kbd> pause</p>
+  <p class="cast">
+    <b class="snut">SNUT</b> jakter ·
+    <b class="nho">NHO</b> lurer ·
+    <b class="cia">CIA</b> flankerer ·
+    <b class="pst">PST</b> patruljerer
+  </p>
+  <div class="pad" aria-hidden="true">
+    <button class="up" data-dir="0,-1">↑</button>
+    <button class="left" data-dir="-1,0">←</button>
+    <button class="right" data-dir="1,0">→</button>
+    <button class="down" data-dir="0,1">↓</button>
+  </div>
+  <script>
+    (function () {
+      const TILE = 20;
+      const RAW = [
+        "###################",
+        "#o.......#.......o#",
+        "#.##.###.#.###.##.#",
+        "#.##.###.#.###.##.#",
+        "#.................#",
+        "#.######.#.######.#",
+        "#........#........#",
+        "####.###...###.####",
+        "#....#.......#....#",
+        "#.##.#.##-##.#.##.#",
+        "     .#BPI C#.     ",
+        "#.##.#.#####.#.##.#",
+        "#....#.......#....#",
+        "####.###.#.###.####",
+        "#........#........#",
+        "#.######.#.######.#",
+        "#o.......@.......o#",
+        "#.##.###.#.###.##.#",
+        "#.................#",
+        "###################"
+      ];
+      const ROWS = RAW.length;
+      const COLS = RAW[0].length;
+      const DIRS = [
+        { x: 0, y: -1 },
+        { x: 0, y: 1 },
+        { x: -1, y: 0 },
+        { x: 1, y: 0 }
+      ];
+      const GHOST_META = [
+        { id: "B", name: "SNUT", color: "#ff4d4d", scatter: { x: COLS - 2, y: 1 }, bias: 0 },
+        { id: "P", name: "NHO", color: "#ff9ec8", scatter: { x: 1, y: 1 }, bias: 1 },
+        { id: "I", name: "CIA", color: "#58a6ff", scatter: { x: COLS - 2, y: ROWS - 2 }, bias: 1 },
+        { id: "C", name: "PST", color: "#f0883e", scatter: { x: 1, y: ROWS - 2 }, bias: 2 }
+      ];
+
+      const canvas = document.getElementById("game");
+      const ctx = canvas.getContext("2d");
+      const scoreEl = document.getElementById("score");
+      const bestEl = document.getElementById("best");
+      const livesEl = document.getElementById("lives");
+      const levelEl = document.getElementById("level");
+      const pillsEl = document.getElementById("pills");
+      const statusEl = document.getElementById("status");
+
+      let grid, pac, ghosts, score, lives, level, pellets, paused, over, won, fright, combo, tick, mouth;
+      let best = Number(localStorage.getItem("crackman-best") || localStorage.getItem("pacman-best") || 0);
+      bestEl.textContent = String(best);
+
+      function cell(ch) {
+        if (ch === "#") return 1;
+        if (ch === ".") return 2;
+        if (ch === "o") return 3;
+        if (ch === "-") return 5;
+        return 0;
+      }
+
+      function wrap(c, r) {
+        let x = c, y = r;
+        if (x < 0) x = COLS - 1;
+        if (x >= COLS) x = 0;
+        return { x: x, y: y };
+      }
+
+      function walkable(c, r, asGhost) {
+        const p = wrap(c, r);
+        if (p.y < 0 || p.y >= ROWS) return false;
+        const t = grid[p.y][p.x];
+        if (t === 1) return false;
+        if (t === 5 && !asGhost) return false;
+        return true;
+      }
+
+      function isWall(x, y) {
+        if (y < 0 || y >= ROWS || x < 0 || x >= COLS) return true;
+        return grid[y][x] === 1;
+      }
+
+      function resetLevel(keepScore) {
+        grid = RAW.map(function (row) {
+          return row.split("").map(cell);
+        });
+        pellets = 0;
+        let px = 9, py = 16;
+        const homes = [];
+        RAW.forEach(function (row, y) {
+          for (let x = 0; x < row.length; x++) {
+            const ch = row[x];
+            if (ch === "." || ch === "o") pellets++;
+            if (ch === "@") { px = x; py = y; }
+            if ("BPIC".indexOf(ch) >= 0) homes.push({ id: ch, x: x, y: y });
+          }
+        });
+        pac = { x: px, y: py, dx: 0, dy: 0, ndx: 0, ndy: 0, px: px, py: py };
+        ghosts = GHOST_META.map(function (m) {
+          const h = homes.find(function (z) { return z.id === m.id; }) || { x: 9, y: 10 };
+          return {
+            id: m.id, name: m.name, color: m.color, scatter: m.scatter, bias: m.bias,
+            x: h.x, y: h.y, hx: h.x, hy: h.y,
+            dx: 0, dy: -1, mode: "house",
+            frightened: false, eaten: false, leave: 24 + m.bias * 36
+          };
+        });
+        if (!keepScore) {
+          score = 0;
+          lives = 3;
+          level = 1;
+        }
+        fright = 0;
+        combo = 0;
+        tick = 0;
+        mouth = 0;
+        paused = false;
+        over = false;
+        won = false;
+        hud();
+        statusEl.innerHTML = "Klar · spis rivotrilet · <kbd>↑↓←→</kbd> / <kbd>WASD</kbd>";
+      }
+
+      function hud() {
+        scoreEl.textContent = String(score);
+        livesEl.textContent = String(lives);
+        levelEl.textContent = String(level);
+        pillsEl.textContent = String(pellets);
+        if (score > best) {
+          best = score;
+          localStorage.setItem("crackman-best", String(best));
+          bestEl.textContent = String(best);
+        }
+      }
+
+      function setDir(dx, dy) {
+        if (over || won) {
+          resetLevel(false);
+          return;
+        }
+        pac.ndx = dx;
+        pac.ndy = dy;
+        if (!pac.dx && !pac.dy) {
+          pac.dx = dx;
+          pac.dy = dy;
+        }
+      }
+
+      function dist(a, b) {
+        return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+      }
+
+      function ghostTarget(g) {
+        if (g.eaten) return { x: g.hx, y: g.hy };
+        if (g.frightened) return null;
+        if (g.mode === "scatter") return g.scatter;
+        const ahead = { x: pac.x + pac.dx * 4, y: pac.y + pac.dy * 4 };
+        if (g.id === "B") return { x: pac.x, y: pac.y };
+        if (g.id === "P") return ahead;
+        if (g.id === "I") {
+          const blinky = ghosts[0];
+          return { x: ahead.x * 2 - blinky.x, y: ahead.y * 2 - blinky.y };
+        }
+        if (dist(g, pac) > 8) return { x: pac.x, y: pac.y };
+        return g.scatter;
+      }
+
+      function pickDir(g) {
+        const target = ghostTarget(g);
+        const opts = DIRS.filter(function (d) {
+          if (d.x === -g.dx && d.y === -g.dy && !g.eaten) return false;
+          return walkable(g.x + d.x, g.y + d.y, true);
+        });
+        if (!opts.length) {
+          const back = DIRS.find(function (d) { return walkable(g.x + d.x, g.y + d.y, true); });
+          if (back) { g.dx = back.x; g.dy = back.y; }
+          return;
+        }
+        if (!target || g.frightened) {
+          const r = opts[Math.floor(Math.random() * opts.length)];
+          g.dx = r.x; g.dy = r.y;
+          return;
+        }
+        opts.sort(function (a, b) {
+          const da = Math.abs((g.x + a.x) - target.x) + Math.abs((g.y + a.y) - target.y);
+          const db = Math.abs((g.x + b.x) - target.x) + Math.abs((g.y + b.y) - target.y);
+          return da - db;
+        });
+        g.dx = opts[0].x;
+        g.dy = opts[0].y;
+      }
+
+      function eatTile() {
+        const t = grid[pac.y][pac.x];
+        if (t === 2) {
+          grid[pac.y][pac.x] = 0;
+          pellets--;
+          score += 10;
+        } else if (t === 3) {
+          grid[pac.y][pac.x] = 0;
+          pellets--;
+          score += 50;
+          fright = 8 * 60;
+          combo = 0;
+          ghosts.forEach(function (g) {
+            if (!g.eaten && g.mode !== "house") {
+              g.frightened = true;
+              g.dx = -g.dx;
+              g.dy = -g.dy;
+            }
+          });
+          statusEl.textContent = "myndighetene er forvirra";
+        }
+        if (pellets <= 0) {
+          won = true;
+          level++;
+          statusEl.textContent = "brett ferdig — mer rivotril";
+          setTimeout(function () {
+            if (won) resetLevel(true);
+          }, 900);
+        }
+        hud();
+      }
+
+      function collide() {
+        ghosts.forEach(function (g) {
+          if (g.x !== pac.x || g.y !== pac.y) return;
+          if (g.eaten) return;
+          if (g.frightened) {
+            g.eaten = true;
+            g.frightened = false;
+            combo++;
+            score += 200 * combo;
+            hud();
+            statusEl.textContent = g.name + " tatt";
+          } else if (!over) {
+            lives--;
+            hud();
+            if (lives <= 0) {
+              over = true;
+              statusEl.textContent = "tatt av " + g.name + " — piltast for ny runde";
+            } else {
+              statusEl.textContent = g.name + " tok deg";
+              pac.x = pac.px; pac.y = pac.py; pac.dx = 0; pac.dy = 0;
+              ghosts.forEach(function (gh) {
+                gh.x = gh.hx; gh.y = gh.hy; gh.eaten = false; gh.frightened = false; gh.mode = "house";
+                gh.leave = 24 + gh.bias * 36;
+              });
+              fright = 0;
+            }
+          }
+        });
+      }
+
+      function stepPac() {
+        if (walkable(pac.x + pac.ndx, pac.y + pac.ndy, false)) {
+          pac.dx = pac.ndx;
+          pac.dy = pac.ndy;
+        }
+        if (walkable(pac.x + pac.dx, pac.y + pac.dy, false)) {
+          const n = wrap(pac.x + pac.dx, pac.y + pac.dy);
+          pac.x = n.x;
+          pac.y = n.y;
+          eatTile();
+        } else {
+          pac.dx = 0;
+          pac.dy = 0;
+        }
+      }
+
+      function stepGhost(g) {
+        if (g.mode === "house") {
+          g.leave--;
+          if (g.leave <= 0) {
+            g.mode = "chase";
+            g.x = 9;
+            g.y = 8;
+            g.dx = (g.id === "P" || g.id === "C") ? -1 : 1;
+            g.dy = 0;
+          }
+          return;
+        }
+        if (g.eaten && g.x === g.hx && g.y === g.hy) {
+          g.eaten = false;
+          g.mode = "house";
+          g.leave = 40;
+          return;
+        }
+        pickDir(g);
+        if (walkable(g.x + g.dx, g.y + g.dy, true)) {
+          const n = wrap(g.x + g.dx, g.y + g.dy);
+          g.x = n.x;
+          g.y = n.y;
+        }
+      }
+
+      function drawPill(x, y, power) {
+        const cx = x * TILE + TILE / 2;
+        const cy = y * TILE + TILE / 2;
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(-0.4);
+        const w = power ? 8 : 5;
+        const h = power ? 4.5 : 2.6;
+        const grd = ctx.createLinearGradient(-w, 0, w, 0);
+        if (power) {
+          grd.addColorStop(0, "#f0c14a");
+          grd.addColorStop(0.5, "#ffe8a3");
+          grd.addColorStop(1, "#f85149");
+        } else {
+          grd.addColorStop(0, "#e6edf3");
+          grd.addColorStop(0.5, "#ffffff");
+          grd.addColorStop(1, "#f0c14a");
+        }
+        ctx.fillStyle = grd;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, w, h, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      function drawWalls() {
+        ctx.strokeStyle = "#1f6feb";
+        ctx.lineWidth = 2;
+        ctx.lineCap = "round";
+        for (let y = 0; y < ROWS; y++) {
+          for (let x = 0; x < COLS; x++) {
+            if (grid[y][x] !== 1) continue;
+            const px = x * TILE;
+            const py = y * TILE;
+            const m = 3;
+            ctx.beginPath();
+            if (!isWall(x, y - 1)) {
+              ctx.moveTo(px + m, py + m);
+              ctx.lineTo(px + TILE - m, py + m);
+            }
+            if (!isWall(x, y + 1)) {
+              ctx.moveTo(px + m, py + TILE - m);
+              ctx.lineTo(px + TILE - m, py + TILE - m);
+            }
+            if (!isWall(x - 1, y)) {
+              ctx.moveTo(px + m, py + m);
+              ctx.lineTo(px + m, py + TILE - m);
+            }
+            if (!isWall(x + 1, y)) {
+              ctx.moveTo(px + TILE - m, py + m);
+              ctx.lineTo(px + TILE - m, py + TILE - m);
+            }
+            ctx.stroke();
+          }
+        }
+      }
+
+      function drawGhost(g) {
+        const gx = g.x * TILE + TILE / 2;
+        const gy = g.y * TILE + TILE / 2;
+        if (g.eaten) {
+          ctx.fillStyle = "#e6edf3";
+          ctx.beginPath();
+          ctx.arc(gx - 3, gy, 2, 0, Math.PI * 2);
+          ctx.arc(gx + 3, gy, 2, 0, Math.PI * 2);
+          ctx.fill();
+          return;
+        }
+        ctx.fillStyle = g.frightened
+          ? (fright < 120 && tick % 16 < 8 ? "#e6edf3" : "#3d5afe")
+          : g.color;
+        ctx.beginPath();
+        ctx.arc(gx, gy - 1, TILE * 0.42, Math.PI, 0);
+        ctx.lineTo(gx + TILE * 0.42, gy + TILE * 0.38);
+        ctx.lineTo(gx + TILE * 0.2, gy + TILE * 0.22);
+        ctx.lineTo(gx, gy + TILE * 0.38);
+        ctx.lineTo(gx - TILE * 0.2, gy + TILE * 0.22);
+        ctx.lineTo(gx - TILE * 0.42, gy + TILE * 0.38);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = "#fff";
+        ctx.beginPath();
+        ctx.arc(gx - 4, gy - 3, 3, 0, Math.PI * 2);
+        ctx.arc(gx + 4, gy - 3, 3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#0d1117";
+        ctx.beginPath();
+        ctx.arc(gx - 4 + g.dx, gy - 3 + g.dy, 1.4, 0, Math.PI * 2);
+        ctx.arc(gx + 4 + g.dx, gy - 3 + g.dy, 1.4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = g.frightened ? "#0d1117" : "#0d1117";
+        ctx.font = "6px ui-sans-serif, system-ui, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(g.name, gx, gy + TILE * 0.52);
+      }
+
+      function draw() {
+        ctx.fillStyle = "#010409";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        drawWalls();
+        for (let y = 0; y < ROWS; y++) {
+          for (let x = 0; x < COLS; x++) {
+            const t = grid[y][x];
+            if (t === 5) {
+              ctx.fillStyle = "#f0c14a";
+              ctx.fillRect(x * TILE + 2, y * TILE + TILE / 2 - 1, TILE - 4, 2);
+            } else if (t === 2) drawPill(x, y, false);
+            else if (t === 3) drawPill(x, y, true);
+          }
+        }
+        ghosts.forEach(drawGhost);
+        const px = pac.x * TILE + TILE / 2;
+        const py = pac.y * TILE + TILE / 2;
+        const ang = pac.dx === 1 ? 0 : pac.dx === -1 ? Math.PI : pac.dy === -1 ? -Math.PI / 2 : pac.dy === 1 ? Math.PI / 2 : 0;
+        const open = 0.25 + 0.25 * Math.sin(mouth);
+        ctx.fillStyle = "#ffdd00";
+        ctx.beginPath();
+        ctx.moveTo(px, py);
+        ctx.arc(px, py, TILE * 0.42, ang + open, ang + Math.PI * 2 - open);
+        ctx.closePath();
+        ctx.fill();
+        if (paused || over) {
+          ctx.fillStyle = "rgba(13,17,23,0.55)";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.textAlign = "center";
+          ctx.font = "18px ui-sans-serif, system-ui, sans-serif";
+          ctx.fillStyle = over ? "#f85149" : "#e6edf3";
+          ctx.fillText(over ? "TATT" : "pause", canvas.width / 2, canvas.height / 2);
+        }
+      }
+
+      function loop() {
+        tick++;
+        mouth += 0.35;
+        if (!paused && !over && !won) {
+          if (fright > 0) {
+            fright--;
+            if (fright === 0) {
+              ghosts.forEach(function (g) { g.frightened = false; });
+              statusEl.innerHTML = "Klar · spis rivotrilet · <kbd>↑↓←→</kbd>";
+            }
+          }
+          const pace = Math.max(6, 10 - level);
+          if (tick % pace === 0) { stepPac(); collide(); }
+          ghosts.forEach(function (g) {
+            const gp = Math.max(6, 11 - level + g.bias);
+            if (tick % gp === 0) { stepGhost(g); collide(); }
+          });
+          if (tick % 480 === 0) {
+            ghosts.forEach(function (g) {
+              if (g.mode === "chase") g.mode = "scatter";
+              else if (g.mode === "scatter") g.mode = "chase";
+            });
+          }
+        }
+        draw();
+        requestAnimationFrame(loop);
+      }
+
+      const KEY = {
+        ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0],
+        w: [0, -1], s: [0, 1], a: [-1, 0], d: [1, 0],
+        W: [0, -1], S: [0, 1], A: [-1, 0], D: [1, 0]
+      };
+      window.addEventListener("keydown", function (e) {
+        if (e.key === " " || e.code === "Space") {
+          e.preventDefault();
+          if (!over) paused = !paused;
+          return;
+        }
+        const d = KEY[e.key];
+        if (!d) return;
+        e.preventDefault();
+        setDir(d[0], d[1]);
+      });
+      canvas.addEventListener("click", function () { canvas.focus(); });
+      document.querySelectorAll(".pad button").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          const p = btn.getAttribute("data-dir").split(",");
+          setDir(Number(p[0]), Number(p[1]));
+        });
+      });
+
+      resetLevel(false);
+      canvas.focus();
+      requestAnimationFrame(loop);
+    })();
+  </script>
+</body>
+</html>

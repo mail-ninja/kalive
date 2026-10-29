@@ -50,7 +50,7 @@ Haken «agent får kjøre» = write/edit/bash. Les er fritt. Oneshot per oppgave
 
 `git commit` via `repo_bash` er nektet — bruk `repo_git`. `git push` er nektet.
 
-Landet i Arbeid: tre kolonner, `repo_write`, grep-treff åpner linja, ny fil fra treet, loopback-preview, `repo_git`, cli som stopper etter verifikasjon.
+Landet i Arbeid: tre kolonner, `repo_write`, grep-treff åpner linja, ny fil fra treet, loopback-preview, `repo_git`, cli som stopper etter verifikasjon. `build` fortsetter forrige tur (anaphora/hake) og fyller hull i vage «kjør på»-prompts; see-only uten skriving kutter lesing. Probe: `docs/pacman/index.html`.
 
 ---
 

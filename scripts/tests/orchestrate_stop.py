@@ -11,6 +11,7 @@ sys.path.insert(0, str(ROOT / "cockpit" / "backend"))
 os.environ.setdefault("KALIVED_WORKSPACE", str(ROOT))
 
 from app.orchestrate import is_fail, is_verify, next_brake  # noqa: E402
+from app.orchestrate import SEE_CAP, WRITE_NUDGE_AT  # noqa: E402
 
 fail = 0
 
@@ -34,6 +35,7 @@ def step(**kw):
         got_verify=kw.get("got_verify", False),
         got_edit=kw.get("got_edit", False),
         got_fail=kw.get("got_fail", False),
+        see_only_count=kw.get("see_only_count", 0),
     )
 
 
@@ -98,5 +100,22 @@ if s6["force_stop"]:
     ok("git status after verify stops")
 else:
     bad("git status " + str(s6))
+
+print("[see-only without verify nudges write, does not force stop]")
+s7 = step(names=["repo_glob", "repo_read"], see_only_count=WRITE_NUDGE_AT - 1)
+if s7["write_nudge"] and not s7["force_stop"] and s7["see_only_count"] == WRITE_NUDGE_AT:
+    ok("write nudge after 3 see-only")
+else:
+    bad("write nudge " + str(s7))
+s8 = step(names=["repo_read"], see_only_count=SEE_CAP - 1)
+if s8["see_cap_hit"] and s8["write_nudge"] and not s8["force_stop"]:
+    ok("see-cap hits without DONE")
+else:
+    bad("see-cap " + str(s8))
+s9 = step(got_edit=True, names=["repo_write"], see_only_count=SEE_CAP)
+if s9["see_only_count"] == 0 and not s9["write_nudge"] and not s9["force_stop"]:
+    ok("write clears see-only count")
+else:
+    bad("write clear " + str(s9))
 
 sys.exit(fail)

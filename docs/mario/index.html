@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pippa — mot flagget</title>
+<style>
+  :root { color-scheme: dark; }
+  html, body {
+    margin: 0; height: 100%; background: #0b1220; color: #f4efe6;
+    font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    overflow: hidden; user-select: none;
+  }
+  h1 { display: none; }
+  #wrap {
+    position: relative;
+    box-shadow: 0 18px 50px #000a, 0 0 0 4px #1d2a44;
+    border-radius: 6px; overflow: hidden;
+  }
+  canvas { display: block; background: #5c94fc; image-rendering: pixelated; }
+  #hud {
+    position: absolute; left: 0; right: 0; top: 0;
+    display: flex; justify-content: space-between; padding: 8px 14px;
+    font: 700 13px/1.2 "Trebuchet MS", sans-serif;
+    letter-spacing: .08em; text-transform: uppercase;
+    color: #fff; text-shadow: 2px 2px 0 #1a1a2e;
+    pointer-events: none;
+  }
+  #overlay {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: #0b1220d8; text-align: center; padding: 24px;
+  }
+  #overlay.hidden { display: none; }
+  #overlay h2 {
+    margin: 0 0 8px; font-size: 42px; letter-spacing: .12em;
+    color: #ffd166; text-shadow: 3px 3px 0 #9b2226;
+  }
+  #overlay p { margin: 6px 0; max-width: 420px; color: #e8e0d4; }
+  #overlay kbd {
+    display: inline-block; padding: 1px 6px; border: 1px solid #889; border-radius: 3px;
+    background: #1d2a44; font-size: 12px;
+  }
+  #overlay button {
+    margin-top: 16px; padding: 10px 22px; font: 700 16px "Trebuchet MS", sans-serif;
+    background: #e63946; color: #fff; border: 0; border-radius: 4px; cursor: pointer;
+    box-shadow: 0 4px 0 #9b2226;
+  }
+  #overlay button:hover { filter: brightness(1.08); }
+  #hint { margin-top: 8px; font-size: 12px; color: #8aa; }
+</style>
+</head>
+<body>
+<h1>Pippa — mot flagget</h1>
+<div id="wrap">
+  <canvas id="c" width="800" height="450"></canvas>
+  <div id="hud">
+    <span id="hScore">POENG 0</span>
+    <span id="hCoins">MYNTER 0</span>
+    <span id="hLives">LIV × 3</span>
+  </div>
+  <div id="overlay">
+    <h2>PIPPA</h2>
+    <p>Rød lua, dusk-palett, lilla soppfiender. Løp til det gylne flagget.</p>
+    <p><kbd>←</kbd> <kbd>→</kbd> / <kbd>A</kbd> <kbd>D</kbd> løp · <kbd>Space</kbd> <kbd>↑</kbd> <kbd>W</kbd> hopp</p>
+    <p>Tramp soppene. Groper dreper. Tre mynter og flagget venter.</p>
+    <button id="btn" type="button">Start</button>
+    <div id="hint">Et brett. Ingen myk-lås. Hopp over groper eller bruk plattformene.</div>
+  </div>
+</div>
+<script>
+(function () {
+  const canvas = document.getElementById("c");
+  const ctx = canvas.getContext("2d");
+  const overlay = document.getElementById("overlay");
+  const btn = document.getElementById("btn");
+  const hScore = document.getElementById("hScore");
+  const hCoins = document.getElementById("hCoins");
+  const hLives = document.getElementById("hLives");
+
+  const T = 32;
+  const W = canvas.width;
+  const H = canvas.height;
+  const GRAV = 0.55;
+  const MAX_FALL = 12;
+  const ACC = 0.55;
+  const FRICTION = 0.78;
+  const MAX_RUN = 4.6;
+  const JUMP = -10.6;
+
+  /* 96×15 — groper 3–4 fliser, plattformer over, flagg på sluttbakke */
+  const ROWS = [
+    "                                                                                                ",
+    "                                                                                                ",
+    "                         o                 o                          o                         ",
+    "                        ====             ====                       ====                        ",
+    "                                                                                                ",
+    "              o                                      o                                          ",
+    "             ====                                   ====                     o                  ",
+    "                                                                               ====             ",
+    "                                                                                                ",
+    "        o              o           o                     o                    o                 ",
+    "                                                                                         F      ",
+    " P     e          e           e              e                e                                 ",
+    "=======   ========   ==========    =====    ===========     ========     =======================",
+    "=======   ========   ==========    =====    ===========     ========     =======================",
+    "=======GGG========GGG==========GGGG=====GGGG===========GGGGG========GGGGG=======================",
+  ];
+  const COLS = ROWS[0].length;
+  const WORLD_W = COLS * T;
+  const WORLD_H = ROWS.length * T;
+
+  const keys = Object.create(null);
+  let mode = "title"; /* title | play | dead | win */
+  let score = 0, coins = 0, lives = 3;
+  let camX = 0, invuln = 0, t = 0;
+  let player, enemies, pickups, solids, flag;
+
+  function tileAt(tx, ty) {
+    if (ty < 0 || ty >= ROWS.length || tx < 0 || tx >= COLS) return " ";
+    return ROWS[ty][tx];
+  }
+  function solidAt(tx, ty) {
+    const c = tileAt(tx, ty);
+    return c === "=" || c === "G";
+  }
+
+  function rectsOverlap(a, b) {
+    return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+  }
+
+  function spawn() {
+    solids = [];
+    enemies = [];
+    pickups = [];
+    flag = null;
+    player = { x: T * 2, y: T * 10, w: 22, h: 28, vx: 0, vy: 0, onGround: false, face: 1, dead: false };
+    for (let y = 0; y < ROWS.length; y++) {
+      for (let x = 0; x < COLS; x++) {
+        const c = ROWS[y][x];
+        const px = x * T, py = y * T;
+        if (c === "=" || c === "G") solids.push({ x: px, y: py, w: T, h: T, kind: c });
+        else if (c === "o") pickups.push({ x: px + 8, y: py + 8, w: 16, h: 16, taken: false });
+        else if (c === "e") enemies.push({ x: px + 4, y: py + 8, w: 24, h: 24, vx: (x % 2 ? 1.1 : -1.1), alive: true, squish: 0 });
+        else if (c === "P") { player.x = px + 5; player.y = py + 4; }
+        else if (c === "F") flag = { x: px + 8, y: py - T * 3, w: 10, h: T * 4 };
+      }
+    }
+    if (!flag) flag = { x: WORLD_W - T * 4, y: T * 7, w: 10, h: T * 5 };
+    camX = 0;
+    invuln = 0;
+  }
+
+  function resetRun(full) {
+    if (full) { score = 0; coins = 0; lives = 3; }
+    spawn();
+    mode = "play";
+    overlay.classList.add("hidden");
+    hud();
+  }
+
+  function hud() {
+    hScore.textContent = "POENG " + score;
+    hCoins.textContent = "MYNTER " + coins;
+    hLives.textContent = "LIV × " + lives;
+  }
+
+  function show(title, body, action) {
+    overlay.classList.remove("hidden");
+    overlay.querySelector("h2").textContent = title;
+    overlay.querySelector("p").textContent = body;
+    btn.textContent = action;
+    mode = title === "PIPPA" ? "title" : (title === "SEIER" ? "win" : "dead");
+  }
+
+  function moveAxis(ent, axis) {
+    if (axis === "x") ent.x += ent.vx;
+    else ent.y += ent.vy;
+    const x0 = Math.floor(ent.x / T) - 1;
+    const x1 = Math.floor((ent.x + ent.w) / T) + 1;
+    const y0 = Math.floor(ent.y / T) - 1;
+    const y1 = Math.floor((ent.y + ent.h) / T) + 1;
+    let hitGround = false;
+    for (let ty = y0; ty <= y1; ty++) {
+      for (let tx = x0; tx <= x1; tx++) {
+        if (!solidAt(tx, ty)) continue;
+        const s = { x: tx * T, y: ty * T, w: T, h: T };
+        if (!rectsOverlap(ent, s)) continue;
+        if (axis === "x") {
+          if (ent.vx > 0) ent.x = s.x - ent.w;
+          else if (ent.vx < 0) ent.x = s.x + s.w;
+          ent.vx = 0;
+        } else {
+          if (ent.vy > 0) { ent.y = s.y - ent.h; ent.vy = 0; hitGround = true; }
+          else if (ent.vy < 0) { ent.y = s.y + s.h; ent.vy = 0; }
+        }
+      }
+    }
+    if (axis === "y") ent.onGround = hitGround;
+  }
+
+  function hurt() {
+    if (invuln > 0 || player.dead) return;
+    lives--;
+    hud();
+    if (lives <= 0) {
+      player.dead = true;
+      show("GAME OVER", "Soppene og gropene vant. Prøv igjen — flagget venter bakerst.", "På nytt");
+      return;
+    }
+    invuln = 90;
+    player.vy = -6;
+    player.vx = -player.face * 3;
+  }
+
+  function diePit() {
+    lives--;
+    hud();
+    if (lives <= 0) {
+      player.dead = true;
+      show("GAME OVER", "Du falt i gropa. Tre liv, så er det slutt.", "På nytt");
+    } else {
+      spawn();
+      invuln = 60;
+    }
+  }
+
+  function update() {
+    t++;
+    if (mode !== "play") return;
+    const left = keys.ArrowLeft || keys.a || keys.A;
+    const right = keys.ArrowRight || keys.d || keys.D;
+    const jump = keys.ArrowUp || keys.w || keys.W || keys[" "];
+
+    if (left) { player.vx -= ACC; player.face = -1; }
+    if (right) { player.vx += ACC; player.face = 1; }
+    if (!left && !right) player.vx *= FRICTION;
+    if (Math.abs(player.vx) < 0.08) player.vx = 0;
+    player.vx = Math.max(-MAX_RUN, Math.min(MAX_RUN, player.vx));
+
+    if (jump && player.onGround) {
+      player.vy = JUMP;
+      player.onGround = false;
+    }
+    player.vy = Math.min(MAX_FALL, player.vy + GRAV);
+
+    moveAxis(player, "x");
+    moveAxis(player, "y");
+
+    if (player.x < 0) { player.x = 0; player.vx = 0; }
+    if (player.x + player.w > WORLD_W) { player.x = WORLD_W - player.w; player.vx = 0; }
+    if (player.y > WORLD_H + 8) { diePit(); return; }
+
+    if (invuln > 0) invuln--;
+
+    for (const e of enemies) {
+      if (!e.alive) { if (e.squish > 0) e.squish--; continue; }
+      e.vy = Math.min(MAX_FALL, (e.vy || 0) + GRAV);
+      moveAxis(e, "x");
+      moveAxis(e, "y");
+      const ahead = e.vx > 0 ? e.x + e.w + 2 : e.x - 2;
+      const footX = Math.floor(ahead / T);
+      const footY = Math.floor((e.y + e.h + 2) / T);
+      const wallX = Math.floor(ahead / T);
+      const wallY = Math.floor((e.y + e.h / 2) / T);
+      if (solidAt(wallX, wallY) || !solidAt(footX, footY)) e.vx *= -1;
+      if (e.x < 0 || e.x + e.w > WORLD_W) e.vx *= -1;
+
+      if (rectsOverlap(player, e)) {
+        const stomp = player.vy > 0.4 && (player.y + player.h) - e.y < 16;
+        if (stomp) {
+          e.alive = false;
+          e.squish = 24;
+          e.h = 8;
+          e.y += 16;
+          player.vy = JUMP * 0.62;
+          score += 200;
+          hud();
+        } else if (invuln <= 0) {
+          hurt();
+        }
+      }
+    }
+
+    for (const c of pickups) {
+      if (c.taken) continue;
+      if (rectsOverlap(player, c)) {
+        c.taken = true;
+        coins++;
+        score += 100;
+        hud();
+      }
+    }
+
+    if (flag && rectsOverlap(player, { x: flag.x - 6, y: flag.y, w: 22, h: flag.h })) {
+      score += 1000;
+      hud();
+      show("SEIER", "Pippa nådde flagget! Poeng " + score + " · mynter " + coins + ".", "Spill igjen");
+    }
+
+    const target = player.x + player.w / 2 - W * 0.38;
+    camX += (target - camX) * 0.12;
+    if (camX < 0) camX = 0;
+    if (camX > WORLD_W - W) camX = Math.max(0, WORLD_W - W);
+  }
+
+  function roundRect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function drawSky() {
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, "#1b3358");
+    g.addColorStop(0.55, "#3d6aa8");
+    g.addColorStop(1, "#7ec0ee");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = "#f4d35e";
+    ctx.beginPath();
+    ctx.arc(640, 70, 34, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,.85)";
+    for (const cl of [[80, 50, 50], [300, 80, 40], [520, 40, 46], [900, 70, 38], [1200, 55, 44], [1600, 90, 36], [2000, 40, 50], [2400, 75, 42]]) {
+      const x = cl[0] - camX * 0.35;
+      const y = cl[1], r = cl[2];
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.arc(x + r * 0.9, y + 6, r * 0.75, 0, Math.PI * 2);
+      ctx.arc(x - r * 0.8, y + 8, r * 0.65, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  function drawHill(x, y, s, col) {
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    ctx.ellipse(x - camX * 0.55, y, s, s * 0.55, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function drawWorld() {
+    drawHill(180, 360, 140, "#3d8b4a");
+    drawHill(520, 370, 110, "#2f6f3a");
+    drawHill(980, 355, 160, "#3d8b4a");
+    drawHill(1500, 365, 130, "#2f6f3a");
+    drawHill(2100, 350, 150, "#3d8b4a");
+    drawHill(2700, 368, 120, "#2f6f3a");
+
+    const x0 = Math.max(0, Math.floor(camX / T) - 1);
+    const x1 = Math.min(COLS - 1, Math.floor((camX + W) / T) + 1);
+    for (let ty = 0; ty < ROWS.length; ty++) {
+      for (let tx = x0; tx <= x1; tx++) {
+        const c = tileAt(tx, ty);
+        if (c !== "=" && c !== "G") continue;
+        const x = tx * T - camX, y = ty * T;
+        if (c === "G") {
+          ctx.fillStyle = "#2d6a3a";
+          ctx.fillRect(x, y, T, T);
+          ctx.fillStyle = "#49a35a";
+          ctx.fillRect(x, y, T, 8);
+        } else {
+          ctx.fillStyle = "#c45c26";
+          ctx.fillRect(x, y, T, T);
+          ctx.strokeStyle = "#8a3514";
+          ctx.lineWidth = 2;
+          ctx.strokeRect(x + 1, y + 1, T - 2, T - 2);
+          ctx.fillStyle = "#e07a3a";
+          ctx.fillRect(x + 4, y + 4, 8, 6);
+          ctx.fillRect(x + 18, y + 16, 8, 6);
+        }
+      }
+    }
+
+    if (flag) {
+      const fx = flag.x - camX, fy = flag.y;
+      ctx.fillStyle = "#d6d3c4";
+      ctx.fillRect(fx + 4, fy, 4, flag.h);
+      ctx.fillStyle = "#ffd166";
+      ctx.beginPath();
+      ctx.moveTo(fx + 8, fy + 4);
+      ctx.lineTo(fx + 36, fy + 16);
+      ctx.lineTo(fx + 8, fy + 28);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = "#9b2226";
+      ctx.fillRect(fx + 12, fy + 10, 8, 8);
+    }
+
+    for (const c of pickups) {
+      if (c.taken) continue;
+      const x = c.x - camX + 8, y = c.y + 8 + Math.sin(t / 10 + c.x) * 2;
+      ctx.fillStyle = "#ffd166";
+      ctx.beginPath();
+      ctx.ellipse(x, y, 7, 9, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#fff3b0";
+      ctx.beginPath();
+      ctx.ellipse(x - 2, y - 2, 2.2, 3, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "#c9a227";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.ellipse(x, y, 7, 9, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    for (const e of enemies) {
+      if (!e.alive && e.squish <= 0) continue;
+      const x = e.x - camX, y = e.y;
+      ctx.fillStyle = "#6a4c93";
+      roundRect(x, y, e.w, e.h, 6);
+      ctx.fill();
+      ctx.fillStyle = "#3d2a5c";
+      ctx.fillRect(x + 4, y + e.h - 6, 6, 6);
+      ctx.fillRect(x + e.w - 10, y + e.h - 6, 6, 6);
+      if (e.alive) {
+        ctx.fillStyle = "#f4efe6";
+        ctx.fillRect(x + 5, y + 6, 6, 6);
+        ctx.fillRect(x + e.w - 11, y + 6, 6, 6);
+        ctx.fillStyle = "#1a1a2e";
+        const look = e.vx > 0 ? 2 : 0;
+        ctx.fillRect(x + 7 + look, y + 8, 3, 3);
+        ctx.fillRect(x + e.w - 9 + look, y + 8, 3, 3);
+      }
+    }
+
+    if (player && (invuln <= 0 || Math.floor(t / 4) % 2 === 0)) {
+      const x = player.x - camX, y = player.y;
+      ctx.fillStyle = "#e63946";
+      ctx.fillRect(x + 4, y, 14, 8);
+      ctx.fillRect(x + 2, y + 6, 18, 4);
+      ctx.fillStyle = "#f1c27d";
+      ctx.fillRect(x + 5, y + 10, 12, 8);
+      ctx.fillStyle = "#1d3557";
+      ctx.fillRect(x + 4, y + 18, 14, 10);
+      ctx.fillStyle = "#457b9d";
+      ctx.fillRect(x + 2, y + 18, 5, 8);
+      ctx.fillRect(x + 15, y + 18, 5, 8);
+      ctx.fillStyle = "#1a1a2e";
+      ctx.fillRect(x + (player.face > 0 ? 12 : 6), y + 12, 3, 3);
+      ctx.fillStyle = "#6d4c41";
+      ctx.fillRect(x + 4, y + player.h - 4, 6, 4);
+      ctx.fillRect(x + 12, y + player.h - 4, 6, 4);
+    }
+  }
+
+  function loop() {
+    update();
+    drawSky();
+    ctx.save();
+    drawWorld();
+    ctx.restore();
+    requestAnimationFrame(loop);
+  }
+
+  window.addEventListener("keydown", (e) => {
+    keys[e.key] = true;
+    if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " "].includes(e.key)) e.preventDefault();
+    if ((e.key === "Enter" || e.key === " ") && mode !== "play") {
+      e.preventDefault();
+      resetRun(true);
+    }
+  });
+  window.addEventListener("keyup", (e) => { keys[e.key] = false; });
+  btn.addEventListener("click", () => resetRun(true));
+
+  spawn();
+  loop();
+})();
+</script>
+</body>
+</html>

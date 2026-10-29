@@ -375,6 +375,42 @@ def recall(agent_id: str, query: str, limit: int = 4) -> list[dict]:
     return out
 
 
+def last_chats(agent_id: str, limit: int = 2) -> list[dict]:
+    """Recent chat episodes, oldest first. SQLite only — no MiniLM."""
+    check_agent(agent_id)
+    n = max(1, min(int(limit or 2), 8))
+    db = _sqlite(agent_id)
+    con = sqlite3.connect(db)
+    try:
+        rows = con.execute(
+            "SELECT payload FROM episodes WHERE kind = 'chat' ORDER BY id DESC LIMIT ?",
+            (n,),
+        ).fetchall()
+    finally:
+        con.close()
+    out: list[dict] = []
+    for (raw,) in reversed(list(rows or [])):
+        try:
+            p = json.loads(raw) if isinstance(raw, str) else (raw or {})
+        except (json.JSONDecodeError, TypeError):
+            continue
+        if not isinstance(p, dict):
+            continue
+        user = str(p.get("user") or "").strip()
+        asst = str(p.get("assistant") or "").strip()
+        if not user and not asst:
+            continue
+        out.append(
+            {
+                "user": user[:2000],
+                "assistant": asst[:2000],
+                "tools": list(p.get("tools") or [])[:20],
+                "allow_mutate": bool(p.get("allow_mutate")),
+            }
+        )
+    return out
+
+
 def format_recall(hits: list[dict], budget: int = 1600) -> str:
     if not hits:
         return ""

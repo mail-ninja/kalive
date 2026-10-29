@@ -39,9 +39,11 @@ Minne følger `agent_id`. Provider er munnstykke.
 
 Chip-raden i Arbeid viser `build`. Andre agenter under kjøredetaljer.
 
-Tool-loop: OpenAI-kompatible function calls mot SpaceXAI (`grok-4.6`) eller Settings. Mutasjon krever haken. Passord aldri i chat. Etter vellykket bash/preview: DONE (ikke grep-runder). Heartbeat (`run/pulse`) mens modellen tenker.
+Tool-loop: OpenAI-kompatible function calls mot SpaceXAI (`grok-4.6`) eller Settings. Mutasjon krever haken. Passord aldri i chat.
 
-Spill i iframe: HTML på disk via `GET /v1/workspace/raw?path=…` (f.eks. `docs/_probe.html` / `docs/_snake.html`), eller loopback-app via `preview_serve` + `preview_set` (`http://127.0.0.1:PORT/`). Monaco og preview står ved siden av hverandre. `repo_write` lager ny fil; `repo_edit` av en `.html` åpner den i editoren. Grep-treff i chatten åpner linja. Ny fil fra treet eller Fil-menyen. Live stdout under `repo_bash`.
+Spill i iframe: HTML på disk via `GET /v1/workspace/raw?path=…` (f.eks. `docs/_probe.html` / `docs/_snake.html` / `docs/pacman/index.html`), eller loopback-app via `preview_serve` + `preview_set` (`http://127.0.0.1:PORT/`). Monaco og preview står ved siden av hverandre. `repo_write` lager ny fil; `repo_edit` av en `.html` åpner den i editoren. Grep-treff i chatten åpner linja. Ny fil fra treet eller Fil-menyen. Live stdout under `repo_bash`.
+
+`build` tar med forrige chat-tur og fyller hull i vage prompts (`intent.py`). «klonen» etter en spill-oppgave er produktkopi, ikke `git clone`. Etter 3 see-only runder uten skriving: nudge + kutt av glob/grep/read. Etter vellykket bash/preview: DONE (ikke grep-runder). Heartbeat (`run/pulse`) mens modellen tenker.
 
 ## HTTP på :8788 (utvalg)
 

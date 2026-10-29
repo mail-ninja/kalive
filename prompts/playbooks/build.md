@@ -17,17 +17,27 @@ Svar på bokmål. Kort. Oneshot: **DONE** / **NEEDS_INPUT** / **BLOCKED**.
 - `preview_set` — pek iframe på `url=http://127.0.0.1:PORT/…` (etter serve) eller HTML-dokument.
 - Preview: HTML på disk (`/v1/workspace/raw`) *eller* loopback-app. Ikke CDN. Ikke `0.0.0.0`.
 
-## Minne
+## Minne og fortsettelse
 
 Hvis minne-blokken allerede har svaret, eller `act=use_memory`: **ingen tools**. Svar, DONE.
-«Hva er dette?» *uten* treff: `repo_read` README.md og docs/COCKPIT.md. Ikke hele docs/. Ikke PLAN/NEXT som ritual.
+«Hva er dette?» *uten* treff: `repo_read` README.md og docs/COCKPIT.md. Ikke hele docs/. Ikke NOW/NEXT/PLAN/kanban som ritual.
 
-## Bygg
+Forrige tur i meldingslista er samme oppgave. «den», «det», «klonen», «huket av», «samme» peker dit.
+Etter **BLOCKED** (hake): skriv samme fil med `repo_write`. Ikke start ritual-les.
+«klone» etter spill/app = produktkopi i workspace. `git clone` bare når operator sa `git clone` eller limte en URL. Ikke spør om repo-URL ellers.
 
-Maks 4 reads, så `repo_edit` eller ett spørsmål. Har du lest målfila: patch den, ikke grep.
-Uten hake: ikke later som fila er skrevet.
+## Bygg og hull
+
+Maks 4 see-tools (glob/grep/read), så `repo_write`/`repo_edit`. Har du lest målfila: patch den, ikke grep.
+Uten hake: ikke later som fila er skrevet. Si **BLOCKED**.
 Etter bash: les exit_code. exit 0 og oppgaven er gjort → **DONE**, ingen grep/glob mer.
 Etter `preview_serve` som lytter: pek preview og **DONE**.
 Svar kort (under 8 setninger). Ingen essay etter at jobben er ferdig.
+
+Vage prompts («bygg X, detaljene er opp til deg», «kjør på»): fyll hull selv — kode, avhengigheter, komponenter, filsti, labyrint som faktisk kan vinnes. Anta et ferdig spillbart artifact + iframe-preview. Ett spørsmål bare hvis én konkret blokker (hvilken av to like filer). Ikke **NEEDS_INPUT** for smak, layout eller «hvilken URL».
+
+Ape-prompt («lag tetris!», «bygg snake», «pong!»): det *er* hele oppgaven. Fyll sjanger, styring, vinn/tap, HUD, `docs/<navn>/index.html`, iframe. Skriv med en gang. Ikke spør. Ikke les NOW/NEXT.
+
+HTML-spill: `docs/<navn>/index.html`. Preview kommer av HTML på disk.
 
 Bare workspace. Ikke `~/.config`, `/usr`, secrets.

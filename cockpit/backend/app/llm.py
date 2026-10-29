@@ -16,9 +16,19 @@ from .catalog import get_provider
 from .agents import get_agent
 from .hiroshima import MAX_ROUNDS as HIRO_ROUNDS
 from .decide import gate_recall
-from .memory import format_recall, recall, remember_engram
+from .intent import fill_goal, format_intent, prior_messages
+from .memory import format_recall, last_chats, recall, remember_engram
 from .secrets_store import load_env
-from .orchestrate import NUDGE_DONE, SHORT_DONE, is_edit, is_fail, is_verify, next_brake
+from .orchestrate import (
+    NUDGE_DONE,
+    NUDGE_WRITE,
+    SHORT_DONE,
+    WRITE_KEEP,
+    is_edit,
+    is_fail,
+    is_verify,
+    next_brake,
+)
 from .tools import call_tool, openai_tools
 
 _REPO = Path(__file__).resolve().parents[3]
@@ -140,10 +150,20 @@ async def run_turn(
     decision: dict = {}
     t_recall_ms = 0
     t_decide_ms = 0
+    prior: list[dict] = []
+    intent: dict = {}
+    code_desk_early = agent.desk == "code" or agent.id == "build"
+    if _depth == 0 and code_desk_early:
+        try:
+            prior = last_chats(agent.id, 2)
+            intent = fill_goal(user_text, prior)
+        except Exception:
+            prior, intent = [], {}
     if _depth == 0:
         try:
             t0 = time.perf_counter()
-            hits = recall(agent.id, user_text, limit=4)
+            recall_q = str(intent.get("goal") or user_text)
+            hits = recall(agent.id, recall_q, limit=4)
             t_recall_ms = int((time.perf_counter() - t0) * 1000)
             t1 = time.perf_counter()
             hits, decision = gate_recall(user_text, hits)
@@ -186,10 +206,15 @@ async def run_turn(
         sys_content = sys_content + "\n\n" + mem_block
         if act == "use_memory":
             sys_content += "\n\nact=use_memory: svar fra minne-blokken. Ikke kall repo_read."
+    intent_block = format_intent(intent) if intent else ""
+    if intent_block:
+        sys_content = sys_content + "\n\n" + intent_block
     messages: list[dict[str, Any]] = [
         {"role": "system", "content": sys_content},
-        {"role": "user", "content": user_text},
     ]
+    for m in prior_messages(prior, intent):
+        messages.append(m)
+    messages.append({"role": "user", "content": user_text})
     names = list(agent.tools) if agent.tools else None
     tools = openai_tools(names) if use_tools and act != "use_memory" else []
     tool_cap = 16 if (agent.desk == "code" or agent.id == "build") else HIRO_ROUNDS
@@ -197,6 +222,7 @@ async def run_turn(
     did_mutate = False
     verified = False
     see_streak = 0
+    see_only_count = 0
     code_desk = agent.desk == "code" or agent.id == "build"
     async with httpx.AsyncClient(timeout=120.0) as client:
         for rnd in range(max_r):
@@ -379,6 +405,7 @@ async def run_turn(
                                 bits.append(str(ev.get("text") or ""))
                         result = {"ok": True, "agent": sub.id, "excerpt": "".join(bits)[:1500]}
                         messages[-1]["content"] = json.dumps(result, ensure_ascii=False)[:8000]
+            did_write_nudge = False
             if code_desk and tools:
                 br = next_brake(
                     verified=verified,
@@ -388,30 +415,32 @@ async def run_turn(
                     got_verify=got_verify,
                     got_edit=got_edit,
                     got_fail=got_fail,
+                    see_only_count=see_only_count,
                 )
                 verified = bool(br["verified"])
                 see_streak = int(br["see_streak"])
+                see_only_count = int(br["see_only_count"])
                 if br["force_stop"]:
                     tools = []
                     yield {"type": "log", "text": "orchestrator: ferdig — stopper"}
                 elif br["nudge"]:
                     messages.append({"role": "user", "content": NUDGE_DONE})
+                elif br.get("write_nudge") or br.get("see_cap_hit"):
+                    names = [n for n in (names or []) if n in WRITE_KEEP]
+                    tools = openai_tools(names) if (use_tools and act != "use_memory" and names) else []
+                    messages.append({"role": "user", "content": NUDGE_WRITE})
+                    did_write_nudge = True
+                    yield {"type": "log", "text": "orchestrator: skriv fila — kutter lesing"}
             if (
                 code_desk
                 and rnd + 1 >= 4
                 and not did_mutate
                 and names
                 and tools
+                and not did_write_nudge
             ):
-                names = [n for n in names if n in ("repo_read", "repo_edit", "repo_write", "repo_bash", "repo_git", "preview_serve", "preview_set")]
+                names = [n for n in names if n in WRITE_KEEP]
                 tools = openai_tools(names) if (use_tools and act != "use_memory" and names) else []
-                messages.append(
-                    {
-                        "role": "user",
-                        "content": (
-                            "4 tools uten repo_edit. Neste kall: repo_edit på fila du allerede har lest, "
-                            "eller svar DONE. Ingen grep/glob mer."
-                        ),
-                    }
-                )
+                messages.append({"role": "user", "content": NUDGE_WRITE})
+                yield {"type": "log", "text": "orchestrator: skriv fila — kutter lesing"}
         yield {"type": "token", "text": "(nådde max runder uten svar)"}
