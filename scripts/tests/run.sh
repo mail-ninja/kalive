@@ -178,6 +178,36 @@ else
   fail=1
 fi
 
+echo "[test] protocol_h3.py"
+if python3 "$ROOT/scripts/tests/protocol_h3.py"; then
+  echo "  OK protocol_h3"
+else
+  echo "  FAIL protocol_h3"
+  fail=1
+fi
+
+echo "[test] signal_xterm.py"
+SX_PY="$ROOT/cockpit/backend/.venv/bin/python3"
+if [[ ! -x "$SX_PY" ]]; then
+  SX_PY="python3"
+fi
+if "$SX_PY" "$ROOT/scripts/tests/signal_xterm.py"; then
+  echo "  OK signal_xterm"
+else
+  echo "  FAIL signal_xterm"
+  fail=1
+fi
+
+echo "[test] uplink iface helper"
+if grep -q 'kalived_uplink_iface' "$ROOT/scripts/lib/kalived-config.sh" \
+  && grep -q 'kalived_uplink_iface' "$ROOT/scripts/kalived-watch.sh" \
+  && grep -q 'kalived_uplink_iface' "$ROOT/scripts/kalived-uplink.sh"; then
+  echo "  OK uplink/watch bruker ip route get"
+else
+  echo "  FAIL uplink iface"
+  fail=1
+fi
+
 echo "[test] testdata urørt"
 after="$(checksum_testdata)"
 if [[ "$before" != "$after" ]]; then

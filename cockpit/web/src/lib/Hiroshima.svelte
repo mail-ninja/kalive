@@ -26,6 +26,8 @@
     rollback?: boolean
     isolatable?: boolean
     watch_unknown?: number
+    unknown_dsts?: { ip?: string; port?: number; exe?: string; family?: string }[]
+    ufw_hits?: { src?: string; dpt?: number | string; iface?: string; action?: string }[]
     watch?: {
       ts?: string
       class?: string
@@ -55,6 +57,8 @@
     findings?: Finding[]
     protocol?: Protocol
     actions?: Action[]
+    unknown_dsts?: Protocol['unknown_dsts']
+    ufw_hits?: Protocol['ufw_hits']
   }
 
   const SHEET_KEY = 'kalived.hiroshima.sheet'
@@ -222,6 +226,8 @@
 
   const word = $derived(doc?.verdict || '—')
   const proto = $derived(doc?.protocol)
+  const dests = $derived(proto?.unknown_dsts ?? doc?.unknown_dsts ?? [])
+  const ufwHits = $derived(proto?.ufw_hits ?? doc?.ufw_hits ?? [])
   const actions = $derived(doc?.actions || [])
 </script>
 
@@ -266,6 +272,36 @@
               <p class="mb-3 text-xs text-warn">watch unknown — kjør scan for isolate (snapshot eier dest)</p>
             {/if}
           {/if}
+        {/if}
+        {#if doc}
+          <div class="mb-3 rounded-lg border border-white/10 p-2 text-xs">
+            <p class="mb-1 tracking-wide text-paper/45">ukjent dest (ESTAB) — isolate treffer disse</p>
+            {#if dests.length}
+              {#each dests as d}
+                <p class="font-mono text-paper/85">
+                  {d.ip}{d.port != null ? `:${d.port}` : ''}{#if d.exe}
+                    · {d.exe}{/if}{#if d.family}
+                    · {d.family}{/if}
+                </p>
+              {/each}
+            {:else}
+              <p class="text-paper/45">ingen ukjent ESTAB-dest i snapshot</p>
+            {/if}
+          </div>
+          <div class="mb-3 rounded-lg border border-white/10 p-2 text-xs">
+            <p class="mb-1 tracking-wide text-paper/45">UFW-treff mot lyttende port</p>
+            {#if ufwHits.length}
+              {#each ufwHits as h}
+                <p class="font-mono text-paper/85">
+                  src {h.src} → :{h.dpt ?? '?'}{#if h.iface}
+                    · {h.iface}{/if}{#if h.action}
+                    · {h.action}{/if}
+                </p>
+              {/each}
+            {:else}
+              <p class="text-paper/45">ingen treff mot lyttende port i 24t-vindu</p>
+            {/if}
+          </div>
         {/if}
         <div class="mb-3 flex flex-wrap items-center gap-2">
           <button class="rounded-full bg-paper px-3 py-1 text-sm text-ink disabled:opacity-50" disabled={scanning} onclick={scan}>

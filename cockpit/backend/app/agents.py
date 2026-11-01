@@ -21,7 +21,14 @@ class Agent(BaseModel):
     builtin: bool = False
 
 
-SOC_TOOLS = ["ping", "hiroshima_verdict", "hiroshima_scan", "hiroshima_run", "hiroshima_job"]
+SOC_TOOLS = [
+    "ping",
+    "hiroshima_verdict",
+    "hiroshima_scan",
+    "hiroshima_run",
+    "hiroshima_job",
+    "term_send",
+]
 CODE_TOOLS = ["iframe_write", "preview_set", "canvas_open", "canvas_edit", "canvas_read", "ping", "term_send"]
 BUILD_TOOLS = [
     "repo_glob",
@@ -54,7 +61,7 @@ BUILTINS = [
     Agent(
         id="signal",
         name="signal",
-        description="SOC-dom. Sil 4, ikke innbrudd på støy.",
+        description="SOC i Hiroshima-xterm. Tools først, kort neste handling. Passord i xterm.",
         provider="xai",
         model="grok-4.6",
         playbook="signal",

@@ -51,7 +51,7 @@ if command -v ausearch >/dev/null 2>&1; then
   fi
 fi
 
-IFACE="$(ip -4 route show default 2>/dev/null | awk '/default/ {print $5; exit}')"
+IFACE="$(kalived_uplink_iface || true)"
 export KALIVED_WATCH_IFACE="${IFACE:-}"
 export KALIVED_WATCH_AUDIT="$audit_status"
 python3 "$HELPER" ingest "$TMP"

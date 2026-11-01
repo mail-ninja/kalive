@@ -48,9 +48,15 @@ def _system_prompt(agent: Agent) -> str:
         )
     else:
         extra = (
-            "\n\nDu er i cockpit. SOC-tools: hiroshima_verdict/scan/run/job. "
+            "\n\nDu er i cockpit Hiroshima. Verktøy: hiroshima_verdict, hiroshima_scan, "
+            "hiroshima_run (scan|defs|watch|uplink-burst|falco-burst|isolate-dst|"
+            "isolate-undo|aide-init|aide-init-ack-stale|rkhunter-setup), hiroshima_job, "
+            "term_send (where=hiroshima). Bruk tools. Kort neste handling — ikke milelang "
+            "rapport. Ikke default undo isolate. Stående FIM-identitet er ikke nytt innbrudd. "
             f"Maks {HIRO_ROUNDS} runder. Jobber ONESHOT. Rutinescan er cron. "
-            "Passord skrives aldri i chat. Scan krever «agent får kjøre»."
+            "sudo -n først; ved passord: pty i Hiroshima-xterm. Aldri passord i chat. "
+            "Ukjent dest-IP og UFW-treff i verdict er til operator — vis dem. Ikke i minne. "
+            "Krever «agent får kjøre». kill-pid er Confirm i skuffen, ikke tool."
         )
     if agent.playbook:
         p = _REPO / "prompts" / "playbooks" / f"{agent.playbook}.md"

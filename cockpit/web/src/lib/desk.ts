@@ -22,6 +22,8 @@ let state: Canvas = {
 }
 
 const ptyFns = new Set<(s: string) => void>()
+const openHiroshimaFns = new Set<() => void>()
+let queuedPty: string[] = []
 
 export function getCanvas(): Canvas {
   return state
@@ -40,11 +42,25 @@ export function subscribeCanvas(fn: Fn) {
 
 export function onPtyWrite(fn: (s: string) => void) {
   ptyFns.add(fn)
+  if (queuedPty.length) {
+    const drain = queuedPty.splice(0)
+    for (const s of drain) fn(s)
+  }
   return () => ptyFns.delete(fn)
 }
 
-export function ptyWrite(s: string) {
+export function ptyWrite(s: string, opts?: { queue?: boolean }) {
+  if (ptyFns.size === 0 || opts?.queue) queuedPty.push(s)
   ptyFns.forEach((fn) => fn(s))
+}
+
+export function onOpenHiroshima(fn: () => void) {
+  openHiroshimaFns.add(fn)
+  return () => openHiroshimaFns.delete(fn)
+}
+
+export function requestHiroshima() {
+  openHiroshimaFns.forEach((fn) => fn())
 }
 
 export function isLoopbackUrl(u: string) {
@@ -61,7 +77,9 @@ export function isLoopbackUrl(u: string) {
 
 export function applyToolResult(r: Record<string, unknown> | undefined) {
   if (!r) return
-  if (typeof r.pty_write === 'string') ptyWrite(r.pty_write)
+  const openHiro = r.open_hiroshima === true || r.need_pty === true
+  if (openHiro) requestHiroshima()
+  if (typeof r.pty_write === 'string') ptyWrite(r.pty_write, { queue: openHiro })
   // repo_read/grep must not clobber the open Monaco buffer.
   const canvasish = r.mode === 'iframe' || r.mode === 'monaco' || typeof r.preview === 'string'
   if (!canvasish) return

@@ -170,7 +170,7 @@ På et nett merket `tether` (telefon som gateway) eller `travel` (ny SSID):
 ```
 hva slags nett er dette, og er maskinen kompromittert?
 ```
-Forvent: `env_shift` / `tether` eller `travel`. Ikke ALERT bare fordi SSID er ny. Dual-source nei med mindre Falco+FIM/nett eller hard artefakt. Fail: IP eller cmd i ring-raden.
+Forvent: `env_shift` / `tether` eller `travel`. Ikke ALERT bare fordi SSID er ny. Dual-source nei med mindre Falco+FIM/nett eller hard artefakt. Fail: IP eller cmd i **ring-raden**. Dest-lista under ringen **skal** vise ukjent ESTAB-IP (ip:port · exe).
 
 **H3 — isolasjon signal**
 
@@ -190,7 +190,7 @@ Settings → Maskin: huke **Egress-watch hvert 5. min**. Fail: huke av men timer
 
 **H4b — watch**
 
-Skuffen: `watch N · unknown U · unmapped M`. Knapp **watch** og **uplink 30s**. Unmapped kan være høy (browser mot offentlig dest) — synlig, ikke ALERT. Fail: IP eller SNI i watch-linjen. Fail: `window.json` `root:root` (skal være eier 0600). Fail: `Chrome_ChildIOT` / `tokio-rt-worker` som unknown (skal være browser/xAI).
+Skuffen: `watch N · unknown U · unmapped M`. Knapp **watch** og **uplink 30s**. Unmapped kan være høy (browser mot offentlig dest) — synlig, ikke ALERT. Fail: IP eller SNI i **watch-linjen**. Dest-lista er egen blokk og skal vise ukjent ESTAB-IP. Fail: `window.json` `root:root` (skal være eier 0600). Fail: `Chrome_ChildIOT` / `tokio-rt-worker` som unknown (skal være browser/xAI).
 
 **H4c — scoped aide-init**
 
@@ -199,6 +199,14 @@ Confirm aide-init fryser kalived-filer, **ikke** VPN-snap / udev / snapd-mount �
 **H5 — Falco host-burst**
 
 Knapp **falco 8s**. Etter burst: `hunt_falco.jsonl` under stamp (ny stamp hvis standalone). Tom jsonl = ingen finding. Falco alene = WARN / `candidate`. Falco + FIM eller Falco + nett = ALERT. Fail: cmdline/SNI/pcap/IP i digest. Fail: filer under `hiroshima/` fra Falco. Fail: ERROR når pakke mangler (INFO «falco absent»).
+
+**H7 — signal-xterm**
+
+Arbeid, agent `signal`, hake **på**:
+```
+hva er ukjent dest, og kjør watch
+```
+Forvent: `hiroshima_verdict` (unknown_dsts synlig) deretter `hiroshima_run` watch (eller pty `sudo kalived-ctl watch` i Hiroshima-skuffen). Kort neste handling, ikke rapport. Fail: default «undo isolate». Fail: `kill-pid` som tool. Fail: sudo -S. Passord bare i xterm.
 
 **H4 — payload-vegg**
 

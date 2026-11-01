@@ -21,7 +21,19 @@ _MUTATE = re.compile(
 _ASK = re.compile(r"\b(hva|hvor|hvilken|hvem|hvordan|was|what|where|which)\b", re.I)
 _GREET = re.compile(r"^\s*(yo|halla|hallo|hei+|hi+|hey|sup|god\s+morgen|god\s+kveld)\b", re.I)
 _KINDS = ("fact", "artifact", "noise", "decision")
-_MUTATE_TOOLS = frozenset({"repo_edit", "repo_write", "repo_bash", "iframe_write", "preview_serve", "repo_git"})
+_MUTATE_TOOLS = frozenset(
+    {
+        "repo_edit",
+        "repo_write",
+        "repo_bash",
+        "iframe_write",
+        "preview_serve",
+        "repo_git",
+        "hiroshima_run",
+        "hiroshima_scan",
+        "term_send",
+    }
+)
 
 
 def jev_key() -> str:

@@ -26,9 +26,9 @@ trap cleanup EXIT
 mkdir -p "$DEST"
 chmod 700 "$DEST"
 
-IFACE="$(ip -4 route show default 2>/dev/null | awk '/default/ {print $5; exit}')"
+IFACE="$(kalived_uplink_iface || true)"
 if [[ -z "$IFACE" || "$IFACE" == "lo" ]]; then
-  echo "GATE: ingen uplink (default rute)" >&2
+  echo "GATE: ingen uplink (ip route get 1.1.1.1 / default rute)" >&2
   exit 2
 fi
 if [[ "$IFACE" == "any" ]]; then

@@ -1,9 +1,81 @@
 """Capability registry. Agent loop calls these. No arbitrary shell."""
 from __future__ import annotations
 
+import time
 from typing import Any, Callable
 
 from pydantic import BaseModel, Field
+
+SIGNAL_RUNS = (
+    "scan",
+    "defs",
+    "watch",
+    "uplink-burst",
+    "falco-burst",
+    "isolate-dst",
+    "isolate-undo",
+    "aide-init",
+    "aide-init-ack-stale",
+    "rkhunter-setup",
+)
+
+
+def sudo_needs_pty(job: dict | None) -> bool:
+    """True when sudo -n failed and the operator must type a password in xterm."""
+    if not isinstance(job, dict):
+        return False
+    blob = " ".join(str(job.get(k) or "") for k in ("error", "hint", "log_tail")).lower()
+    if "password is required" in blob or "a terminal is required" in blob:
+        return True
+    if "sudo:" in blob and "password" in blob:
+        return True
+    return False
+
+
+def _ctl_pty(name: str) -> dict:
+    return {
+        "need_pty": True,
+        "open_hiroshima": True,
+        "pty_write": f"sudo kalived-ctl {name}\n",
+        "note": "passord i Hiroshima-xterm — ikke i chat",
+        "name": name,
+    }
+
+
+def _wait_sudo_job(h: Any, job: dict, timeout: float = 0.6) -> dict:
+    jid = str(job.get("job_id") or "")
+    cur = job
+    t0 = time.time()
+    while time.time() - t0 < timeout:
+        if sudo_needs_pty(cur):
+            return cur
+        if cur.get("status") != "running":
+            return cur
+        if not jid:
+            return cur
+        time.sleep(0.08)
+        nxt = h.job_get(jid)
+        if nxt:
+            cur = nxt
+    return cur
+
+
+def _hiroshima_sudo_line(line: str) -> str | None:
+    """Hiroshima xterm: sudo only via allowlisted kalived-ctl. None = ok."""
+    parts = line.split()
+    if not parts:
+        return "tom linje"
+    if parts[0] != "sudo":
+        return None
+    if "kalived-ctl" not in parts:
+        return "sudo i Hiroshima bare via kalived-ctl — ikke fri root-shell"
+    idx = parts.index("kalived-ctl")
+    verb = parts[idx + 1] if idx + 1 < len(parts) else ""
+    if verb == "kill-pid":
+        return "kill-pid er Confirm i skuffen, ikke term_send"
+    if verb not in SIGNAL_RUNS:
+        return f"kalived-ctl {verb or '?'} ikke i signal-allowlist"
+    return None
 
 
 class ToolSpec(BaseModel):
@@ -62,12 +134,15 @@ def hiroshima_verdict(_args: dict) -> dict:
         for f in findings
         if isinstance(f, dict)
     ][:40]
+    proto = doc.get("protocol") if isinstance(doc.get("protocol"), dict) else {}
     return {
         "stamp": doc.get("stamp"),
         "verdict": doc.get("verdict"),
         "exit_code": doc.get("exit_code"),
         "findings": slim,
-        "protocol": doc.get("protocol"),
+        "protocol": proto,
+        "unknown_dsts": doc.get("unknown_dsts") or proto.get("unknown_dsts") or [],
+        "ufw_hits": doc.get("ufw_hits") or proto.get("ufw_hits") or [],
     }
 
 
@@ -82,17 +157,28 @@ def hiroshima_verdict(_args: dict) -> dict:
 def hiroshima_scan(_args: dict) -> dict:
     from . import hiroshima as h
 
-    return h.start_named("scan", True)
+    job = h.start_named("scan", True)
+    if job.get("error") and not job.get("job_id"):
+        return {**_ctl_pty("scan"), "error": job.get("error")}
+    job = _wait_sudo_job(h, job)
+    if sudo_needs_pty(job):
+        return {**_ctl_pty("scan"), "job_id": job.get("job_id"), "exit_code": job.get("exit_code")}
+    return job
 
 
 @register(
     ToolSpec(
         name="hiroshima_run",
-        description="Start én allowlistet ctl (scan|defs), oneshot. Poll til done, så stopp. Ikke loop. Krever «agent får kjøre».",
+        description=(
+            "Start én allowlistet kalived-ctl (scan|defs|watch|uplink-burst|falco-burst|"
+            "isolate-dst|isolate-undo|aide-init|aide-init-ack-stale|rkhunter-setup). "
+            "sudo -n først; ved passord males linja i Hiroshima-xterm. Isolate dest kommer "
+            "fra siste scan-snapshot. Ikke kill-pid. Poll hiroshima_job til done. Krever «agent får kjøre»."
+        ),
         mutating=True,
         parameters={
             "type": "object",
-            "properties": {"name": {"type": "string", "enum": ["scan", "defs"]}},
+            "properties": {"name": {"type": "string", "enum": list(SIGNAL_RUNS)}},
             "required": ["name"],
         },
     )
@@ -100,8 +186,17 @@ def hiroshima_scan(_args: dict) -> dict:
 def hiroshima_run(args: dict) -> dict:
     from . import hiroshima as h
 
-    name = str(args.get("name") or "")
-    return h.start_named(name, True)
+    name = str(args.get("name") or "").strip()
+    if name not in SIGNAL_RUNS:
+        return {"error": f"ukjent run: {name}", "have": list(SIGNAL_RUNS)}
+    extra = {"family": "unknown"} if name == "isolate-dst" else None
+    job = h.start_named(name, True, extra)
+    if job.get("error") and not job.get("job_id"):
+        return {**_ctl_pty(name), "error": job.get("error")}
+    job = _wait_sudo_job(h, job)
+    if sudo_needs_pty(job):
+        return {**_ctl_pty(name), "job_id": job.get("job_id"), "exit_code": job.get("exit_code")}
+    return job
 
 
 @register(
@@ -293,9 +388,16 @@ def preview_serve(args: dict) -> dict:
 @register(
     ToolSpec(
         name="term_send",
-        description="Send én linje til cockpit-xterm. Krever «agent får kjøre». Aldri passord. Dedikert term-agent.",
+        description="Send én linje til xterm. where=hiroshima åpner Hiroshima-skuffen. Krever «agent får kjøre». Aldri passord. sudo i Hiroshima bare via kalived-ctl.",
         mutating=True,
-        parameters={"type": "object", "properties": {"line": {"type": "string"}}, "required": ["line"]},
+        parameters={
+            "type": "object",
+            "properties": {
+                "line": {"type": "string"},
+                "where": {"type": "string", "enum": ["pty", "hiroshima"]},
+            },
+            "required": ["line"],
+        },
     )
 )
 def term_send(args: dict) -> dict:
@@ -307,7 +409,19 @@ def term_send(args: dict) -> dict:
         return {"error": "ikke sudo -S / pipe passord — skriv passord i xterm"}
     if "\n" in line:
         line = line.split("\n", 1)[0]
-    return {"pty_write": line + "\n", "note": "sendt til xterm"}
+    where = str(args.get("where") or "pty").strip().lower()
+    if where not in ("pty", "hiroshima"):
+        where = "pty"
+    if where == "hiroshima":
+        err = _hiroshima_sudo_line(line)
+        if err:
+            return {"error": err}
+    out: dict = {"pty_write": line + "\n", "note": "sendt til xterm"}
+    if where == "hiroshima":
+        out["open_hiroshima"] = True
+        out["need_pty"] = True
+        out["note"] = "sendt til Hiroshima-xterm — passord der"
+    return out
 
 
 @register(
@@ -449,7 +563,7 @@ def repo_write(args: dict) -> dict:
 @register(
     ToolSpec(
         name="repo_bash",
-        description="Kjør én kommando i workspace (cwd ~/kalived). argv[] eller line. Timeout default 120s. Krever «agent får kjøre». Ikke sudo, ikke git push. Passord i PTY.",
+        description="Kjør én kommando i workspace (cwd ~/kalived). argv[] eller line. Timeout default 120s. Krever «agent får kjøre». Ikke sudo, ikke git push. npm/bun/pip/cargo bare under apps/ eller docs/. Passord i PTY.",
         mutating=True,
         parameters={
             "type": "object",

@@ -110,7 +110,7 @@ def _attach_protocol(doc: dict, snap: Path, *, refresh: bool = False) -> dict:
         proto = ensure_protocol(snap, refresh=refresh)
     except Exception as e:
         doc["protocol_error"] = str(e)[:200]
-        return _attach_actions(doc)
+        return _attach_dests(_attach_actions(doc), snap)
     ring = []
     for it in proto.get("ring") or []:
         if not isinstance(it, dict):
@@ -157,7 +157,33 @@ def _attach_protocol(doc: dict, snap: Path, *, refresh: bool = False) -> dict:
         "watch": watch,
         "watch_unknown": int((watch or {}).get("unknown") or 0),
     }
-    return _attach_actions(doc)
+    return _attach_dests(_attach_actions(doc), snap)
+
+
+def _attach_dests(doc: dict, snap: Path) -> dict:
+    """Operator-facing dest IPs on the HTTP verdict. Never written to protocol.json or memory."""
+    lib = str(REPO / "scripts" / "lib")
+    if lib not in sys.path:
+        sys.path.insert(0, lib)
+    try:
+        from hiroshima_act import unknown_dst_rows, ufw_hit_rows  # type: ignore
+    except Exception:
+        return doc
+    try:
+        dests = unknown_dst_rows(snap)
+    except Exception:
+        dests = []
+    try:
+        hits = ufw_hit_rows(snap)
+    except Exception:
+        hits = []
+    doc["unknown_dsts"] = dests
+    doc["ufw_hits"] = hits
+    proto = doc.get("protocol")
+    if isinstance(proto, dict):
+        proto["unknown_dsts"] = dests
+        proto["ufw_hits"] = hits
+    return doc
 
 
 def _attach_actions(doc: dict) -> dict:

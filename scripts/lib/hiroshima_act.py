@@ -114,7 +114,8 @@ def peer_ip(raw: str) -> str | None:
     return s
 
 
-def unknown_dst_ips(snap: Path) -> list[str]:
+def unknown_dst_rows(snap: Path) -> list[dict]:
+    """Public unknown ESTAB dests from a scan snapshot. For the operator/skuff, not memory."""
     p = snap / "ss_established.txt"
     if not p.is_file():
         return []
@@ -122,7 +123,7 @@ def unknown_dst_ips(snap: Path) -> list[str]:
         text = p.read_text(encoding="utf-8", errors="replace")
     except OSError:
         return []
-    found: list[str] = []
+    found: list[dict] = []
     seen: set[str] = set()
     for m in _SS_FLOW.finditer(text):
         comm = m.group("comm").strip()
@@ -138,10 +139,60 @@ def unknown_dst_ips(snap: Path) -> list[str]:
         if not ip or ip in seen:
             continue
         seen.add(ip)
-        found.append(ip)
+        found.append({"ip": ip, "port": port, "exe": comm, "family": fam})
         if len(found) >= 8:
             break
     return found
+
+
+def unknown_dst_ips(snap: Path) -> list[str]:
+    return [str(r["ip"]) for r in unknown_dst_rows(snap) if r.get("ip")]
+
+
+def ufw_hit_rows(snap: Path) -> list[dict]:
+    p = snap / "ufw_digest.json"
+    if not p.is_file():
+        return []
+    try:
+        doc = json.loads(p.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return []
+    hits = doc.get("hits_listen") or []
+    out: list[dict] = []
+    if not isinstance(hits, list):
+        return []
+    for h in hits[:8]:
+        if not isinstance(h, dict):
+            continue
+        src = h.get("src")
+        dpt = h.get("dpt") or h.get("dport") or h.get("port")
+        if not src:
+            continue
+        iface = h.get("in") or h.get("iface")
+        out.append(
+            {
+                "src": str(src),
+                "dpt": dpt,
+                "iface": iface,
+                "in": iface,
+                "action": h.get("action"),
+            }
+        )
+    return out
+
+
+def pick_uplink_iface(route_get: str, default_table: str = "", override: str = "") -> str:
+    """Dev from `ip route get 1.1.1.1`, else first default in main. Never lo/any."""
+    ov = (override or "").strip()
+    if ov and ov not in ("lo", "any"):
+        return ov
+    m = re.search(r"\bdev\s+(\S+)", route_get or "")
+    if m and m.group(1) not in ("lo", "any"):
+        return m.group(1)
+    m = re.search(r"^default\b.*\bdev\s+(\S+)", default_table or "", re.M)
+    if m and m.group(1) not in ("lo", "any"):
+        return m.group(1)
+    return ""
 
 
 def latest_snap(data: Path) -> Path | None:
@@ -185,7 +236,7 @@ def check_kill(pid: int, exe: str) -> str | None:
 
 def main(argv: list[str]) -> int:
     if len(argv) < 2:
-        print("usage: hiroshima_act.py unknown-dsts SNAP | check-kill PID EXE", file=sys.stderr)
+        print("usage: hiroshima_act.py unknown-dsts SNAP | check-kill PID EXE | uplink-iface", file=sys.stderr)
         return 2
     cmd = argv[1]
     if cmd == "unknown-dsts":
@@ -193,6 +244,16 @@ def main(argv: list[str]) -> int:
         for ip in unknown_dst_ips(snap):
             print(ip)
         return 0
+    if cmd == "uplink-iface":
+        import subprocess
+
+        got = subprocess.run(["ip", "-4", "route", "get", "1.1.1.1"], capture_output=True, text=True)
+        defaults = subprocess.run(["ip", "-4", "route", "show", "default"], capture_output=True, text=True)
+        iface = pick_uplink_iface(got.stdout or "", defaults.stdout or "", os.environ.get("KALIVED_UPLINK_IFACE") or "")
+        if iface:
+            print(iface)
+            return 0
+        return 2
     if cmd == "check-kill" and len(argv) >= 4:
         err = check_kill(int(argv[2]), argv[3])
         if err:

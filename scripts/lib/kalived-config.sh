@@ -43,6 +43,25 @@ kalived_owner_name() {
   printf '%s' "$owner"
 }
 
+# Actual packet path, not first default in main. Proton policy-route wins over usb0.
+# Override: KALIVED_UPLINK_IFACE=proton0
+kalived_uplink_iface() {
+  local dev
+  if [[ -n "${KALIVED_UPLINK_IFACE:-}" ]]; then
+    dev="${KALIVED_UPLINK_IFACE}"
+    if [[ -n "$dev" && "$dev" != "lo" && "$dev" != "any" ]]; then
+      printf '%s\n' "$dev"
+      return 0
+    fi
+  fi
+  dev="$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for (i = 1; i <= NF; i++) if ($i == "dev") { print $(i + 1); exit }}')"
+  if [[ -n "$dev" && "$dev" != "lo" && "$dev" != "any" ]]; then
+    printf '%s\n' "$dev"
+    return 0
+  fi
+  ip -4 route show default 2>/dev/null | awk '/default/ { print $5; exit }'
+}
+
 # Timer has KALIVED_OWNER, no SUDO_USER. Never leave secrets root:root.
 kalived_chown_owner_dir() {
   local dest="$1"

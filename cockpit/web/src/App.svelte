@@ -7,7 +7,7 @@
   import Split from './lib/Split.svelte'
   import Term from './lib/Term.svelte'
   import Tree from './lib/Tree.svelte'
-  import { applyToolResult, getCanvas, isLoopbackUrl, setCanvas, subscribeCanvas } from './lib/desk'
+  import { applyToolResult, getCanvas, isLoopbackUrl, onOpenHiroshima, setCanvas, subscribeCanvas } from './lib/desk'
   import { loadHist, persistHist, type Hist } from './lib/hist'
   import { connect, send, type Frame } from './lib/ws'
 
@@ -167,6 +167,7 @@
     if (f.ch === 'tools' && f.type === 'result') {
       const r = f.payload.result as Record<string, unknown> | undefined
       applyToolResult(r)
+      if (r?.need_pty === true || r?.open_hiroshima === true) hiroshima = true
       const prev = typeof r?.preview === 'string' ? r.preview : typeof r?.url === 'string' ? r.url : ''
       if (prev && isLoopbackUrl(prev)) {
         previewUrl = prev
@@ -249,6 +250,9 @@
     const offCanvas = subscribeCanvas((c) => {
       canvasUi = c
     })
+    const offHiro = onOpenHiroshima(() => {
+      hiroshima = true
+    })
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
         e.preventDefault()
@@ -302,6 +306,7 @@
     return () => {
       unsub()
       offCanvas()
+      offHiro()
       window.removeEventListener('keydown', onKey)
     }
   })

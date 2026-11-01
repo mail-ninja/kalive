@@ -110,7 +110,9 @@ Operator retagger i skuffen (`PUT /v1/hiroshima/env`). **Signal-agenten skriver 
 
 Loopback-UI. Secrets i `~/.config/kalived/` 0600.
 
-Det som kan forlate maskinen: redigert digest til Jev, og på candidate samme korte JSON til Mercury. Felter: stamp, class, finding-ider, exe, dst-familie, porter, tellinger. Ikke payload, pcap, full qname/SNI, journal, cmdline, dest-IP.
+Det som kan forlate maskinen: redigert digest til Jev, og på candidate samme korte JSON til Mercury. Felter: stamp, class, finding-ider, exe, dst-familie, porter, tellinger. Ikke payload, pcap, full qname/SNI, journal, cmdline.
+
+Dest-IP: operator ser ukjent ESTAB-dest og UFW-src i skuffen og i `hiroshima_verdict`. Ring og watch-linjen er exe→familie. `protocol.json`, Qdrant og Kuzu lagrer ikke IP.
 
 `ai_enabled=false`: rules-port uten sky. Timer-scan likeså.
 
@@ -128,7 +130,7 @@ Filer: `hiroshima_decide.py`, `hiroshima.py`, `Hiroshima.svelte`, `scripts/tests
 
 ### H2 — Ring + graf
 
-Sil 4 + ESTAB + DNS + AIDE + PCAP-EXTRA → `protocol.ring` (exe, dst-familie, port, sil — aldri IP/cmd). Kuzu: `proc:{exe} --CONNECTED--> dst:{family}`, `scan:{stamp} --USED--> detector:{id}`, digest `--ABOUT-->` detector.
+Sil 4 + ESTAB + DNS + AIDE + PCAP-EXTRA → `protocol.ring` (exe, dst-familie, port, sil — aldri IP/cmd). Dest-lista i HTTP-verdict/skuff viser ukjent ESTAB-IP til operator. Kuzu: `proc:{exe} --CONNECTED--> dst:{family}`, `scan:{stamp} --USED--> detector:{id}`, digest `--ABOUT-->` detector.
 
 Mercury bare på candidate/alert. Engrams: `digest`, `env_shift`, `finding` (WARN/ALERT). `kind=decide` hoppes i recall.
 
@@ -140,13 +142,15 @@ Overlay + retag. Confirm: `aide-init` (scoped), `rkhunter-setup`, `isolate-dst`,
 
 NOPASSWD: `install-kalived-helper.sh` + `install-nopasswd-ctl.sh`.
 
+Signal eier SOC-chatten og Hiroshima-xterm: `hiroshima_run` (allowlist uten `kill-pid`) prøver `sudo -n`; ved passord males `sudo kalived-ctl <id>` i xterm. `term_send where=hiroshima`. LLM eier ikke sudo. Isolate dest fra snapshot.
+
 ### H4 — Egress-watch
 
 `sudo kalived-ctl watch` sampler `ss` ESTAB + `ausearch -k kalived_connect`. Vindu: exe, dst-familie, port, n, `unmapped`. python/shell → unknown = `alert_family`. Isolate bruker siste scan-snapshot.
 
 Timer opt-in: `install-watch-timer.sh` eller Settings. Filer chown-es til `KALIVED_OWNER` 0600.
 
-Uplink-burst: tshark på default-rute-iface, max 30 s, `-T fields`, aldri `-i any`.
+Uplink-burst og watch: iface fra `ip route get 1.1.1.1` (Proton policy-rute vinner over usb0 i main), max 30 s, `-T fields`, aldri `-i any`. Override `KALIVED_UPLINK_IFACE`.
 
 ### H5 — Falco host-burst
 
@@ -160,7 +164,7 @@ Playbook `install-falco-host.sh` printer tredjeparts-apt hvis binær mangler; kj
 
 AF_PACKET på aktiv uplink (`proton0` / `wlan0`), aldri `lo`, aldri nfqueue/inline. Unit mens lenken er oppe (burst er feil tak: C2 skjer mellom samples). `HOME_NET` = RFC1918 + Proton `10.2.0.0/16`. `EXTERNAL_NET` = `!$HOME_NET`.
 
-eve.json: `alert`, `dns`, `tls`, `flow`. Ingen pcap-fil. Ingen web-UI. Ingen `0.0.0.0`. Scan skriver `hunt_suricata.jsonl` (`sid`, `signature`, `app_proto`, `exe` hvis ss matcher). Rå dest-IP går ikke til modellene.
+eve.json: `alert`, `dns`, `tls`, `flow`. Ingen pcap-fil. Ingen web-UI. Ingen `0.0.0.0`. Scan skriver `hunt_suricata.jsonl` (`sid`, `signature`, `app_proto`, `exe` hvis ss matcher). Rå dest-IP går ikke til minne/Qdrant; operator ser ukjent ESTAB i dest-lista.
 
 Tom jsonl = ingen finding. ET/malware alene = WARN/candidate. ET + FIM eller ET + nett = ALERT. Decoder/stream sid 2200000–2299999 (f.eks. 2200121 Ethertype unknown) = INFO, ikke candidate; dual til ALERT bare når alertens flow matcher en annen sensor (exe + nett/Falco). FIM alene løfter ikke decoder. Pakke mangler = INFO «suricata absent». Ark: tekst «Suricata så X» — ikke auto-isolate, ikke auto-drop.
 
@@ -183,8 +187,9 @@ Etter port: `signal`-namespace får `digest` / `env_shift` / én `finding`. Kuzu
 | 7 | UFW + nft, ikke iptables-omskriving |
 | 8 | fail2ban/CrowdSec ut mens SSH er masked |
 | 9 | Falco = burst, etter watch |
-| 10 | Playbooks + Confirm, aldri LLM-sudo |
+| 10 | Playbooks + Confirm, aldri LLM-sudo. Signal maler ctl i xterm ved passord |
 | 11 | Timer skriver rules-port uten sky når `ai_enabled=false` |
+| 12 | Dest-IP synlig for operator; ring/watch/minne uten IP |
 
 ## Hva vi ikke gjør
 
