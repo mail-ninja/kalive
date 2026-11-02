@@ -18,6 +18,7 @@ from .hiroshima import MAX_ROUNDS as HIRO_ROUNDS
 from .decide import gate_recall
 from .intent import fill_goal, format_intent, prior_messages
 from .memory import format_recall, last_chats, recall, remember_engram
+from .sessions import canonical, get_session, last_from_hist
 from .secrets_store import load_env
 from .orchestrate import (
     NUDGE_DONE,
@@ -30,8 +31,34 @@ from .orchestrate import (
     next_brake,
 )
 from .tools import call_tool, openai_tools
+from .workspace import root as ws_root
 
 _REPO = Path(__file__).resolve().parents[3]
+
+
+def _existing_products() -> list[str]:
+    """docs/<navn>/ and apps/<navn>/ that already have index.html or package.json."""
+    out: list[str] = []
+    try:
+        r = ws_root()
+    except Exception:
+        return out
+    for base in ("docs", "apps"):
+        d = r / base
+        if not d.is_dir():
+            continue
+        try:
+            kids = sorted(d.iterdir())
+        except OSError:
+            continue
+        for p in kids:
+            if not p.is_dir() or p.name.startswith("."):
+                continue
+            if (p / "index.html").is_file() or (p / "package.json").is_file():
+                out.append(f"{base}/{p.name}")
+            if len(out) >= 40:
+                return out
+    return out
 
 
 def _system_prompt(agent: Agent) -> str:
@@ -146,6 +173,8 @@ async def run_turn(
     use_tools: bool = True,
     cancel: asyncio.Event | None = None,
     _depth: int = 0,
+    project: str | None = None,
+    session_id: str | None = None,
 ) -> AsyncIterator[dict[str, Any]]:
     key, url, model_id = _endpoint(agent, provider, model)
     pid = (provider or agent.provider or "xai").lower()
@@ -162,7 +191,17 @@ async def run_turn(
     if _depth == 0 and code_desk_early:
         try:
             prior = last_chats(agent.id, 2)
-            intent = fill_goal(user_text, prior)
+            sid = str(session_id or "").strip()
+            proj = canonical(str(project or ""))
+            if sid and proj:
+                try:
+                    body = get_session(agent.id, proj, sid)
+                    sess_prior = last_from_hist(body.get("hist") or [], 2)
+                    if sess_prior:
+                        prior = sess_prior
+                except (FileNotFoundError, ValueError):
+                    pass
+            intent = fill_goal(user_text, prior, existing=_existing_products())
         except Exception:
             prior, intent = [], {}
     if _depth == 0:

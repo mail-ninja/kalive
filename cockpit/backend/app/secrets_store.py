@@ -93,6 +93,7 @@ PROVIDERS = [
         "keys": [
             {"name": "GITHUB_TOKEN", "secret": True, "label": "Token (repo / gh)"},
             {"name": "GH_TOKEN", "secret": True, "label": "gh CLI-alias"},
+            {"name": "GH_ACCESS_TOKEN", "secret": True, "label": "alias"},
         ],
     },
     {

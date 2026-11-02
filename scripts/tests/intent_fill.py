@@ -113,4 +113,39 @@ if not g4["write_now"] and g4["kind"] == "fresh":
 else:
     bad("ask " + str(g4))
 
+print("[mix: katte-youtube + bli rik]")
+KATTE = "lag en webside for katte-youtube-videoer! jeg vil bli rik:P"
+gk = fill_goal(KATTE)
+tk = format_intent(gk)
+if gk["mix"] and "katte-youtube" in gk["path"] and "spillbart" not in gk["goal"].lower():
+    ok("mix path " + gk["path"])
+else:
+    bad("mix " + str(gk))
+if "Blanding" in tk:
+    ok("mix hint")
+else:
+    bad("mix format " + tk[:200])
+
+print("[iterate patches existing]")
+gi = fill_goal(
+    "gjør boosten styggere",
+    [{"user": KATTE, "assistant": "KatteTube ligger i docs/katte-youtube/index.html. DONE"}],
+    existing=["docs/katte-youtube"],
+)
+if gi["iterate"] and gi["followup"] and "katte-youtube" in gi["path"] and gi["write_now"]:
+    ok("iterate " + gi["path"])
+else:
+    bad("iterate " + str(gi))
+if "Patch" in " ".join(gi["hints"]) or "patch" in gi["goal"].lower():
+    ok("iterate says patch")
+else:
+    bad("iterate hints " + str(gi["hints"]))
+
+print("[3d project → apps/]")
+gp = fill_goal("lag en 3D mjau-park")
+if gp["project"] and gp["path"].startswith("apps/") and "mjau" in gp["path"]:
+    ok("apps " + gp["path"])
+else:
+    bad("project " + str(gp))
+
 sys.exit(fail)

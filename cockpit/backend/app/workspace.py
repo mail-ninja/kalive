@@ -264,6 +264,21 @@ _DENY = re.compile(
     r"|curl\s+[^\n]*\|\s*(ba)?sh",
     re.I,
 )
+_TOOLCHAIN = re.compile(
+    r"(^|[\s;|&])(npm|npx|bun|pnpm|yarn|cargo|pip3?)\b",
+    re.I,
+)
+_TOOLCHAIN_SCOPE = re.compile(
+    r"(?:^|[\s=/])(?:apps|docs)/|--prefix\s+(?:apps|docs)/|-C\s+(?:apps|docs)/",
+    re.I,
+)
+
+
+def toolchain_ok(blob: str) -> bool:
+    """npm/bun/pip/cargo only inside apps/ or docs/ — never workspace root."""
+    if not _TOOLCHAIN.search(blob or ""):
+        return True
+    return bool(_TOOLCHAIN_SCOPE.search(blob or ""))
 _TAIL = 200_000
 
 
@@ -334,6 +349,11 @@ def bash(
     blob = " ".join(cmd)
     if _DENY.search(blob):
         return {"error": "nekta: sudo/git push/destruktiv root — PTY til passord, du eier remote", "argv": cmd}
+    if not toolchain_ok(blob):
+        return {
+            "error": "nekta: npm/bun/pip/cargo bare i apps/ eller docs/ (cd apps/<navn> eller --prefix). Ikke workspace-rot.",
+            "argv": cmd,
+        }
     if re.search(r"(^|[\s;|&])git\s+commit(\s|$)", blob, re.I):
         return {"error": "bruk repo_git action=commit (hake på). Ikke git commit via repo_bash", "argv": cmd}
     timeout_s = max(1.0, min(float(timeout_s or 120), 600.0))

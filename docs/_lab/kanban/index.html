@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="nb">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kanban</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Kanban</h1>
+    <form id="add-form">
+      <input id="new-card" type="text" placeholder="Nytt kort… (n)" autocomplete="off" required>
+      <select id="new-priority" aria-label="Prioritet">
+        <option value="lav">lav</option>
+        <option value="mid" selected>mid</option>
+        <option value="høy">høy</option>
+      </select>
+      <input id="new-due" type="date" aria-label="Forfallsdato">
+      <input id="new-tags" type="text" placeholder="tags, kommaseparert" autocomplete="off">
+      <button type="submit">Legg til</button>
+    </form>
+    <div class="toolbar">
+      <input id="search" type="search" placeholder="Søk i kort…" autocomplete="off">
+      <button type="button" id="export-btn">Eksport JSON</button>
+      <button type="button" id="import-btn">Import JSON</button>
+      <input id="import-file" type="file" accept="application/json,.json" hidden>
+      <button type="button" id="theme-toggle" aria-label="Bytt tema">Mørk</button>
+    </div>
+  </header>
+  <p id="stats" class="stats" aria-live="polite">Todo: 0 · Doing: 0 · Done: 0</p>
+  <main class="board">
+    <section class="column" data-col="todo">
+      <h2>Todo</h2>
+      <div class="cards"></div>
+    </section>
+    <section class="column" data-col="doing">
+      <h2>Doing</h2>
+      <div class="cards"></div>
+    </section>
+    <section class="column" data-col="done">
+      <h2>Done</h2>
+      <div class="cards"></div>
+    </section>
+  </main>
+  <p class="hints">n = nytt kort · 1/2/3 = flytt valgt til todo/doing/done · klikk kort for å velge</p>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

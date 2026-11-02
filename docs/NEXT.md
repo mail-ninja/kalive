@@ -19,6 +19,8 @@ Målet er Cursor-følelsen med én tiendedel av kromet: du snakker, du ser koden
          PTY bak knappen — passord der
 ```
 
+Samtaler per prosjekt (`docs/<navn>` / `apps/<navn>`), sist brukt øverst — iterate overlever reload.
+
 Landet i denne runden: tre kolonner samtidig, `repo_edit` åpner fila i Monaco og laster preview på nytt når det er HTML, treet merker dirty og folder-åpner stien, tool-kort med path er klikkbare, PTY tar bare plass når den er åpen. Minne-dots sitter bak «kjøredetaljer».
 
 ### 1. Kode

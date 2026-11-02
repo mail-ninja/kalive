@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Klosshopp</title>
+<style>
+  :root { --bg:#1a2744; --panel:#0e1628; --gold:#f4c430; --mint:#7dffb3; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html,body { height:100%; background:#0b1020; color:#e8eefc; font-family:Georgia, "Times New Roman", serif; }
+  body { display:flex; flex-direction:column; align-items:center; gap:10px; padding:12px; }
+  h1 { font-size:1.35rem; letter-spacing:.04em; }
+  .hud {
+    display:flex; gap:18px; flex-wrap:wrap; justify-content:center;
+    background:var(--panel); border:2px solid #3a5080; border-radius:10px;
+    padding:8px 16px; font-variant-numeric:tabular-nums; min-width:min(960px,100%);
+  }
+  .hud b { color:var(--gold); }
+  .hud .up { color:var(--mint); }
+  #game {
+    display:block; background:#5aa0e8;
+    width:min(960px,100%); height:auto; image-rendering:pixelated;
+    border:3px solid #2a3d66; border-radius:8px;
+  }
+  .hint { opacity:.75; font-size:.9rem; text-align:center; max-width:960px; }
+  kbd { background:#223; border:1px solid #556; border-radius:4px; padding:1px 6px; }
+</style>
+</head>
+<body>
+<h1>Klosshopp</h1>
+<div class="hud" id="hud">
+  <span>Poeng <b id="score">0</b></span>
+  <span>Mynter <b id="coins">0</b></span>
+  <span>Liv <b id="lives">3</b></span>
+  <span>Power <b class="up" id="power">ingen</b></span>
+  <span>Status <b id="status">klar</b></span>
+</div>
+<canvas id="game" width="960" height="540" tabindex="0"></canvas>
+<p class="hint">
+  Hopp og skalle klossene nedenfra. <kbd>?</kbd> gir mynt eller powerup (sopp = stor, blomst = ild, stjerne = usårlig).
+  Piltaster / WASD, mellomrom hopper. Klikk canvas for fokus.
+</p>
+<script>
+(() => {
+  const cvs = document.getElementById("game");
+  const ctx = cvs.getContext("2d");
+  const W = cvs.width, H = cvs.height;
+  const GROUND = 500;
+  const GRAV = 0.55;
+  const JUMP = -12.8;
+  const SPEED = 3.4;
+  const TILE = 36;
+
+  const el = {
+    score: document.getElementById("score"),
+    coins: document.getElementById("coins"),
+    lives: document.getElementById("lives"),
+    power: document.getElementById("power"),
+    status: document.getElementById("status"),
+  };
+
+  const keys = Object.create(null);
+  addEventListener("keydown", e => {
+    keys[e.key.toLowerCase()] = true;
+    if (["arrowup","arrowdown","arrowleft","arrowright"," "].includes(e.key.toLowerCase()) || e.key === " ") e.preventDefault();
+  });
+  addEventListener("keyup", e => { keys[e.key.toLowerCase()] = false; });
+  cvs.addEventListener("click", () => cvs.focus());
+
+  const powerName = () => {
+    if (p.star > 0) return "stjerne";
+    if (p.fire) return "blomst";
+    if (p.big) return "sopp";
+    return "ingen";
+  };
+
+  function hud() {
+    el.score.textContent = String(p.score);
+    el.coins.textContent = String(p.coins);
+    el.lives.textContent = String(p.lives);
+    el.power.textContent = powerName();
+    el.status.textContent = p.dead ? "død" : p.win ? "seier" : "spill";
+  }
+
+  let camX = 0;
+  const solids = [];
+  const blocks = [];
+  const items = [];
+  const foes = [];
+  const particles = [];
+  const fireballs = [];
+
+  function rect(x,y,w,h) { return {x,y,w,h}; }
+  function overlap(a,b) {
+    return a.x < b.x+b.w && a.x+a.w > b.x && a.y < b.y+b.h && a.y+a.h > b.y;
+  }
+
+  const LEVEL_W = 2400;
+
+  function addGround() {
+    for (let x = 0; x < LEVEL_W; x += TILE) {
+      solids.push(rect(x, GROUND, TILE, H - GROUND));
+    }
+    solids.push(rect(-40, 0, 40, H));
+    solids.push(rect(LEVEL_W, 0, 40, H));
+    // small pipes / platforms
+    solids.push(rect(620, GROUND-72, 52, 72));
+    solids.push(rect(1480, GROUND-96, 56, 96));
+  }
+
+  function addBlock(x, y, kind, loot) {
+    const b = { x, y, w: TILE, h: TILE, kind, loot: loot || null, used: false, bump: 0 };
+    blocks.push(b);
+    solids.push(b);
+  }
+
+  function placeBlocks() {
+    // Lav rad — hoppehøyde ~200px, klosser ~140px over bakken så du treffer med hodet
+    const rowY = GROUND - 140;
+    const start = 180;
+    const kinds = [
+      ["brick", null], ["q", "coin"], ["brick", null], ["q", "mushroom"],
+      ["brick", null], ["q", "coin"], ["q", "star"], ["brick", null],
+      ["q", "flower"], ["brick", null], ["q", "coin"], ["brick", null],
+    ];
+    kinds.forEach(([k, loot], i) => addBlock(start + i * (TILE + 4), rowY, k, loot));
+
+    // Andre lav rad lenger framme
+    const row2 = GROUND - 132;
+    const start2 = 980;
+    const kinds2 = [
+      ["q", "mushroom"], ["brick", null], ["q", "coin"], ["q", "flower"],
+      ["brick", null], ["brick", null], ["q", "star"], ["q", "coin"],
+    ];
+    kinds2.forEach(([k, loot], i) => addBlock(start2 + i * (TILE + 4), row2, k, loot));
+
+    // Litt høyere, men fortsatt innen hopp + mini-plattform
+    addBlock(760, GROUND - 220, "q", "coin");
+    addBlock(800, GROUND - 220, "brick", null);
+    addBlock(840, GROUND - 220, "q", "mushroom");
+  }
+
+  function spawnFoe(x) {
+    foes.push({ x, y: GROUND - 28, w: 28, h: 28, vx: -0.9, dead: false });
+  }
+
+  const p = {
+    x: 60, y: GROUND - 40, w: 28, h: 40,
+    vx: 0, vy: 0, onGround: false,
+    big: false, fire: false, star: 0,
+    score: 0, coins: 0, lives: 3,
+    inv: 0, dead: false, win: false, face: 1,
+  };
+
+  function resizePlayer() {
+    const bottom = p.y + p.h;
+    p.h = p.big ? 52 : 40;
+    p.w = p.big ? 32 : 28;
+    p.y = bottom - p.h;
+  }
+
+  function resetPlayer(full) {
+    p.x = 60; p.y = GROUND - 40; p.vx = 0; p.vy = 0;
+    p.big = false; p.fire = false; p.star = 0; p.inv = 80;
+    p.dead = false; p.win = false; p.face = 1;
+    resizePlayer();
+    if (full) { p.score = 0; p.coins = 0; p.lives = 3; }
+    camX = 0;
+  }
+
+  function spawnItem(block, type) {
+    const it = {
+      type,
+      x: block.x + 4,
+      y: block.y - 8,
+      w: 28, h: 28,
+      vx: type === "coin" ? 0 : 1.4,
+      vy: type === "coin" ? -6 : -3,
+      life: type === "coin" ? 40 : 9999,
+      rising: 18,
+    };
+    items.push(it);
+  }
+
+  function bumpBlock(b) {
+    if (b.used) return;
+    b.bump = 8;
+    if (b.kind === "q") {
+      b.used = true;
+      b.kind = "empty";
+      const loot = b.loot || "coin";
+      spawnItem(b, loot);
+      if (loot === "coin") {
+        p.coins++;
+        p.score += 200;
+      } else {
+        p.score += 50;
+      }
+    } else if (b.kind === "brick") {
+      if (p.big) {
+        b.used = true;
+        b.kind = "gone";
+        p.score += 50;
+        const i = solids.indexOf(b);
+        if (i >= 0) solids.splice(i, 1);
+        for (let n = 0; n < 8; n++) {
+          particles.push({
+            x: b.x + TILE/2, y: b.y + TILE/2,
+            vx: (Math.random()-0.5)*4, vy: -2-Math.random()*3,
+            life: 24, col: "#c45c2a",
+          });
+        }
+      } else {
+        p.score += 10;
+      }
+    }
+  }
+
+  function hitHead() {
+    const head = { x: p.x + 4, y: p.y - 2, w: p.w - 8, h: 8 };
+    for (const b of blocks) {
+      if (b.kind === "gone" || b.used && b.kind === "gone") continue;
+      if (p.vy >= 0) continue;
+      if (overlap(head, b)) {
+        p.vy = 2;
+        p.y = b.y + b.h;
+        bumpBlock(b);
+        break;
+      }
+    }
+  }
+
+  function collideSolids() {
+    p.onGround = false;
+    for (const s of solids) {
+      if (s.kind === "gone") continue;
+      if (!overlap(p, s)) continue;
+      const dx1 = (s.x + s.w) - p.x;
+      const dx2 = (p.x + p.w) - s.x;
+      const dy1 = (s.y + s.h) - p.y;
+      const dy2 = (p.y + p.h) - s.y;
+      const minX = Math.min(dx1, dx2);
+      const minY = Math.min(dy1, dy2);
+      if (minY < minX) {
+        if (dy2 < dy1 && p.vy >= 0) {
+          p.y = s.y - p.h;
+          p.vy = 0;
+          p.onGround = true;
+        } else if (p.vy < 0) {
+          p.y = s.y + s.h;
+          p.vy = 1;
+        }
+      } else {
+        if (dx2 < dx1) p.x = s.x - p.w;
+        else p.x = s.x + s.w;
+        p.vx = 0;
+      }
+    }
+  }
+
+  function hurt() {
+    if (p.star > 0 || p.inv > 0) return;
+    if (p.big || p.fire) {
+      p.big = false; p.fire = false; resizePlayer(); p.inv = 90;
+    } else {
+      p.lives--;
+      p.inv = 90;
+      if (p.lives < 0) { p.dead = true; p.lives = 0; }
+      else { p.x = 60; p.y = GROUND - p.h; p.vx = 0; p.vy = 0; camX = 0; }
+    }
+  }
+
+  function collect(it) {
+    if (it.type === "coin") {
+      p.coins++; p.score += 200;
+    } else if (it.type === "mushroom") {
+      if (!p.big) { p.big = true; resizePlayer(); }
+      p.score += 1000;
+    } else if (it.type === "flower") {
+      p.big = true; p.fire = true; resizePlayer(); p.score += 1000;
+    } else if (it.type === "star") {
+      p.star = 420; p.score += 1000;
+    }
+    it.life = 0;
+  }
+
+  function shoot() {
+    if (!p.fire) return;
+    if (fireballs.length >= 2) return;
+    fireballs.push({
+      x: p.face > 0 ? p.x + p.w : p.x - 12,
+      y: p.y + p.h * 0.4,
+      w: 12, h: 12, vx: p.face * 5.5, vy: -2, life: 90,
+    });
+  }
+
+  let shootLock = false;
+  function input() {
+    if (p.dead) {
+      if (keys["enter"] || keys["r"]) {
+        items.length = 0; fireballs.length = 0; particles.length = 0;
+        blocks.length = 0; solids.length = 0; foes.length = 0;
+        addGround(); placeBlocks();
+        spawnFoe(420); spawnFoe(880); spawnFoe(1200); spawnFoe(1700);
+        resetPlayer(true);
+      }
+      return;
+    }
+    const left = keys["arrowleft"] || keys["a"];
+    const right = keys["arrowright"] || keys["d"];
+    p.vx = 0;
+    if (left) { p.vx = -SPEED; p.face = -1; }
+    if (right) { p.vx = SPEED; p.face = 1; }
+    const jump = keys["arrowup"] || keys["w"] || keys[" "] || keys["space"];
+    if (jump && p.onGround) p.vy = JUMP;
+    if ((keys["f"] || keys["shift"]) && !shootLock) { shoot(); shootLock = true; }
+    if (!(keys["f"] || keys["shift"])) shootLock = false;
+  }
+
+  function stepItems() {
+    for (const it of items) {
+      if (it.rising > 0) {
+        it.y -= 2; it.rising--;
+        if (it.type === "coin") it.life--;
+        continue;
+      }
+      if (it.type === "coin") { it.life--; continue; }
+      it.vy += GRAV * 0.6;
+      it.x += it.vx;
+      it.y += it.vy;
+      const box = it;
+      for (const s of solids) {
+        if (s.kind === "gone") continue;
+        if (!overlap(box, s)) continue;
+        if (it.vy > 0 && it.y + it.h - it.vy <= s.y + 6) {
+          it.y = s.y - it.h; it.vy = 0;
+        } else {
+          it.vx *= -1;
+        }
+      }
+      if (it.y > H) it.life = 0;
+    }
+    for (let i = items.length - 1; i >= 0; i--) {
+      const it = items[i];
+      if (it.life <= 0) { items.splice(i,1); continue; }
+      if (overlap(p, it)) collect(it);
+    }
+  }
+
+  function stepFoes() {
+    for (const f of foes) {
+      if (f.dead) continue;
+      f.x += f.vx;
+      if (f.x < 20 || f.x > LEVEL_W - 40) f.vx *= -1;
+      if (p.star > 0 && overlap(p, f)) {
+        f.dead = true; p.score += 200; continue;
+      }
+      if (overlap(p, f)) {
+        if (p.vy > 0 && p.y + p.h - p.vy <= f.y + 10) {
+          f.dead = true; p.vy = JUMP * 0.55; p.score += 200;
+        } else hurt();
+      }
+    }
+  }
+
+  function stepFire() {
+    for (const fb of fireballs) {
+      fb.vy += 0.35;
+      fb.x += fb.vx; fb.y += fb.vy; fb.life--;
+      for (const s of solids) {
+        if (s.kind === "gone") continue;
+        if (overlap(fb, s) && fb.vy > 0) { fb.y = s.y - fb.h; fb.vy = -4; }
+      }
+      for (const f of foes) {
+        if (!f.dead && overlap(fb, f)) { f.dead = true; fb.life = 0; p.score += 200; }
+      }
+    }
+    for (let i = fireballs.length-1; i>=0; i--) if (fireballs[i].life<=0 || fireballs[i].y>H) fireballs.splice(i,1);
+  }
+
+  function stepParticles() {
+    for (const q of particles) { q.x += q.vx; q.y += q.vy; q.vy += 0.3; q.life--; }
+    for (let i = particles.length-1; i>=0; i--) if (particles[i].life<=0) particles.splice(i,1);
+  }
+
+  function update() {
+    input();
+    if (p.dead) { hud(); return; }
+    p.vy += GRAV;
+    p.x += p.vx;
+    p.y += p.vy;
+    if (p.star > 0) p.star--;
+    if (p.inv > 0) p.inv--;
+    hitHead();
+    collideSolids();
+    if (p.x < 0) p.x = 0;
+    if (p.x > LEVEL_W - p.w) { p.x = LEVEL_W - p.w; p.win = true; p.score += 5000; }
+    if (p.y > H) hurt();
+    stepItems();
+    stepFoes();
+    stepFire();
+    stepParticles();
+    camX = Math.max(0, Math.min(LEVEL_W - W, p.x - W * 0.35));
+    hud();
+  }
+
+  function sky() {
+    const g = ctx.createLinearGradient(0,0,0,H);
+    g.addColorStop(0, "#5aa0e8");
+    g.addColorStop(1, "#c8e6ff");
+    ctx.fillStyle = g;
+    ctx.fillRect(0,0,W,H);
+    ctx.fillStyle = "rgba(255,255,255,.85)";
+    for (const c of [[120,70,50],[400,50,70],[720,80,40]]) {
+      const x = ((c[0] - camX*0.3) % (W+200) + W+200) % (W+200) - 80;
+      ctx.beginPath();
+      ctx.arc(x, c[1], c[2]*0.5, 0, Math.PI*2);
+      ctx.arc(x+28, c[1]+6, c[2]*0.4, 0, Math.PI*2);
+      ctx.arc(x-24, c[1]+8, c[2]*0.35, 0, Math.PI*2);
+      ctx.fill();
+    }
+  }
+
+  function drawHill(x, y, r, col) {
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    ctx.ellipse(x - camX, y, r, r*0.55, 0, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  function roundRect(x,y,w,h,r) {
+    ctx.beginPath();
+    ctx.moveTo(x+r,y);
+    ctx.arcTo(x+w,y,x+w,y+h,r);
+    ctx.arcTo(x+w,y+h,x,y+h,r);
+    ctx.arcTo(x,y+h,x,y,r);
+    ctx.arcTo(x,y,x+w,y,r);
+    ctx.closePath();
+  }
+
+  function drawBlock(b) {
+    if (b.kind === "gone") return;
+    const bump = b.bump > 0 ? (b.bump--, 6) : 0;
+    const x = b.x - camX, y = b.y - bump;
+    if (b.kind === "q") {
+      ctx.fillStyle = "#f0b429";
+      roundRect(x, y, b.w, b.h, 4); ctx.fill();
+      ctx.strokeStyle = "#a56b08"; ctx.lineWidth = 2; ctx.stroke();
+      ctx.fillStyle = "#fff8d0";
+      ctx.font = "bold 22px Georgia";
+      ctx.textAlign = "center";
+      ctx.fillText("?", x + b.w/2, y + 26);
+    } else if (b.kind === "empty") {
+      ctx.fillStyle = "#b8894a";
+      roundRect(x, y, b.w, b.h, 3); ctx.fill();
+      ctx.strokeStyle = "#6d4c28"; ctx.stroke();
+    } else {
+      ctx.fillStyle = "#c45c2a";
+      ctx.fillRect(x, y, b.w, b.h);
+      ctx.strokeStyle = "#7a2e12"; ctx.strokeRect(x+0.5,y+0.5,b.w-1,b.h-1);
+      ctx.beginPath();
+      ctx.moveTo(x+4, y+b.h/2); ctx.lineTo(x+b.w-4, y+b.h/2);
+      ctx.moveTo(x+b.w/2, y+4); ctx.lineTo(x+b.w/2, y+b.h-4);
+      ctx.stroke();
+    }
+  }
+
+  function drawItem(it) {
+    const x = it.x - camX, y = it.y;
+    if (it.type === "coin") {
+      ctx.fillStyle = "#ffd24a";
+      ctx.beginPath(); ctx.ellipse(x+it.w/2, y+it.h/2, 8, 12, 0, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = "#c90"; ctx.stroke();
+    } else if (it.type === "mushroom") {
+      ctx.fillStyle = "#eee"; ctx.fillRect(x+8, y+16, 12, 10);
+      ctx.fillStyle = "#e23"; ctx.beginPath(); ctx.ellipse(x+14, y+14, 14, 10, 0, Math.PI, 0); ctx.fill();
+      ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(x+8, y+12, 4, 0, Math.PI*2); ctx.fill();
+    } else if (it.type === "flower") {
+      ctx.fillStyle = "#3a3"; ctx.fillRect(x+12, y+16, 4, 12);
+      ctx.fillStyle = "#f62";
+      for (let i=0;i<5;i++) {
+        const a = i*Math.PI*2/5;
+        ctx.beginPath(); ctx.arc(x+14+Math.cos(a)*8, y+14+Math.sin(a)*8, 6, 0, Math.PI*2); ctx.fill();
+      }
+      ctx.fillStyle = "#ffd24a"; ctx.beginPath(); ctx.arc(x+14,y+14,5,0,Math.PI*2); ctx.fill();
+    } else if (it.type === "star") {
+      ctx.fillStyle = p.star % 10 > 5 ? "#fff" : "#ffe66a";
+      ctx.save(); ctx.translate(x+14, y+14); ctx.rotate(performance.now()/200);
+      ctx.beginPath();
+      for (let i=0;i<5;i++) {
+        const a = i*Math.PI*2/5 - Math.PI/2;
+        const r = i%2===0?12:5;
+        ctx.lineTo(Math.cos(a)*12, Math.sin(a)*12);
+      }
+      ctx.closePath(); ctx.fill(); ctx.restore();
+    }
+  }
+
+  function drawPlayer() {
+    if (p.inv > 0 && Math.floor(p.inv/3)%2===0) return;
+    const x = p.x - camX, y = p.y;
+    const body = p.star > 0 ? (Math.floor(p.star/4)%2 ? "#7dffb3" : "#ffef5a") : (p.fire ? "#ff7a3a" : "#e23b3b");
+    ctx.fillStyle = body;
+    roundRect(x, y+8, p.w, p.h-8, 6); ctx.fill();
+    ctx.fillStyle = "#f4d2b0";
+    ctx.fillRect(x+6, y, p.w-12, 14);
+    ctx.fillStyle = "#2a1a10";
+    ctx.fillRect(p.face>0 ? x+p.w-14 : x+4, y+4, 8, 4);
+    ctx.fillStyle = "#3b2";
+    ctx.fillRect(x+2, y+p.h-12, 10, 12);
+    ctx.fillRect(x+p.w-12, y+p.h-12, 10, 12);
+  }
+
+  function draw() {
+    sky();
+    drawHill(200, GROUND, 140, "#3d9a4a");
+    drawHill(900, GROUND, 180, "#2f7d3c");
+    drawHill(1600, GROUND, 120, "#3d9a4a");
+
+    // ground
+    ctx.fillStyle = "#5c3a1e";
+    ctx.fillRect(-camX, GROUND, LEVEL_W, H-GROUND);
+    ctx.fillStyle = "#3d9a4a";
+    ctx.fillRect(-camX, GROUND, LEVEL_W, 10);
+
+    // pipes
+    ctx.fillStyle = "#2f8f3a";
+    ctx.fillRect(620-camX, GROUND-72, 52, 72);
+    ctx.fillRect(610-camX, GROUND-84, 72, 16);
+    ctx.fillRect(1480-camX, GROUND-96, 56, 96);
+    ctx.fillRect(1470-camX, GROUND-108, 76, 16);
+
+    for (const b of blocks) drawBlock(b);
+    for (const it of items) drawItem(it);
+    for (const f of foes) {
+      if (f.dead) continue;
+      ctx.fillStyle = "#8b5a2b";
+      ctx.beginPath(); ctx.ellipse(f.x-camX+14, f.y+18, 14, 12, 0, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = "#111"; ctx.fillRect(f.x-camX+6, f.y+12, 4, 4); ctx.fillRect(f.x-camX+16, f.y+12, 4, 4);
+    }
+    for (const fb of fireballs) {
+      ctx.fillStyle = "#ff8020";
+      ctx.beginPath(); ctx.arc(fb.x-camX+6, fb.y+6, 7, 0, Math.PI*2); ctx.fill();
+    }
+    for (const q of particles) {
+      ctx.fillStyle = q.col;
+      ctx.fillRect(q.x-camX, q.y, 6, 6);
+    }
+    drawPlayer();
+
+    // flag
+    ctx.fillStyle = "#ddd";
+    ctx.fillRect(LEVEL_W-80-camX, GROUND-180, 6, 180);
+    ctx.fillStyle = "#3c6";
+    ctx.beginPath();
+    ctx.moveTo(LEVEL_W-74-camX, GROUND-180);
+    ctx.lineTo(LEVEL_W-24-camX, GROUND-160);
+    ctx.lineTo(LEVEL_W-74-camX, GROUND-140);
+    ctx.fill();
+
+    if (p.dead) {
+      ctx.fillStyle = "rgba(10,10,20,.55)";
+      ctx.fillRect(0,0,W,H);
+      ctx.fillStyle = "#fff";
+      ctx.textAlign = "center";
+      ctx.font = "32px Georgia";
+      ctx.fillText("Game over — Enter for å starte på nytt", W/2, H/2);
+    } else if (p.win) {
+      ctx.fillStyle = "rgba(10,40,20,.45)";
+      ctx.fillRect(0,0,W,H);
+      ctx.fillStyle = "#dfffe8";
+      ctx.textAlign = "center";
+      ctx.font = "32px Georgia";
+      ctx.fillText("Mål! Enter for ny runde", W/2, H/2);
+    }
+  }
+
+  addGround();
+  placeBlocks();
+  spawnFoe(420); spawnFoe(880); spawnFoe(1200); spawnFoe(1700);
+  resetPlayer(true);
+
+  let last = 0, acc = 0;
+  const DT = 1000/60;
+  function loop(t) {
+    if (!last) last = t;
+    acc += Math.min(100, t - last);
+    last = t;
+    while (acc >= DT) { update(); acc -= DT; }
+    draw();
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+  cvs.focus();
+})();
+</script>
+</body>
+</html>

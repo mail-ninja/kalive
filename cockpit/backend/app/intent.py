@@ -42,6 +42,17 @@ _APE = re.compile(
 )
 _BARE = re.compile(r"^\s*([A-Za-z][A-Za-z0-9_-]{1,24})!+\s*$")
 _FILLER = re.compile(r"\b(en|et|ei|klone|klonen|spill|spillet|app|appen|prototype|demo)\b", re.I)
+_ITERATE = re.compile(
+    r"\b(gjør|fiks|legg til|oppdater|endre|patch|bedre|styggere|vanskeligere|pentere|zoom|boost)\b",
+    re.I,
+)
+_SITE = re.compile(r"\b(webside|nettside|website|youtube|feed|blogg|portal|side)\b", re.I)
+_PROJECT = re.compile(
+    r"\b(3d|three\.?js|phaser|pixi|vite|npm|bun|cargo|svelte|pwa|motor|tjeneste|\bapi\b)\b",
+    re.I,
+)
+_EXISTING_PATH = re.compile(r"\b((?:docs|apps)/[A-Za-z0-9][\w.-]*(?:/index\.html)?)", re.I)
+_HYPHEN = re.compile(r"\b([a-z][a-z0-9]+(?:-[a-z0-9]+)+)\b")
 
 GAMES = {
     "tetris": "fallende tetrominoer, rotasjon, linjerydding, neste brikke, poeng, økende fart, game over. Piltaster/WASD.",
@@ -102,7 +113,57 @@ def looks_like_git_clone(text: str) -> bool:
     return bool(_GIT_CLONE.search(text or ""))
 
 
-def fill_goal(user: str, prior: list[dict] | None = None) -> dict[str, Any]:
+def _folder_slug(q: str, noun: str | None) -> str | None:
+    s = _slug(q) or (_slug(noun) if noun else None)
+    if s:
+        return s
+    text = (noun or q or "").lower()
+    m = _HYPHEN.search(text)
+    if m:
+        name = re.sub(r"-(videoer|videos|webside|nettside|side|klone|spill)$", "", m.group(1))
+        if name in {"docs-mappa", "undermappe", "repo-url"} or name.startswith("docs-"):
+            name = ""
+        if name:
+            return name[:40]
+    if noun:
+        tok = re.sub(r"[^a-z0-9]+", "-", noun.lower())
+        tok = re.sub(r"-+", "-", tok).strip("-")
+        if 3 <= len(tok) <= 40:
+            return tok
+    return None
+
+
+def _norm_dir(p: str) -> str:
+    s = (p or "").strip().rstrip("/")
+    if s.endswith("/index.html"):
+        s = s[: -len("/index.html")]
+    return s
+
+
+def _match_existing(slug: str, existing: list[str] | None) -> str:
+    key = (slug or "").lower().replace("-", "")
+    if not key:
+        return ""
+    for e in existing or []:
+        name = _norm_dir(str(e)).split("/")[-1].lower().replace("-", "")
+        if name == key or key in name or name in key:
+            return _norm_dir(str(e))
+    return ""
+
+
+def _path_in_text(*texts: str) -> str:
+    for t in texts:
+        m = _EXISTING_PATH.search(t or "")
+        if m:
+            return _norm_dir(m.group(1))
+    return ""
+
+
+def fill_goal(
+    user: str,
+    prior: list[dict] | None = None,
+    existing: list[str] | None = None,
+) -> dict[str, Any]:
     """Resolve this turn against the last chats. Fill path/scope when the prompt is thin."""
     q = str(user or "").strip()
     prior = [p for p in (prior or []) if isinstance(p, dict)]
@@ -111,31 +172,48 @@ def fill_goal(user: str, prior: list[dict] | None = None) -> dict[str, Any]:
     prior_asst = str(last.get("assistant") or "")
     ape = is_ape(q)
     noun = _ape_noun(q) if ape else None
-    slug = _slug(q) or ( _slug(noun) if noun else None )
-    if not slug and noun:
-        tok = re.sub(r"[^a-z0-9]+", "", noun.lower())
-        if 3 <= len(tok) <= 24:
-            slug = tok
-    if not slug and not ape:
-        slug = _slug(prior_user)
+    slug = _folder_slug(q, noun)
     git = looks_like_git_clone(q)
-    product = bool((_PRODUCT_HINT.search(q) or slug in GAMES or ape) and not git)
-    if not product and slug and not git:
-        product = True
     blocked = bool(_BLOCKED.search(prior_asst))
     retry = bool(blocked and (_HAKE.search(q) or is_anaphor(q)))
-    follow = bool(prior_user and (is_anaphor(q) or retry) and not ape)
+    iterate_verb = bool(_ITERATE.search(q) and prior_user)
+    follow = bool(prior_user and (is_anaphor(q) or retry or iterate_verb) and not ape)
+    if (retry or follow) and prior_user:
+        ps = _folder_slug(prior_user, None) or _slug(prior_user)
+        if ps:
+            slug = ps
+    elif not slug and not ape:
+        slug = _folder_slug(prior_user, None) or _slug(prior_user)
+    product = bool((_PRODUCT_HINT.search(q) or slug in GAMES or ape or _SITE.search(q)) and not git)
+    if not product and slug and not git:
+        product = True
     vague = bool(ape or _VAGUE.search(q) or (_BUILD.search(q) and len(q) < 220))
-    docs_sub = bool(_DOCS_SUB.search(q) or (not ape and _DOCS_SUB.search(prior_user)))
+    site = bool(_SITE.search(q) or _SITE.search(prior_user))
+    project = bool(_PROJECT.search(q))
+    mix = bool(site and (slug in GAMES or _PRODUCT_HINT.search(q) or re.search(r"\b(rik|penger|mynt|empire)\b", q, re.I)))
+
+    hit = _match_existing(slug or "", existing) if slug else ""
+    if follow and not hit:
+        hit = _path_in_text(prior_asst, prior_user)
+        if hit and existing:
+            hit = _match_existing(hit.split("/")[-1], existing) or hit
+    iterate = bool(follow and (hit or iterate_verb))
 
     path = ""
-    if product and slug and not git:
-        path = f"docs/{slug}/index.html"
+    if iterate and hit:
+        path = hit if hit.endswith(".html") else f"{hit}/index.html"
+        if hit.startswith("apps/") and not hit.endswith(".html"):
+            path = hit
+    elif product and slug and not git:
+        if project:
+            path = f"apps/{slug}/"
+        else:
+            path = f"docs/{slug}/index.html"
 
     kind = "fresh"
     if retry:
         kind = "retry_mutate"
-    elif follow:
+    elif iterate or follow:
         kind = "followup"
     elif ape:
         kind = "ape"
@@ -143,29 +221,25 @@ def fill_goal(user: str, prior: list[dict] | None = None) -> dict[str, Any]:
         kind = "gapfill"
 
     goal = q
-    if ape and slug:
-        goal = (
-            f"Lag et spillbart {slug} i {path or 'docs/' + slug + '/index.html'}. "
-            f"HTML på disk, iframe-preview, tastatur, vinn/tap, HUD. "
-            f"Operator skrev bare: {q}"
-        )
+    if iterate and prior_user:
+        goal = f"{prior_user.strip()} — patch {path or hit or 'samme mappe'}. Denne turen: {q}"
+    elif ape and slug:
+        goal = f"Lag {slug} i {path or 'docs/' + slug + '/'}. Preview i iframe. Operator skrev: {q}"
     elif follow and prior_user:
-        extra = []
-        if slug:
-            extra.append(slug)
-        if path:
-            extra.append("i " + path)
-        if docs_sub and path:
-            extra.append("mappe under docs/")
-        suffix = (" (" + ", ".join(extra) + ")") if extra else ""
-        goal = f"{prior_user.strip()} — fortsett{suffix}. Denne turen: {q}"
+        goal = f"{prior_user.strip()} — fortsett ({path or slug}). Denne turen: {q}"
 
     hints: list[str] = []
-    if ape:
+    if iterate:
+        hints.append("Produktet finnes. Patch med repo_edit. Ikke ny klone ved siden av.")
+    if ape and not iterate:
         hints.append(
-            "Ape-prompt: det er hele oppgaven. Fyll kode, styring, vinn/tap, HUD, iframe. "
-            "Ikke spør. Ikke les NOW/NEXT/README."
+            "Ape-prompt: det er hele oppgaven. Fyll det operatoren sa. "
+            "Blanding er lov. Ikke spør. Ikke les NOW/NEXT/README."
         )
+    if mix:
+        hints.append("Blanding er meningen (f.eks. side + bli rik). Ikke rens vekk den ene.")
+    elif site and not (slug in GAMES):
+        hints.append("Dette er en side. Spill-HUD bare hvis operatoren ba om det.")
     if product and not git:
         hints.append(
             "Dette er en produktklone i workspace, ikke git clone. "
@@ -176,20 +250,25 @@ def fill_goal(user: str, prior: list[dict] | None = None) -> dict[str, Any]:
             "Forrige tur var BLOCKED på haken. Skriv samme fil med repo_write nå. "
             "Ikke ritual-les README/NOW/NEXT."
         )
-    if path:
-        hints.append(f"Skriv {path} (lag mappa om den mangler). HTML på disk åpner preview.")
-    mech = GAMES.get(slug or "")
-    if mech:
-        hints.append("Sjanger: " + mech)
-    if (vague or ape) and product:
+    if project and path.startswith("apps/"):
         hints.append(
-            "Fyll hull selv: ferdig spillbart artifact, poeng, tastatur, iframe-preview. "
-            "Ikke NEEDS_INPUT for smak."
+            f"Tyngre stabel: {path}. Lokal toolchain der (npm/bun/pip/cargo/vendor). "
+            "Ikke npm i workspace-roten. Ikke CDN. preview_serve med line på 127.0.0.1."
         )
+    elif path:
+        if iterate:
+            hints.append(f"Patch {path}.")
+        else:
+            hints.append(f"Skriv {path} (lag mappa om den mangler). HTML på disk åpner preview.")
+    mech = GAMES.get((slug or "").replace("-", ""))
+    if mech and not site:
+        hints.append("Palette (ikke bur): " + mech)
+    if (vague or ape) and product and not iterate:
+        hints.append("Fyll hull selv. Preview i iframe. Ikke NEEDS_INPUT for smak.")
     if follow or retry:
-        hints.append("«den»/«klonen»/«huket av» peker på forrige tur, ikke en ny oppgave.")
+        hints.append("«den»/«klonen»/«huket av»/«gjør X» peker på forrige tur.")
 
-    write_now = bool(retry or ape or (product and (vague or follow) and not git))
+    write_now = bool(retry or ape or iterate or (product and (vague or follow) and not git))
     return {
         "goal": goal[:1200],
         "kind": kind,
@@ -201,6 +280,9 @@ def fill_goal(user: str, prior: list[dict] | None = None) -> dict[str, Any]:
         "retry_mutate": retry,
         "followup": follow,
         "ape": ape,
+        "iterate": iterate,
+        "mix": mix,
+        "project": project,
     }
 
 

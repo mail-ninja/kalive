@@ -147,6 +147,22 @@ Forvent: `docs/tetris/index.html` via `repo_write`, iframe, **DONE**. Ikke spør
 
 Samme mønster: `pong!` · `bygg snake` · `lag breakout`.
 
+### P9 — iterate, ikke ny klone (hake **på**)
+
+Etter KatteTube / Tetris / Mario, lim f.eks.:
+
+```
+gjør boosten styggere
+```
+
+Forvent: `repo_edit` på `docs/katte-youtube/index.html`. Ikke ny mappe. Ikke NOW/NEXT.
+
+Tyngre stabel (valgfritt, senere): `lag en 3D mjau-park` → `apps/mjau-park/` + lokal toolchain, ikke CDN, ikke `npm` i workspace-roten.
+
+### P10 — prosjekt-samtaler
+
+Cli viser **samtaler** gruppert per prosjekt, sist brukt øverst, også når README er åpen. `docs/lager-utleie` skal ligge der hvis du har bygd den. Klikk en samtale for å hente hist + fila. Ny samtale med **ny** (krever åpent prosjekt). Iterate («gjør hoppet høyere») i Mario-samtalen, ikke i KatteTube.
+
 ---
 
 ## H — Hiroshima-protokoll

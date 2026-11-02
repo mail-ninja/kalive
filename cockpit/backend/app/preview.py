@@ -164,6 +164,8 @@ def start(dir: str = "", port: int | None = None, line: str | None = None, path:
             return {"error": "bind bare 127.0.0.1 — ikke 0.0.0.0"}
         if w._DENY.search(raw):
             return {"error": "nekta: sudo/git push/destruktiv"}
+        if not w.toolchain_ok(raw):
+            return {"error": "nekta: npm/bun/pip/cargo bare i apps/ eller docs/"}
         cmd = ["/bin/bash", "-c", raw]
         parsed_port = None
         m = re.search(r":(\d{2,5})\b", raw) or re.search(r"--port\s+(\d{2,5})\b", raw)

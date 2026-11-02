@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>KatteTube — bli rik på mjau</title>
+  <style>
+    :root {
+      --bg: #0f0f0f;
+      --panel: #1a1a1a;
+      --raised: #272727;
+      --line: #3d3d3d;
+      --text: #f1f1f1;
+      --muted: #aaa;
+      --red: #ff3b5c;
+      --gold: #ffd166;
+      --mint: #7dffb3;
+      --accent: #ff8fab;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; background: var(--bg); color: var(--text); font-family: "Segoe UI", system-ui, sans-serif; }
+    body { display: flex; flex-direction: column; min-height: 100vh; }
+    a { color: inherit; text-decoration: none; }
+    button { font: inherit; cursor: pointer; border: 0; background: none; color: inherit; }
+
+    header {
+      display: flex; align-items: center; gap: 16px;
+      padding: 10px 18px; background: #121212; border-bottom: 1px solid var(--line);
+      position: sticky; top: 0; z-index: 20;
+    }
+    .logo {
+      display: flex; align-items: center; gap: 8px; font-weight: 800; letter-spacing: -0.03em; font-size: 1.25rem;
+      white-space: nowrap;
+    }
+    .logo span.mark {
+      background: var(--red); color: #fff; border-radius: 8px; padding: 4px 8px 4px 6px;
+      display: inline-flex; align-items: center; gap: 4px;
+    }
+    .search {
+      flex: 1; display: flex; max-width: 640px; margin: 0 auto;
+    }
+    .search input {
+      flex: 1; background: #0a0a0a; border: 1px solid var(--line); color: var(--text);
+      padding: 9px 14px; border-radius: 24px 0 0 24px; outline: none;
+    }
+    .search button {
+      background: var(--raised); border: 1px solid var(--line); border-left: 0;
+      padding: 0 18px; border-radius: 0 24px 24px 0;
+    }
+    .hud {
+      display: flex; gap: 10px; align-items: center; font-size: 0.82rem; font-variant-numeric: tabular-nums;
+    }
+    .chip {
+      background: var(--raised); border: 1px solid var(--line); border-radius: 999px;
+      padding: 6px 12px; display: flex; gap: 6px; align-items: center;
+    }
+    .chip b { color: var(--gold); }
+    .chip.win b { color: var(--mint); }
+
+    main {
+      display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 20px;
+      padding: 18px 22px 40px; flex: 1;
+    }
+    @media (max-width: 960px) {
+      main { grid-template-columns: 1fr; }
+    }
+
+    .player-wrap {
+      background: #000; border-radius: 14px; overflow: hidden; aspect-ratio: 16/9;
+      box-shadow: 0 20px 50px rgba(0,0,0,.45);
+    }
+    .player-wrap iframe { width: 100%; height: 100%; border: 0; display: block; }
+
+    .meta { margin-top: 14px; }
+    .meta h1 { font-size: 1.2rem; line-height: 1.3; margin-bottom: 8px; }
+    .row { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .channel { display: flex; gap: 10px; align-items: center; }
+    .avatar {
+      width: 42px; height: 42px; border-radius: 50%;
+      display: grid; place-items: center; font-size: 1.3rem;
+      background: linear-gradient(135deg, #ff8fab, #ff3b5c);
+    }
+    .sub {
+      background: var(--red); color: #fff; border-radius: 999px; padding: 8px 16px; font-weight: 700;
+    }
+    .sub.on { background: var(--raised); color: var(--muted); }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .pill {
+      background: var(--raised); border-radius: 999px; padding: 8px 14px; font-weight: 600;
+      border: 1px solid var(--line);
+    }
+    .pill.hot { background: #2a1a00; border-color: #5a4300; color: var(--gold); }
+    .desc {
+      margin-top: 14px; background: var(--panel); border-radius: 12px; padding: 12px 14px;
+      color: var(--muted); font-size: 0.92rem; line-height: 1.45;
+    }
+
+    .side h2 { font-size: 0.95rem; margin-bottom: 10px; color: var(--muted); font-weight: 600; }
+    .card {
+      display: grid; grid-template-columns: 168px 1fr; gap: 10px;
+      padding: 8px; border-radius: 12px; cursor: pointer;
+    }
+    .card:hover, .card.active { background: var(--panel); }
+    .thumb {
+      aspect-ratio: 16/9; border-radius: 10px; overflow: hidden; background: #222; position: relative;
+    }
+    .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .dur {
+      position: absolute; right: 6px; bottom: 6px; background: rgba(0,0,0,.8);
+      font-size: 0.72rem; padding: 2px 5px; border-radius: 4px;
+    }
+    .card h3 { font-size: 0.88rem; line-height: 1.3; margin-bottom: 4px; }
+    .card p { font-size: 0.75rem; color: var(--muted); }
+
+    .toast {
+      position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+      background: #111; border: 1px solid var(--line); padding: 10px 16px; border-radius: 10px;
+      box-shadow: 0 10px 40px rgba(0,0,0,.5); display: none; z-index: 40;
+    }
+    .win-modal {
+      position: fixed; inset: 0; background: rgba(0,0,0,.72); display: none;
+      place-items: center; z-index: 50;
+    }
+    .win-modal.show { display: grid; }
+    .win-box {
+      background: var(--panel); border: 1px solid var(--line); border-radius: 18px;
+      padding: 28px; max-width: 420px; text-align: center;
+    }
+    .win-box h2 { font-size: 1.6rem; margin-bottom: 8px; }
+    .keys {
+      margin-top: 10px; font-size: 0.78rem; color: var(--muted);
+    }
+    kbd {
+      background: var(--raised); border: 1px solid var(--line); border-bottom-width: 2px;
+      border-radius: 4px; padding: 1px 5px; font-size: 0.75rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo"><span class="mark">▶︎</span> KatteTube</div>
+    <form class="search" id="searchForm">
+      <input id="q" type="search" placeholder="Søk etter mjau, koseklipp, maraton…" autocomplete="off" />
+      <button type="submit">Søk</button>
+    </form>
+    <div class="hud">
+      <div class="chip">👁 <b id="views">0</b> visninger</div>
+      <div class="chip">🐱 <b id="subs">0</b> abonnenter</div>
+      <div class="chip" id="moneyChip">💰 <b id="money">0</b> kr</div>
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <div class="player-wrap">
+        <iframe id="player" title="Kattevideo" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+      </div>
+      <div class="meta">
+        <h1 id="title">Laster mjau…</h1>
+        <div class="row">
+          <div class="channel">
+            <div class="avatar" id="avatar">😺</div>
+            <div>
+              <strong id="channel">PurrCorp</strong>
+              <div class="keys">Tast: <kbd>↑</kbd><kbd>↓</kbd> neste · <kbd>L</kbd> lik · <kbd>S</kbd> abonner · <kbd>M</kbd> myntboost</div>
+            </div>
+          </div>
+          <div class="actions">
+            <button class="sub" id="subBtn">Abonner</button>
+            <button class="pill" id="likeBtn">❤  Like</button>
+            <button class="pill hot" id="boostBtn">🚀  Myntboost</button>
+          </div>
+        </div>
+        <div class="desc" id="desc"></div>
+      </div>
+    </section>
+    <aside class="side">
+      <h2>Neste mjau · bli rik-feed</h2>
+      <div id="feed"></div>
+    </aside>
+  </main>
+
+  <div class="toast" id="toast"></div>
+  <div class="win-modal" id="win">
+    <div class="win-box">
+      <h2>Du er kattemillionær 😻</h2>
+      <p>1 000 000 kr i KatteTube-mynter. Verden er din sandkasse.</p>
+      <p style="margin:14px 0;color:var(--gold)" id="winStats"></p>
+      <button class="sub" id="resetBtn">Start empire på nytt</button>
+    </div>
+  </div>
+
+  <script>
+    const CATS = [
+      { id: "J---aiyznGQ", title: "Keyboard Cat — originalen", ch: "Charlie Schmidt", face: "🎹", dur: "1:00", desc: "Klassikeren. Hver tast er en mynt. Abonnenter elsker nostalgi." },
+      { id: "wZZ7oFKsKzY", title: "Nyan Cat 10 timer (nesten)", ch: "PRguitarman", face: "🌈", dur: "3:37", desc: "Pop-tart i evig flukt. Perfekt bakgrunnsmusikk for å telle penger." },
+      { id: "hY7m5jjJ9mU", title: "Katter vs agurk — panikk-kompilasjon", ch: "The Pet Collective", face: "🥒", dur: "3:05", desc: "Agurk = clicks. Clicks = kroner. Etikk? Vi er katter." },
+      { id: "2g7p-QR5Rts", title: "Katt faller av bordet (igjen)", ch: "FailArmy Pets", face: "😹", dur: "2:41", desc: "Tyngdekraften er en sponsor. Hver landing gir +visninger." },
+      { id: "tntOCGkgt98", title: "Søteste killingene 2024-vibes", ch: "KoseTV", face: "🍼", dur: "8:12", desc: "Morsinstinkt-algoritmen går amok. Abonner for mer melk." },
+      { id: "dxWvtMOGAhw", title: "Maraton: katter som sover", ch: "PurrASMR", face: "💤", dur: "12:00", desc: "Lav BPM, høy RPM (revenue per mjau)." },
+      { id: "sP4NMoJcFd4", title: "Katt vs speil — eksistensiell krise", ch: "FilosofiFelis", face: "🪞", dur: "4:18", desc: "Hvem liker videoen — katten eller klonen?" },
+      { id: "09R8_2nJtjg", title: "Wait… nei. Katte-remix av alt", ch: "MeowBeats", face: "🎧", dur: "4:12", desc: "Bare tull. Algoritmen elsker det likevel." },
+      { id: "QH2-TGUlwu4", title: "Nyan Cat original (kort)", ch: "saraj00n", face: "⭐", dur: "3:37", desc: "Pixel-pels og passiv inntekt." },
+      { id: "5dsGWM5XGdg", title: "Katter som dømmer deg stille", ch: "SideEye Inc", face: "😒", dur: "5:01", desc: "Dømmekraft selger merkevarer. Du også." }
+    ];
+
+    const GOAL = 1_000_000;
+    let i = 0, money = 0, views = 0, subs = 12, liked = new Set(), subbed = new Set();
+    let filter = "";
+
+    const $ = (id) => document.getElementById(id);
+    const fmt = (n) => n.toLocaleString("nb-NO");
+
+    function toast(msg) {
+      const t = $("toast");
+      t.textContent = msg;
+      t.style.display = "block";
+      clearTimeout(toast._id);
+      toast._id = setTimeout(() => t.style.display = "none", 1800);
+    }
+
+    function hud() {
+      $("money").textContent = fmt(money);
+      $("views").textContent = fmt(views);
+      $("subs").textContent = fmt(subs);
+      $("moneyChip").classList.toggle("win", money >= GOAL);
+      if (money >= GOAL) {
+        $("winStats").textContent = fmt(views) + " visninger · " + fmt(subs) + " abonnenter";
+        $("win").classList.add("show");
+      }
+    }
+
+    function list() {
+      const q = filter.trim().toLowerCase();
+      const items = CATS.map((c, idx) => ({ c, idx })).filter(({ c }) =>
+        !q || (c.title + c.ch + c.desc).toLowerCase().includes(q)
+      );
+      $("feed").innerHTML = items.map(({ c, idx }) => `
+        <article class="card ${idx === i ? "active" : ""}" data-i="${idx}">
+          <div class="thumb">
+            <img alt="" src="https://i.ytimg.com/vi/${c.id}/mqdefault.jpg" />
+            <span class="dur">${c.dur}</span>
+          </div>
+          <div>
+            <h3>${c.title}</h3>
+            <p>${c.ch} · ${c.face}</p>
+            <p>+${50 + idx * 13} kr per myntboost</p>
+          </div>
+        </article>`).join("") || "<p style='color:#aaa;padding:8px'>Ingen mjau traff søket.</p>";
+      $("feed").querySelectorAll(".card").forEach((el) => {
+        el.onclick = () => play(+el.dataset.i);
+      });
+    }
+
+    function play(idx) {
+      i = idx;
+      const c = CATS[i];
+      $("player").src = "https://www.youtube-nocookie.com/embed/" + c.id + "?rel=0&modestbranding=1";
+      $("title").textContent = c.title;
+      $("channel").textContent = c.ch;
+      $("avatar").textContent = c.face;
+      $("desc").textContent = c.desc + "  ·  Mål: 1 000 000 kr. Se, lik, abonner, boost.";
+      $("likeBtn").textContent = liked.has(i) ? "❤  Likt" : "❤  Like";
+      $("subBtn").textContent = subbed.has(c.ch) ? "Abonnert" : "Abonner";
+      $("subBtn").classList.toggle("on", subbed.has(c.ch));
+      views += 37 + Math.floor(Math.random() * 80);
+      money += 12;
+      hud();
+      list();
+    }
+
+    function like() {
+      if (liked.has(i)) { toast("Allerede likt"); return; }
+      liked.add(i);
+      money += 80;
+      views += 20;
+      $("likeBtn").textContent = "❤  Likt";
+      toast("+80 kr for et hjerte");
+      hud();
+    }
+
+    function subscribe() {
+      const ch = CATS[i].ch;
+      if (subbed.has(ch)) { toast("Allerede abonnent"); return; }
+      subbed.add(ch);
+      subs += 1 + Math.floor(Math.random() * 40);
+      money += 220;
+      $("subBtn").textContent = "Abonnert";
+      $("subBtn").classList.add("on");
+      toast("+220 kr · empire vokser");
+      hud();
+    }
+
+    function boost() {
+      const gain = 50 + i * 13 + Math.floor(Math.random() * 90);
+      money += gain;
+      views += 15;
+      toast("Myntboost +" + gain + " kr 💰");
+      hud();
+    }
+
+    $("likeBtn").onclick = like;
+    $("subBtn").onclick = subscribe;
+    $("boostBtn").onclick = boost;
+    $("searchForm").onsubmit = (e) => {
+      e.preventDefault();
+      filter = $("q").value;
+      list();
+    };
+    $("resetBtn").onclick = () => {
+      money = 0; views = 0; subs = 12; liked.clear(); subbed.clear();
+      $("win").classList.remove("show");
+      play(0);
+      toast("Nytt empire. Samme katter.");
+    };
+
+    document.addEventListener("keydown", (e) => {
+      if (e.target.matches("input")) return;
+      if (e.key === "ArrowDown") { e.preventDefault(); play((i + 1) % CATS.length); }
+      if (e.key === "ArrowUp") { e.preventDefault(); play((i - 1 + CATS.length) % CATS.length); }
+      if (e.key === "l" || e.key === "L") like();
+      if (e.key === "s" || e.key === "S") subscribe();
+      if (e.key === "m" || e.key === "M") boost();
+    });
+
+    play(0);
+  </script>
+</body>
+</html>

@@ -214,6 +214,22 @@ else
   fail=1
 fi
 
+echo "[test] git_panel.py"
+if "$SX_PY" "$ROOT/scripts/tests/git_panel.py"; then
+  echo "  OK git_panel"
+else
+  echo "  FAIL git_panel"
+  fail=1
+fi
+
+echo "[test] extensions_vsix.py"
+if "$SX_PY" "$ROOT/scripts/tests/extensions_vsix.py"; then
+  echo "  OK extensions_vsix"
+else
+  echo "  FAIL extensions_vsix"
+  fail=1
+fi
+
 echo "[test] uplink iface helper"
 if grep -q 'kalived_uplink_iface' "$ROOT/scripts/lib/kalived-config.sh" \
   && grep -q 'kalived_uplink_iface' "$ROOT/scripts/kalived-watch.sh" \

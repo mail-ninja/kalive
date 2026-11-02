@@ -92,6 +92,8 @@ async def _run_chat_turn(
             allow_mutate=allow,
             use_tools=True,
             cancel=stop,
+            project=str(payload.get("project") or "") or None,
+            session_id=str(payload.get("session") or "") or None,
         ):
             kind = ev.get("type")
             if kind == "token":

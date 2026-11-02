@@ -509,3 +509,60 @@ Format: dato — hva — hvorfor — referanse (finding/rapport).
 
 ### 2026-10-05_1750 — aide-init.sh (scoped)
 - overlay ~/.config/kalived/aide-scope.json. Fryser kalived-filer, ikke Proton. Gate: WARN force=1 force_alert=0.
+
+### 2026-10-26_1232 — install-kalived-helper.sh
+- scan-kopi til /usr/local/lib/kalived root:root (timer ExecStart). Ingen NOPASSWD mot home.
+
+### 2026-10-26_1232 — aide-init.sh (scoped)
+- overlay /home/void/.config/kalived/aide-scope.json. Fryser kalived-filer, ikke Proton. Gate: ALERT force=1 force_alert=1.
+
+### 2026-10-26_1627 — install-kalived-helper.sh
+- scan-kopi til /usr/local/lib/kalived root:root (timer ExecStart). Ingen NOPASSWD mot home.
+
+### 2026-10-27_0135 — install-kalived-helper.sh
+- scan-kopi til /usr/local/lib/kalived root:root (timer ExecStart). Ingen NOPASSWD mot home.
+
+### 2026-10-27_0158 — install-kalived-helper.sh
+- scan-kopi til /usr/local/lib/kalived root:root (timer ExecStart). Ingen NOPASSWD mot home.
+
+### 2026-10-27_0213 — aide-init.sh (scoped)
+- overlay /home/void/.config/kalived/aide-scope.json. Fryser kalived-filer, ikke Proton. Gate: WARN force=1 force_alert=0.
+
+### 2026-10-28_1200 — install-kalived-helper.sh
+- scan-kopi til /usr/local/lib/kalived root:root (timer ExecStart). Ingen NOPASSWD mot home.
+
+### 2026-10-28_1204 — aide-init.sh (scoped)
+- overlay /home/void/.config/kalived/aide-scope.json. Fryser kalived-filer, ikke Proton. Gate: WARN force=1 force_alert=0.
+
+### 2026-10-28_1503 — install-kalived-helper.sh
+- scan-kopi til /usr/local/lib/kalived root:root (timer ExecStart). Ingen NOPASSWD mot home.
+
+### 2026-10-28_1526 — aide-init.sh (scoped)
+- overlay /home/void/.config/kalived/aide-scope.json. Fryser kalived-filer, ikke Proton. Gate: WARN force=1 force_alert=0.
+
+### 2026-10-28_1705 — install-kalived-helper.sh
+- scan-kopi til /usr/local/lib/kalived root:root (timer ExecStart). Ingen NOPASSWD mot home.
+
+### 2026-10-28_1708 — install-kalived-helper.sh
+- scan-kopi til /usr/local/lib/kalived root:root (timer ExecStart). Ingen NOPASSWD mot home.
+
+### 2026-10-28_1709 — install-suricata-host.sh
+- yaml/regler/unit kopiert. apt ikke kjørt. unit ikke enable.
+
+### 2026-10-28_1750 — install-kalived-helper.sh
+- scan-kopi til /usr/local/lib/kalived root:root (timer ExecStart). Ingen NOPASSWD mot home.
+
+### 2026-10-28_1913 — install-kalived-helper.sh
+- scan-kopi til /usr/local/lib/kalived root:root (timer ExecStart). Ingen NOPASSWD mot home.
+
+### 2026-10-28_1923 — install-kalived-helper.sh
+- scan-kopi til /usr/local/lib/kalived root:root (timer ExecStart). Ingen NOPASSWD mot home.
+
+### 2026-10-28_1928 — install-kalived-helper.sh
+- scan-kopi til /usr/local/lib/kalived root:root (timer ExecStart). Ingen NOPASSWD mot home.
+
+### 2026-10-29_0252 — install-kalived-helper.sh
+- scan-kopi til /usr/local/lib/kalived root:root (timer ExecStart). Ingen NOPASSWD mot home.
+
+### 2026-10-29_0314 — install-kalived-helper.sh
+- scan-kopi til /usr/local/lib/kalived root:root (timer ExecStart). Ingen NOPASSWD mot home.
