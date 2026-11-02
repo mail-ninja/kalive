@@ -60,6 +60,7 @@
   let fileRev = $state(0)
   let dirty = $state<Record<string, boolean>>({})
   let wsName = $state('kalived')
+  let wsRoot = $state('')
   let wsKind = $state<'kalived' | 'external'>('kalived')
   let wsDlg = $state<null | 'open' | 'new'>(null)
   let mkdirOpen = $state(false)
@@ -155,6 +156,11 @@
   function closeMenus() {
     menu = null
     sessMenu = false
+  }
+
+  function goWork() {
+    tab = 'work'
+    closeMenus()
   }
 
   function addPtyTab() {
@@ -483,7 +489,17 @@
         e.preventDefault()
         saveDisk()
       }
-      if (e.key === 'Escape') closeMenus()
+      if (e.key === 'Escape') {
+        if (wsDlg) {
+          wsDlg = null
+          return
+        }
+        if (tab === 'settings') {
+          goWork()
+          return
+        }
+        closeMenus()
+      }
     }
     const onDoc = (e: MouseEvent) => {
       const t = e.target as HTMLElement | null
@@ -624,6 +640,7 @@
 
   function applyWorkspace(j: Record<string, unknown>, reset = true) {
     if (typeof j.name === 'string' && j.name) wsName = j.name
+    if (typeof j.root === 'string') wsRoot = j.root
     wsKind = j.kind === 'external' ? 'external' : 'kalived'
     recents = Array.isArray(j.recents)
       ? (j.recents as { path: string; name: string }[]).filter((r) => r && r.path)
@@ -763,7 +780,16 @@
 <div class="flex h-full min-h-screen flex-col">
   <header class="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-white/10 px-3 py-1.5">
     <div class="font-serif text-xl tracking-wide">cockpit</div>
-    <span class="text-xs text-clean/80">{wsName}</span>
+    <button
+      type="button"
+      class="rounded-full border border-white/15 px-2 py-0.5 text-xs text-clean/80 hover:bg-white/10"
+      title={wsRoot || 'bytt workspace'}
+      onclick={() => {
+        tab = 'work'
+        menu = null
+        wsDlg = 'open'
+      }}
+    >{wsName}</button>
     <span class="text-xs text-paper/40">{health}</span>
     <nav class="ml-1 flex items-center text-sm" data-menu>
       <div class="relative">
@@ -774,6 +800,10 @@
         >Fil</button>
         {#if menu === 'fil'}
           <div class="absolute left-0 z-30 mt-1 min-w-[14rem] rounded-md border border-white/15 bg-ink py-1 text-xs shadow-lg">
+            {#if tab === 'settings'}
+              <button type="button" class="block w-full px-3 py-1.5 text-left hover:bg-white/10" onclick={goWork}>tilbake til arbeid</button>
+              <div class="my-1 border-t border-white/10"></div>
+            {/if}
             <button type="button" class="block w-full px-3 py-1.5 text-left hover:bg-white/10" onclick={startNewFile}>ny fil…</button>
             <button
               type="button"
@@ -961,14 +991,18 @@
         >Innstillinger</button>
         {#if menu === 'innstillinger'}
           <div class="absolute left-0 z-30 mt-1 min-w-[12rem] rounded-md border border-white/15 bg-ink py-1 text-xs shadow-lg">
-            <button
-              type="button"
-              class="block w-full px-3 py-1.5 text-left hover:bg-white/10"
-              onclick={() => {
-                menu = null
-                tab = 'settings'
-              }}
-            >maskin og nøkler</button>
+            {#if tab === 'settings'}
+              <button type="button" class="block w-full px-3 py-1.5 text-left hover:bg-white/10" onclick={goWork}>tilbake til arbeid</button>
+            {:else}
+              <button
+                type="button"
+                class="block w-full px-3 py-1.5 text-left hover:bg-white/10"
+                onclick={() => {
+                  menu = null
+                  tab = 'settings'
+                }}
+              >maskin og nøkler</button>
+            {/if}
             <button
               type="button"
               class="block w-full px-3 py-1.5 text-left hover:bg-white/10"
@@ -984,11 +1018,11 @@
     <div class="ml-auto flex flex-wrap items-center gap-2">
       <button
         class="rounded-full border border-white/15 px-3 py-1 text-sm hover:bg-white/10"
-        class:bg-paper={tab === 'work'}
-        class:text-ink={tab === 'work'}
-        onclick={() => (tab = 'work')}
+        class:bg-paper={tab === 'work' || tab === 'settings'}
+        class:text-ink={tab === 'work' || tab === 'settings'}
+        onclick={goWork}
       >
-        Arbeid
+        {tab === 'settings' ? '← Arbeid' : 'Arbeid'}
       </button>
       <label class="flex items-center gap-1 text-xs text-paper/60">
         <input type="checkbox" bind:checked={allowMutate} />
@@ -1111,13 +1145,15 @@
   {/if}
 
   {#if tab === 'settings'}
-    <Settings />
+    <div class="min-h-0 flex-1 overflow-y-auto">
+      <Settings onback={goWork} />
+    </div>
   {:else}
     {#snippet editorPane()}
       <div class="flex h-full min-h-0 flex-col">
         <div class="flex items-center gap-2 border-b border-white/10 px-2 py-1 text-xs text-paper/50">
           <span class="truncate">
-            {diskPath}{#if dirty[diskPath]}<span class="text-warn"> ●</span>{/if}
+            {diskPath || 'ingen fil åpen'}{#if diskPath && dirty[diskPath]}<span class="text-warn"> ●</span>{/if}
           </span>
           <button
             type="button"
@@ -1128,7 +1164,16 @@
           >‹</button>
         </div>
         <div class="min-h-0 flex-1">
-          <Editor {diskPath} {fileRev} {revealLine} ondirty={markDirty} />
+          {#if diskPath}
+            <Editor {diskPath} {fileRev} {revealLine} ondirty={markDirty} />
+          {:else}
+            <div class="flex h-full items-center justify-center p-6 text-sm text-paper/50">
+              <div class="max-w-xs text-center">
+                <p>Ingen fil åpen.</p>
+                <p class="mt-1 text-xs text-paper/40">Velg i treet til venstre, eller Fil → ny fil.</p>
+              </div>
+            </div>
+          {/if}
         </div>
       </div>
     {/snippet}

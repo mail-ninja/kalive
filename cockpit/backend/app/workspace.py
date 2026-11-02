@@ -292,7 +292,15 @@ def browse(raw: str = "") -> dict:
         dirs.append({"name": c.name, "path": str(c), "openable": openable})
         if len(dirs) >= 80:
             break
-    return {"ok": True, "path": str(p), "parent": parent, "home": str(home), "dirs": dirs}
+    openable = isinstance(check_open(str(p)), Path)
+    return {
+        "ok": True,
+        "path": str(p),
+        "parent": parent,
+        "home": str(home),
+        "dirs": dirs,
+        "openable": openable,
+    }
 
 
 def safe(rel: str) -> Path:

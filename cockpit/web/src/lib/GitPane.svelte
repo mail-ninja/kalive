@@ -16,6 +16,7 @@
   type Commit = { sha: string; subject: string; author: string }
 
   let loading = $state(true)
+  let isRepo = $state(true)
   let err = $state('')
   let note = $state('')
   let branch = $state('')
@@ -51,7 +52,9 @@
         fetch('/v1/git/log?n=8').then((r) => r.json()),
         fetch('/v1/git/github').then((r) => r.json()),
       ])
-      if (st.error) err = st.error
+      isRepo = st.repo !== false
+      if (isRepo && (st.error || st.detail)) err = String(st.error || st.detail)
+      else err = ''
       branch = st.branch || ''
       upstream = st.upstream || ''
       ahead = Number(st.ahead || 0)
@@ -89,6 +92,8 @@
         err = String(j.detail || j.error || r.status)
         return
       }
+      if (j.repo === false) isRepo = false
+      else if (j.repo === true) isRepo = true
       note = String(j.summary || j.sha || 'ok')
       ondone?.()
       await load()
@@ -122,6 +127,8 @@
     <div class="mb-2 text-paper/50">
       {#if loading}
         laster…
+      {:else if !isRepo}
+        <span class="text-paper/80">ikke et git-repo</span>
       {:else}
         <span class="text-paper/80">{branch || 'HEAD'}</span>
         {#if upstream}<span class="text-paper/40"> · {upstream}</span>{/if}
@@ -129,6 +136,18 @@
         {#if behind}<span class="text-warn"> −{behind}</span>{/if}
       {/if}
     </div>
+
+    {#if !loading && !isRepo}
+      <div class="mb-3 rounded border border-white/10 p-2">
+        <p class="mb-2 text-paper/70">Denne workspacen har ikke .git enda. Commit og push trenger et repo.</p>
+        <button
+          type="button"
+          class="rounded border border-clean/40 px-2 py-1 text-clean hover:bg-white/10"
+          disabled={!!busy}
+          onclick={() => call('/v1/git/init', 'POST')}
+        >git init</button>
+      </div>
+    {/if}
 
     <div class="mb-3 rounded border border-white/10 p-2">
       <div class="mb-1 text-[0.65rem] uppercase tracking-wide text-paper/40">GitHub</div>
@@ -154,6 +173,7 @@
       {/if}
     </div>
 
+    {#if isRepo}
     <form
       class="mb-3"
       onsubmit={(e) => {
@@ -238,6 +258,7 @@
         </div>
       {/each}
     </div>
+    {/if}
   </div>
   {#if err}
     <div class="border-t border-alert/30 px-2 py-1 text-alert/90">{err}</div>

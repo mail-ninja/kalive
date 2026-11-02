@@ -18,6 +18,8 @@
   }
   type CfgGroup = { id: string; label: string }
 
+  let { onback }: { onback?: () => void } = $props()
+
   let path = $state('')
   let mode = $state<string | null>(null)
   let keys = $state<Record<string, KeyInfo>>({})
@@ -169,6 +171,16 @@
 </script>
 
 <section class="mx-auto max-w-2xl space-y-6 p-4">
+  <div class="sticky top-0 z-10 -mx-4 mb-1 flex items-center gap-3 border-b border-white/10 bg-ink/95 px-4 py-2 backdrop-blur">
+    <button
+      type="button"
+      class="rounded-full bg-paper px-3 py-1 text-sm text-ink hover:bg-paper/90"
+      onclick={() => onback?.()}
+    >
+      ← Arbeid
+    </button>
+    <span class="text-sm text-paper/60">Innstillinger</span>
+  </div>
   <div>
     <h2 class="font-serif text-2xl">Maskin</h2>
     <p class="text-sm text-paper/70">

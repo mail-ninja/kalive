@@ -117,12 +117,41 @@ def _blocked(name: str, url: str) -> str | None:
 def status() -> dict[str, Any]:
     repo = rg._ensure_repo()
     if isinstance(repo, dict):
-        return repo
+        return {
+            "ok": False,
+            "repo": False,
+            "error": repo.get("error") or "ikke et git-repo",
+            "branch": "",
+            "files": [],
+            "remotes": [],
+            "github": github_who(),
+        }
     st = rg._status()
     if st.get("error"):
         return st
+    st["repo"] = True
     st["remotes"] = _remotes()
     st["github"] = github_who()
+    return st
+
+
+def init() -> dict[str, Any]:
+    root = w.root()
+    if (root / ".git").exists():
+        st = status()
+        st["ok"] = True
+        st["repo"] = True
+        st["action"] = "init"
+        st["summary"] = "allerede et git-repo"
+        return st
+    r = rg._git("init", "-b", "main")
+    if r.returncode != 0:
+        return {"error": (r.stderr or r.stdout or "git init feilet")[:400], "action": "init"}
+    st = status()
+    st["ok"] = True
+    st["repo"] = True
+    st["action"] = "init"
+    st["summary"] = "git init -b main i " + str(root)
     return st
 
 

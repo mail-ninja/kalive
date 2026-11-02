@@ -13,6 +13,9 @@ sys.path.insert(0, str(ROOT / "cockpit" / "backend"))
 
 td = tempfile.mkdtemp(prefix="kalived-gitpane-")
 os.environ["KALIVED_WORKSPACE"] = td
+os.environ["KALIVED_WORKSPACES"] = str(Path(td) / "workspaces.json")
+os.environ["KALIVED_OWNER_HOME"] = td
+os.environ["KALIVED_WS_ALLOW"] = td
 os.environ["KALIVED_AI_ENV"] = str(Path(td) / "env")
 os.environ.setdefault("KALIVED_UP_LOG", "/tmp/kalived-gitpane-test")
 
@@ -100,5 +103,30 @@ if "token" in str(puh.get("error") or "").lower() or "logg inn" in str(puh.get("
     ok("https without token")
 else:
     bad("https push " + str(puh))
+
+print("[init when missing]")
+from app import workspace as w  # noqa: E402
+
+empty = Path(tempfile.mkdtemp(prefix="kalived-gitinit-"))
+os.environ["KALIVED_WORKSPACE"] = str(empty)
+os.environ["KALIVED_WORKSPACES"] = str(empty / "workspaces.json")
+os.environ["KALIVED_OWNER_HOME"] = str(empty)
+os.environ["KALIVED_WS_ALLOW"] = str(empty)
+w.reset_live()
+st0 = gp.status()
+if st0.get("repo") is False and "git-repo" in str(st0.get("error") or ""):
+    ok("status not a repo")
+else:
+    bad("expected no repo " + str(st0))
+ini = gp.init()
+if ini.get("ok") and ini.get("repo") is True and (empty / ".git").is_dir():
+    ok("init")
+else:
+    bad("init " + str(ini))
+ini2 = gp.init()
+if ini2.get("ok") and "allerede" in str(ini2.get("summary") or ""):
+    ok("init idempotent")
+else:
+    bad("init2 " + str(ini2))
 
 sys.exit(fail)

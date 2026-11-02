@@ -35,7 +35,15 @@ def _or_err(row: dict):
 
 @router.get("/status")
 def git_status():
-    return _or_err(g.status())
+    row = g.status()
+    if row.get("repo") is False:
+        return row
+    return _or_err(row)
+
+
+@router.post("/init")
+def git_init():
+    return _or_err(g.init())
 
 
 @router.get("/log")

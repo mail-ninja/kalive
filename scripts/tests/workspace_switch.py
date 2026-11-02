@@ -77,6 +77,20 @@ if isinstance(etc, dict):
 else:
     bad("/etc " + str(etc))
 
+print("[browse home not openable]")
+bh = w.browse(str(td / "home"))
+if bh.get("ok") and bh.get("openable") is False and bh.get("parent") == "":
+    ok("browse home")
+else:
+    bad("browse home " + str(bh))
+
+print("[browse other openable]")
+bo = w.browse(str(td / "other"))
+if bo.get("ok") and bo.get("openable") is True and bo.get("parent"):
+    ok("browse other")
+else:
+    bad("browse other " + str(bo))
+
 print("[open other]")
 op = w.open_workspace(str(td / "other"))
 if op.get("ok") and Path(op["root"]).resolve() == (td / "other").resolve() and op.get("kind") == "external":
