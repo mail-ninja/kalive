@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte'
+  import { ptyWrite, requestHiroshima } from './desk'
   import Split from './Split.svelte'
   import Term from './Term.svelte'
 
@@ -159,7 +160,12 @@
         body: JSON.stringify({ name, confirm: true, ...extra }),
       })
       const j = await r.json()
-      if (j.error && !j.job_id) {
+      if (j.need_pty && typeof j.pty_write === 'string') {
+        requestHiroshima()
+        ptyWrite(j.pty_write, { queue: true })
+        jobNote = String(j.note || 'passord i Hiroshima-xterm')
+        if (j.error) err = String(j.error)
+      } else if (j.error && !j.job_id) {
         err = j.error
       } else if (j.job_id) {
         jobNote = j.note || name + ' kjører'

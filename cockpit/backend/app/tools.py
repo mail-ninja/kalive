@@ -158,6 +158,8 @@ def hiroshima_scan(_args: dict) -> dict:
     from . import hiroshima as h
 
     job = h.start_named("scan", True)
+    if job.get("need_pty"):
+        return job
     if job.get("error") and not job.get("job_id"):
         return {**_ctl_pty("scan"), "error": job.get("error")}
     job = _wait_sudo_job(h, job)
@@ -191,6 +193,8 @@ def hiroshima_run(args: dict) -> dict:
         return {"error": f"ukjent run: {name}", "have": list(SIGNAL_RUNS)}
     extra = {"family": "unknown"} if name == "isolate-dst" else None
     job = h.start_named(name, True, extra)
+    if job.get("need_pty"):
+        return job
     if job.get("error") and not job.get("job_id"):
         return {**_ctl_pty(name), "error": job.get("error")}
     job = _wait_sudo_job(h, job)

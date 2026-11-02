@@ -552,6 +552,18 @@ def _write_act(doc: dict) -> None:
     os.chmod(ACT_PATH, 0o600)
 
 
+def _job_needs_pty(job: dict) -> bool:
+    blob = str(job.get("error") or "") + " " + str(job.get("hint") or "")
+    log = Path(job.get("log") or "")
+    if log.is_file():
+        try:
+            blob += " " + log.read_text(encoding="utf-8", errors="replace")[-2000:]
+        except OSError:
+            pass
+    low = blob.lower()
+    return "password is required" in low or "a terminal is required" in low
+
+
 def start_named(name: str, confirm: bool, act: dict | None = None) -> dict:
     ensure_watch()
     if not confirm:
@@ -590,7 +602,13 @@ def start_named(name: str, confirm: bool, act: dict | None = None) -> dict:
         )
         # keep fh so GC doesn't close the child's stdout
     except FileNotFoundError:
-        return {"error": "kalived-ctl mangler — sudo i xterm: sudo kalived-ctl " + name}
+        return {
+            "error": "kalived-ctl mangler — sudo i xterm: sudo kalived-ctl " + name,
+            "need_pty": True,
+            "open_hiroshima": True,
+            "pty_write": f"sudo kalived-ctl {name}\n",
+            "note": "passord i Hiroshima-xterm — ikke i chat",
+        }
     job = {
         "id": jid,
         "name": name,
@@ -618,6 +636,23 @@ def start_named(name: str, confirm: bool, act: dict | None = None) -> dict:
             _persist()
         except OSError:
             pass
+    t0 = time.time()
+    while time.time() - t0 < 0.45:
+        _reap(job)
+        if _job_needs_pty(job):
+            pub = _public(job)
+            pub.update(
+                {
+                    "need_pty": True,
+                    "open_hiroshima": True,
+                    "pty_write": f"sudo kalived-ctl {name}\n",
+                    "note": "passord i Hiroshima-xterm — ikke i chat",
+                }
+            )
+            return pub
+        if job.get("status") != "running":
+            break
+        time.sleep(0.08)
     return _public(job)
 
 

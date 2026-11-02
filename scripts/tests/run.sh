@@ -198,6 +198,14 @@ else
   fail=1
 fi
 
+echo "[test] signal_term_suite.py"
+if "$SX_PY" "$ROOT/scripts/tests/signal_term_suite.py"; then
+  echo "  OK signal_term_suite"
+else
+  echo "  FAIL signal_term_suite"
+  fail=1
+fi
+
 echo "[test] uplink iface helper"
 if grep -q 'kalived_uplink_iface' "$ROOT/scripts/lib/kalived-config.sh" \
   && grep -q 'kalived_uplink_iface' "$ROOT/scripts/kalived-watch.sh" \
