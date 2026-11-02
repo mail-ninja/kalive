@@ -16,6 +16,12 @@ class PathsIn(BaseModel):
 class CommitIn(BaseModel):
     message: str = ""
     paths: list[str] = Field(default_factory=list)
+    all_files: bool = False
+
+
+class AddRemoteIn(BaseModel):
+    name: str = ""
+    url: str = ""
 
 
 class RemoteIn(BaseModel):
@@ -63,7 +69,12 @@ def git_unstage(body: PathsIn):
 
 @router.post("/commit")
 def git_commit(body: CommitIn):
-    return _or_err(g.commit(body.message, body.paths or None))
+    return _or_err(g.commit(body.message, body.paths or None, all_files=body.all_files))
+
+
+@router.post("/remote")
+def git_remote_add(body: AddRemoteIn):
+    return _or_err(g.add_remote(body.name, body.url))
 
 
 @router.post("/push")

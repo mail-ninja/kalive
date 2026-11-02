@@ -104,6 +104,43 @@ if "token" in str(puh.get("error") or "").lower() or "logg inn" in str(puh.get("
 else:
     bad("https push " + str(puh))
 
+print("[commit staged empty]")
+(Path(td) / "b.txt").write_text("bee\n", encoding="utf-8")
+empty_cm = gp.commit("no stage yet")
+if "staged" in str(empty_cm.get("error") or ""):
+    ok("commit staged empty")
+else:
+    bad("empty commit " + str(empty_cm))
+
+print("[commit all]")
+all_cm = gp.commit("add b", all_files=True)
+if all_cm.get("ok") and all_cm.get("sha"):
+    ok("commit all " + str(all_cm.get("sha")))
+else:
+    bad("commit all " + str(all_cm))
+
+print("[add remote]")
+ar = gp.add_remote("extra", "git@github.com:mail-ninja/kalive.git")
+if ar.get("ok") and ar.get("remote") == "extra":
+    ok("add remote")
+else:
+    bad("add remote " + str(ar))
+dup = gp.add_remote("extra", "git@github.com:mail-ninja/kalive.git")
+if "finnes" in str(dup.get("error") or ""):
+    ok("dup remote")
+else:
+    bad("dup " + str(dup))
+walle = gp.add_remote("evil", "git@github.com:mail-ninja/wallE.git")
+if "wallE" in str(walle.get("error") or ""):
+    ok("add wallE nekta")
+else:
+    bad("wallE add " + str(walle))
+badu = gp.add_remote("x", "-u origin")
+if "url" in str(badu.get("error") or ""):
+    ok("bad url")
+else:
+    bad("bad url " + str(badu))
+
 print("[init when missing]")
 from app import workspace as w  # noqa: E402
 

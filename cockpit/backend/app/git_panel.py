@@ -114,6 +114,38 @@ def _blocked(name: str, url: str) -> str | None:
     return None
 
 
+_REMOTE_NAME = re.compile(r"^[A-Za-z0-9._-]{1,40}$")
+_REMOTE_URL = re.compile(
+    r"^(?:git@[\w.-]+:[\w./-]+(?:\.git)?|https://[\w.-]+/[\w./-]+(?:\.git)?)$"
+)
+
+
+def add_remote(name: str, url: str) -> dict[str, Any]:
+    repo = rg._ensure_repo()
+    if isinstance(repo, dict):
+        return repo
+    nm = (name or "").strip()
+    u = (url or "").strip()
+    if not _REMOTE_NAME.match(nm):
+        return {"error": "ugyldig remote-navn"}
+    if not _REMOTE_URL.match(u):
+        return {"error": "ugyldig remote-url"}
+    blocked = _blocked(nm, u)
+    if blocked:
+        return {"error": blocked}
+    if any(r["name"] == nm for r in _remotes()):
+        return {"error": f"remote {nm} finnes"}
+    r = rg._git("remote", "add", nm, u)
+    if r.returncode != 0:
+        return {"error": (r.stderr or r.stdout or "git remote add feilet")[:400], "action": "remote-add"}
+    st = status()
+    st["ok"] = True
+    st["action"] = "remote-add"
+    st["remote"] = nm
+    st["summary"] = f"la til {nm} → {u}"
+    return st
+
+
 def status() -> dict[str, Any]:
     repo = rg._ensure_repo()
     if isinstance(repo, dict):
@@ -179,7 +211,7 @@ def stage(paths: list[str], *, unstage: bool = False) -> dict[str, Any]:
     return st
 
 
-def commit(message: str, paths: list[str] | None = None) -> dict[str, Any]:
+def commit(message: str, paths: list[str] | None = None, *, all_files: bool = False) -> dict[str, Any]:
     """Operator commit from the Git tab. Not the agent tool."""
     repo = rg._ensure_repo()
     if isinstance(repo, dict):
@@ -187,7 +219,11 @@ def commit(message: str, paths: list[str] | None = None) -> dict[str, Any]:
     msg = (message or "").strip()
     if len(msg) < 3:
         return {"error": "commit trenger message"}
-    if paths:
+    if all_files:
+        add = rg._git("add", "-A")
+        if add.returncode != 0:
+            return {"error": (add.stderr or "git add feilet")[:400]}
+    elif paths:
         resolved = rg._safe_paths(paths)
         if isinstance(resolved, dict):
             return resolved

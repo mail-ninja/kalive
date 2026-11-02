@@ -33,6 +33,18 @@
   let ghHint = $state('')
   let token = $state('')
   let busy = $state('')
+  let remoteName = $state('')
+  let remoteUrl = $state('')
+
+  let staged = $derived(files.filter((f) => f.xy[0] !== ' ' && f.xy !== '??'))
+  let selected = $derived(remotes.find((r) => r.name === remote) || null)
+
+  function destHint(r: Remote): string {
+    const url = r.push || r.fetch || ''
+    const m = url.match(/github\.com[:/]([^/]+\/[^/.]+?)(?:\.git)?$/i)
+    if (m) return m[1]
+    return url
+  }
 
   function xyLabel(xy: string) {
     const x = xy[0] || ' '
@@ -94,6 +106,14 @@
       }
       if (j.repo === false) isRepo = false
       else if (j.repo === true) isRepo = true
+      if (j.action === 'remote-add' && j.remote) {
+        remote = String(j.remote)
+        try {
+          localStorage.setItem('kalived.ui.git.remote', remote)
+        } catch {
+          /* ignore */
+        }
+      }
       note = String(j.summary || j.sha || 'ok')
       ondone?.()
       await load()
@@ -178,11 +198,7 @@
       class="mb-3"
       onsubmit={(e) => {
         e.preventDefault()
-        const staged = files.filter((f) => f.xy[0] !== ' ' && f.xy !== '??')
-        call('/v1/git/commit', 'POST', {
-          message: msg,
-          paths: staged.length ? [] : files.map((f) => f.path),
-        })
+        call('/v1/git/commit', 'POST', { message: msg, paths: [] })
         msg = ''
       }}
     >
@@ -191,7 +207,24 @@
         bind:value={msg}
         placeholder="commit-melding"
       ></textarea>
-      <button type="submit" class="rounded border border-white/15 px-2 py-0.5 hover:bg-white/10" disabled={!!busy}>commit</button>
+      <div class="flex flex-wrap gap-1">
+        <button
+          type="submit"
+          class="rounded border border-white/15 px-2 py-0.5 hover:bg-white/10"
+          disabled={!!busy || !staged.length}
+          title={staged.length ? 'bare filer merket staged' : 'stage noe først, eller bruk commit alle'}
+        >commit staged{staged.length ? ' (' + staged.length + ')' : ''}</button>
+        <button
+          type="button"
+          class="rounded border border-white/15 px-2 py-0.5 hover:bg-white/10"
+          disabled={!!busy || !files.length}
+          title="git add -A, så commit"
+          onclick={() => {
+            call('/v1/git/commit', 'POST', { message: msg, all_files: true })
+            msg = ''
+          }}
+        >commit alle{files.length ? ' (' + files.length + ')' : ''}</button>
+      </div>
     </form>
 
     <div class="mb-3">
@@ -214,7 +247,7 @@
     </div>
 
     <div class="mb-3">
-      <div class="mb-1 text-[0.65rem] uppercase tracking-wide text-paper/40">remote</div>
+      <div class="mb-1 text-[0.65rem] uppercase tracking-wide text-paper/40">push til</div>
       <select
         class="mb-1 w-full rounded border border-white/15 bg-ink px-2 py-0.5"
         bind:value={remote}
@@ -227,12 +260,22 @@
         }}
       >
         {#each remotes as r}
-          <option value={r.name}>{r.name}{r.blocked ? ' (blokkert)' : ''}</option>
+          <option value={r.name}>{r.name}{r.blocked ? ' (blokkert)' : ''} — {destHint(r)}</option>
         {/each}
       </select>
-      {#each remotes.filter((r) => r.name === remote) as r}
-        <p class="mb-1 truncate text-paper/35" title={r.push || r.fetch}>{r.push || r.fetch}</p>
-      {/each}
+      {#if selected}
+        <p class="mb-0.5 break-all text-paper/85" title={selected.push || selected.fetch}>
+          {selected.name} → {destHint(selected)}
+        </p>
+        <p class="mb-1 break-all font-mono text-[0.65rem] text-paper/45">{selected.push || selected.fetch}</p>
+        {#if selected.blocked}
+          <p class="mb-1 text-alert">blokkert — origin/wallE pusher ikke herfra</p>
+        {:else}
+          <p class="mb-1 text-paper/50">
+            {branch || 'HEAD'}{selected.github ? (selected.ssh ? ' · GitHub SSH' : ' · GitHub HTTPS') : ''}
+          </p>
+        {/if}
+      {/if}
       <div class="flex gap-1">
         <button
           type="button"
@@ -243,10 +286,34 @@
         <button
           type="button"
           class="rounded border border-white/15 px-2 py-0.5 hover:bg-white/10"
-          disabled={!!busy}
+          disabled={!!busy || !!selected?.blocked}
           onclick={() => call('/v1/git/push', 'POST', { remote, branch })}
-        >push</button>
+        >push til {remote}</button>
       </div>
+      <form
+        class="mt-2 flex flex-col gap-1"
+        onsubmit={(e) => {
+          e.preventDefault()
+          call('/v1/git/remote', 'POST', { name: remoteName.trim(), url: remoteUrl.trim() })
+          remoteName = ''
+          remoteUrl = ''
+        }}
+      >
+        <div class="text-[0.65rem] uppercase tracking-wide text-paper/40">ny remote</div>
+        <input
+          class="rounded border border-white/15 bg-ink px-2 py-0.5"
+          bind:value={remoteName}
+          placeholder="navn (hiroshima)"
+          spellcheck="false"
+        />
+        <input
+          class="rounded border border-white/15 bg-ink px-2 py-0.5"
+          bind:value={remoteUrl}
+          placeholder="git@github.com:org/repo.git"
+          spellcheck="false"
+        />
+        <button type="submit" class="self-start rounded border border-white/15 px-2 py-0.5 hover:bg-white/10" disabled={!!busy || !remoteName.trim() || !remoteUrl.trim()}>legg til</button>
+      </form>
     </div>
 
     <div>

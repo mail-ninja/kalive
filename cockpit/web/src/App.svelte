@@ -45,7 +45,9 @@
   let splitH = $state(74)
   let splitV = $state(72)
   let splitCode = $state(58)
-  let allowMutate = $state(false)
+  let runMode = $state<'agent' | 'plan'>(
+    localStorage.getItem('kalived.ui.run') === 'plan' ? 'plan' : 'agent',
+  )
   let canvasUi = $state(getCanvas())
   let details = $state(false)
   let ptyOpen = $state(false)
@@ -113,7 +115,12 @@
       const s = g.sessions.find((x) => x.id === sessionId)
       if (s) return s.title || 'samtale'
     }
-    return project ? 'samtale' : 'samtaler'
+    if (project) {
+      const g = groupsToShow.find((x) => x.project === project)
+      if (!g || !g.sessions.length) return 'ingen samtaler'
+      return 'samtale'
+    }
+    return 'samtaler'
   })
 
   function persistPane(key: 'tree' | 'editor' | 'preview', on: boolean) {
@@ -161,6 +168,15 @@
   function goWork() {
     tab = 'work'
     closeMenus()
+  }
+
+  function setRunMode(m: 'agent' | 'plan') {
+    runMode = m
+    try {
+      localStorage.setItem('kalived.ui.run', m)
+    } catch {
+      /* ignore */
+    }
   }
 
   function addPtyTab() {
@@ -770,7 +786,7 @@
       agent: agentId,
       provider: providerId,
       model: modelId,
-      allow_mutate: allowMutate,
+      allow_mutate: runMode === 'agent',
       project: proj,
       session: sid,
     })
@@ -1024,10 +1040,18 @@
       >
         {tab === 'settings' ? '← Arbeid' : 'Arbeid'}
       </button>
-      <label class="flex items-center gap-1 text-xs text-paper/60">
-        <input type="checkbox" bind:checked={allowMutate} />
-        agent får kjøre
-      </label>
+      <div class="flex rounded-full border border-white/15 p-0.5 text-sm" title="agent skriver og kjører. planlegg leser og foreslår.">
+        <button
+          type="button"
+          class="rounded-full px-3 py-0.5 {runMode === 'agent' ? 'bg-paper text-ink' : 'text-paper/60 hover:text-paper'}"
+          onclick={() => setRunMode('agent')}
+        >agent</button>
+        <button
+          type="button"
+          class="rounded-full px-3 py-0.5 {runMode === 'plan' ? 'bg-paper text-ink' : 'text-paper/60 hover:text-paper'}"
+          onclick={() => setRunMode('plan')}
+        >planlegg</button>
+      </div>
       <button
         type="button"
         class="rounded-full border border-alert/50 px-3 py-1 text-sm text-alert"
@@ -1325,11 +1349,12 @@
                         >{s.title || 'samtale'}</button>
                       {/each}
                     {:else}
-                      <p class="px-3 pb-1 text-paper/35">ingen ennå — første melding lagres her</p>
+                      <p class="px-3 pb-1 text-paper/35">ingen samtaler i denne mappa ennå</p>
                     {/if}
                   {/each}
                 {:else}
-                  <p class="px-3 py-2 text-paper/35">åpne ei fil i docs/ eller apps/ — eller skriv, så dukker prosjektet opp her</p>
+                  <p class="px-3 py-2 text-paper/80">ingen samtaler i {wsName} ennå</p>
+                  <p class="px-3 pb-2 text-paper/40">skriv under — første melding lagres her</p>
                 {/if}
               </div>
             {/if}
@@ -1361,7 +1386,7 @@
         {/if}
         <div class="mx-2 mt-1 flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-white/10 bg-black/40">
           <div class="flex items-center justify-between border-b border-white/10 px-3 py-1.5 text-xs text-paper/50">
-            <span class="truncate">{running ? (liveCmd ? 'kjører: ' + liveCmd : 'kjører…') : 'klar'}</span>
+            <span class="truncate">{running ? (liveCmd ? 'kjører: ' + liveCmd : 'kjører…') : runMode === 'plan' ? 'plan — skriver ikke' : 'klar'}</span>
             <span>{hist.length}</span>
           </div>
           {#if running && (liveOut || liveCmd)}
@@ -1422,9 +1447,11 @@
           <input
             class="flex-1 rounded-lg border border-white/15 bg-ink px-3 py-2"
             bind:value={draft}
-            placeholder="oppgave til {agentId}"
+            placeholder={runMode === 'plan'
+              ? 'planlegg med ' + agentId + ' — skriver ikke'
+              : 'oppgave til ' + agentId}
           />
-          <button class="rounded-lg bg-paper px-3 py-2 text-ink">send</button>
+          <button class="rounded-lg bg-paper px-3 py-2 text-ink">{runMode === 'plan' ? 'planlegg' : 'send'}</button>
         </form>
       </section>
     {/snippet}
