@@ -55,4 +55,21 @@ if not toolchain_ok("pip install requests"):
 else:
     bad("pip root")
 
+print("[toolchain external]")
+import tempfile
+
+from app import workspace as w
+
+ext = Path(tempfile.mkdtemp(prefix="kalived-tc-"))
+os.environ["KALIVED_WORKSPACES"] = str(ext / "ws.json")
+os.environ["KALIVED_WS_ALLOW"] = str(ext)
+(ext / "proj").mkdir()
+w.reset_live()
+op = w.open_workspace(str(ext / "proj"))
+if op.get("ok") and toolchain_ok("npm install"):
+    ok("npm allowed outside kalived")
+else:
+    bad("external npm " + str(op))
+w.reset_live()
+
 sys.exit(fail)

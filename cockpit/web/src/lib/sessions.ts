@@ -15,11 +15,14 @@ export type SessGroup = {
   sessions: SessMeta[]
 }
 
-export function projectOf(path: string): string {
+export function projectOf(path: string, wsName = '', kind = 'kalived'): string {
   const s = (path || '').replace(/\\/g, '/').replace(/^\.\//, '')
   const m = s.match(/^(docs|apps)\/([^/]+)/)
-  if (!m || m[2].includes('.')) return ''
-  return m[1] + '/' + m[2]
+  if (m && !m[2].includes('.')) return m[1] + '/' + m[2]
+  if (kind === 'external' && wsName && /^[A-Za-z0-9._-]+$/.test(wsName) && !wsName.startsWith('.')) {
+    return 'ws/' + wsName
+  }
+  return ''
 }
 
 export async function listSessions(project: string, agent = 'build'): Promise<SessMeta[]> {

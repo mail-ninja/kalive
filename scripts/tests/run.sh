@@ -230,6 +230,14 @@ else
   fail=1
 fi
 
+echo "[test] workspace_switch.py"
+if "$SX_PY" "$ROOT/scripts/tests/workspace_switch.py"; then
+  echo "  OK workspace_switch"
+else
+  echo "  FAIL workspace_switch"
+  fail=1
+fi
+
 echo "[test] uplink iface helper"
 if grep -q 'kalived_uplink_iface' "$ROOT/scripts/lib/kalived-config.sh" \
   && grep -q 'kalived_uplink_iface' "$ROOT/scripts/kalived-watch.sh" \

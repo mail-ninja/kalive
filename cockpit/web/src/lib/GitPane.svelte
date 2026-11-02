@@ -4,9 +4,11 @@
   let {
     onopen,
     ondone,
+    tick = 0,
   }: {
     onopen: (path: string) => void
     ondone?: () => void
+    tick?: number
   } = $props()
 
   type FileRow = { xy: string; path: string }
@@ -101,8 +103,17 @@
     token = ''
   }
 
+  let lastTick = -1
   onMount(() => {
     void load()
+  })
+
+  $effect(() => {
+    const t = tick
+    if (t !== lastTick) {
+      lastTick = t
+      void load()
+    }
   })
 </script>
 

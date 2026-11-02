@@ -3,10 +3,12 @@ from __future__ import annotations
 
 import difflib
 import fcntl
+import json
 import os
 import re
 import shlex
 import signal
+import stat
 import subprocess
 import time
 from pathlib import Path
@@ -30,13 +32,267 @@ MAX_MATCH = 80
 
 router = APIRouter(prefix="/v1/workspace", tags=["workspace"])
 
+_BLOCK_ROOTS = ("/etc", "/usr", "/root", "/proc", "/sys", "/dev", "/boot", "/run", "/var")
+_NAME_RE = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
+_live: Path | None = None
+
+
+def owner_home() -> Path:
+    return Path(os.environ.get("KALIVED_OWNER_HOME") or Path.home()).expanduser().resolve()
+
+
+def state_path() -> Path:
+    env = os.environ.get("KALIVED_WORKSPACES")
+    if env:
+        return Path(env).expanduser()
+    return owner_home() / ".config" / "kalived" / "workspaces.json"
+
+
+def kalived_repo() -> Path:
+    return Path(__file__).resolve().parents[3]
+
+
+def reset_live() -> None:
+    global _live
+    _live = None
+
+
+def _default_root() -> Path:
+    env = os.environ.get("KALIVED_WORKSPACE") or os.environ.get("KALIVED_DATA")
+    if env:
+        return Path(env).expanduser().resolve()
+    return (Path.home() / "kalived").resolve()
+
+
+def _load_state() -> dict:
+    p = state_path()
+    if not p.is_file():
+        return {"current": "", "recents": []}
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {"current": "", "recents": []}
+    if not isinstance(data, dict):
+        return {"current": "", "recents": []}
+    rec = data.get("recents")
+    if not isinstance(rec, list):
+        data["recents"] = []
+    return data
+
+
+def _save_state(data: dict) -> None:
+    p = state_path()
+    p.parent.mkdir(parents=True, exist_ok=True)
+    tmp = p.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    os.chmod(tmp, stat.S_IRUSR | stat.S_IWUSR)
+    tmp.replace(p)
+    os.chmod(p, stat.S_IRUSR | stat.S_IWUSR)
+
+
+def _allow_roots() -> list[Path]:
+    roots = [owner_home()]
+    extra = os.environ.get("KALIVED_WS_ALLOW")
+    if extra:
+        try:
+            roots.append(Path(extra).expanduser().resolve())
+        except OSError:
+            pass
+    return roots
+
+
+def check_open(raw: str) -> Path | dict:
+    s = (raw or "").strip()
+    if not s:
+        return {"error": "tom path"}
+    try:
+        p = Path(s).expanduser().resolve()
+    except OSError:
+        return {"error": "ugyldig path"}
+    if not p.is_dir():
+        return {"error": "ikke en mappe"}
+    try:
+        st = p.stat()
+    except OSError:
+        return {"error": "kan ikke lese mappa"}
+    if st.st_uid != os.getuid():
+        return {"error": "ikke din mappe"}
+    home = owner_home()
+    if p == home:
+        return {"error": "ikke hele hjemmekatalogen som workspace"}
+    sp = str(p)
+    for b in _BLOCK_ROOTS:
+        if sp == b or sp.startswith(b + "/"):
+            return {"error": "blokkert path"}
+    secrets = home / ".config" / "kalived"
+    ssh = home / ".ssh"
+    gpg = home / ".gnupg"
+    for banned in (secrets, ssh, gpg):
+        if p == banned or banned in p.parents:
+            return {"error": "blokkert path"}
+    if not any(p == a or a in p.parents for a in _allow_roots()):
+        return {"error": "utenfor hjemmekatalogen"}
+    return p
+
+
+def _browseable(p: Path) -> bool:
+    try:
+        if not p.is_dir() or p.stat().st_uid != os.getuid():
+            return False
+    except OSError:
+        return False
+    home = owner_home()
+    if p == home:
+        return True
+    got = check_open(str(p))
+    if isinstance(got, Path):
+        return True
+    return any(p == a or a in p.parents for a in _allow_roots())
+
 
 def root() -> Path:
-    env = os.environ.get("KALIVED_WORKSPACE") or os.environ.get("KALIVED_DATA")
-    p = Path(env).expanduser().resolve() if env else (Path.home() / "kalived").resolve()
+    global _live
+    if _live is not None and _live.is_dir():
+        return _live
+    data = _load_state()
+    cur = str(data.get("current") or "").strip()
+    if cur:
+        got = check_open(cur)
+        if isinstance(got, Path):
+            _live = got
+            return got
+    p = _default_root()
     if not p.is_dir():
         raise FileNotFoundError(f"workspace mangler: {p}")
     return p
+
+
+def is_kalived_repo() -> bool:
+    try:
+        return root().resolve() == kalived_repo()
+    except (OSError, FileNotFoundError):
+        return False
+
+
+def hint_file() -> str:
+    r = root()
+    for name in ("README.md", "README", "index.html", "index.md"):
+        if (r / name).is_file():
+            return name
+    return ""
+
+
+def snapshot() -> dict:
+    r = root()
+    data = _load_state()
+    recents = []
+    for row in data.get("recents") or []:
+        if not isinstance(row, dict):
+            continue
+        path = str(row.get("path") or "")
+        if not path:
+            continue
+        recents.append(
+            {
+                "path": path,
+                "name": str(row.get("name") or Path(path).name),
+                "used": str(row.get("used") or ""),
+            }
+        )
+    kind = "kalived" if is_kalived_repo() else "external"
+    name = r.name
+    project = "" if kind == "kalived" else ("ws/" + name if _NAME_RE.match(name) and not name.startswith(".") else "")
+    return {
+        "root": str(r),
+        "name": name,
+        "kind": kind,
+        "project": project,
+        "hint": hint_file(),
+        "recents": recents[:12],
+    }
+
+
+def open_workspace(raw: str) -> dict:
+    global _live
+    got = check_open(raw)
+    if isinstance(got, dict):
+        return got
+    _live = got
+    data = _load_state()
+    recents = [r for r in (data.get("recents") or []) if isinstance(r, dict) and r.get("path") != str(got)]
+    recents.insert(0, {"path": str(got), "name": got.name, "used": time.strftime("%Y-%m-%dT%H:%M:%S")})
+    data["current"] = str(got)
+    data["recents"] = recents[:12]
+    _save_state(data)
+    return {"ok": True, **snapshot()}
+
+
+def mkdir_here(rel: str) -> dict:
+    name = (rel or "").strip().strip("/")
+    if not name or "/" in name or name in (".", "..") or not _NAME_RE.match(name) or name.startswith("."):
+        return {"error": "ugyldig mappenavn"}
+    try:
+        p = safe(name)
+    except ValueError as e:
+        return {"error": str(e)}
+    if p.exists():
+        return {"error": "finnes allerede"}
+    p.mkdir(mode=0o700)
+    return {"ok": True, "path": rel_of(p), "dir": True}
+
+
+def create_workspace(parent: str, name: str, git: bool = True) -> dict:
+    nm = (name or "").strip()
+    if not _NAME_RE.match(nm) or nm.startswith("."):
+        return {"error": "ugyldig navn"}
+    parent_s = (parent or "").strip() or str(owner_home())
+    try:
+        parent_p = Path(parent_s).expanduser().resolve()
+    except OSError:
+        return {"error": "ugyldig forelder"}
+    if not _browseable(parent_p):
+        return {"error": "kan ikke lage workspace der"}
+    dest = parent_p / nm
+    if dest.exists():
+        return {"error": "finnes allerede"}
+    dest.mkdir(mode=0o700)
+    if git:
+        subprocess.run(
+            ["git", "init", "-b", "main"],
+            cwd=str(dest),
+            capture_output=True,
+            text=True,
+            timeout=15,
+            check=False,
+        )
+    return open_workspace(str(dest))
+
+
+def browse(raw: str = "") -> dict:
+    home = owner_home()
+    s = (raw or "").strip()
+    try:
+        p = Path(s).expanduser().resolve() if s else home
+    except OSError:
+        return {"error": "ugyldig path"}
+    if not _browseable(p):
+        return {"error": "kan ikke liste den mappa"}
+    parent = str(p.parent) if p != home and _browseable(p.parent) else ""
+    dirs = []
+    try:
+        kids = sorted(p.iterdir(), key=lambda x: x.name.lower())
+    except OSError:
+        kids = []
+    for c in kids:
+        if not c.is_dir() or c.name.startswith("."):
+            continue
+        if c.name in {".ssh", ".gnupg", "node_modules", "__pycache__", ".venv", "venv"}:
+            continue
+        openable = isinstance(check_open(str(c)), Path)
+        dirs.append({"name": c.name, "path": str(c), "openable": openable})
+        if len(dirs) >= 80:
+            break
+    return {"ok": True, "path": str(p), "parent": parent, "home": str(home), "dirs": dirs}
 
 
 def safe(rel: str) -> Path:
@@ -275,8 +531,10 @@ _TOOLCHAIN_SCOPE = re.compile(
 
 
 def toolchain_ok(blob: str) -> bool:
-    """npm/bun/pip/cargo only inside apps/ or docs/ — never workspace root."""
+    """npm/bun/pip/cargo: in kalived-repo only under apps/ or docs/. External workspace: rot er lov."""
     if not _TOOLCHAIN.search(blob or ""):
+        return True
+    if not is_kalived_repo():
         return True
     return bool(_TOOLCHAIN_SCOPE.search(blob or ""))
 _TAIL = 200_000
@@ -441,8 +699,47 @@ def bash(
 
 @router.get("")
 def info():
-    r = root()
-    return {"root": str(r), "name": r.name}
+    return snapshot()
+
+
+class OpenIn(BaseModel):
+    path: str = ""
+
+
+class MkdirIn(BaseModel):
+    name: str = ""
+
+
+class CreateIn(BaseModel):
+    parent: str = ""
+    name: str = ""
+    git: bool = True
+
+
+def _or_err(row: dict):
+    if row.get("error"):
+        raise HTTPException(400, row["error"])
+    return row
+
+
+@router.get("/browse")
+def browse_http(path: str = ""):
+    return _or_err(browse(path))
+
+
+@router.post("/open")
+def open_http(body: OpenIn):
+    return _or_err(open_workspace(body.path))
+
+
+@router.post("/mkdir")
+def mkdir_http(body: MkdirIn):
+    return _or_err(mkdir_here(body.name))
+
+
+@router.post("/create")
+def create_http(body: CreateIn):
+    return _or_err(create_workspace(body.parent, body.name, git=body.git))
 
 
 @router.get("/tree")

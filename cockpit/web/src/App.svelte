@@ -9,6 +9,7 @@
   import Split from './lib/Split.svelte'
   import Term from './lib/Term.svelte'
   import Tree from './lib/Tree.svelte'
+  import WorkspacePicker from './lib/WorkspacePicker.svelte'
   import { applyToolResult, getCanvas, isLoopbackUrl, onOpenHiroshima, setCanvas, subscribeCanvas } from './lib/desk'
   import { loadHist, persistHist, type Hist } from './lib/hist'
   import {
@@ -59,6 +60,11 @@
   let fileRev = $state(0)
   let dirty = $state<Record<string, boolean>>({})
   let wsName = $state('kalived')
+  let wsKind = $state<'kalived' | 'external'>('kalived')
+  let wsDlg = $state<null | 'open' | 'new'>(null)
+  let mkdirOpen = $state(false)
+  let mkdirName = $state('')
+  let recents = $state<{ path: string; name: string }[]>([])
   let menu = $state<null | 'fil' | 'rediger' | 'term' | 'innstillinger'>(null)
   let sessMenu = $state(false)
   let treeOpen = $state(localStorage.getItem('kalived.ui.tree') !== '0')
@@ -366,7 +372,7 @@
   })
 
   $effect(() => {
-    const p = projectOf(diskPath)
+    const p = projectOf(diskPath, wsName, wsKind)
     if (!p || p === project) return
     void switchProject(p)
   })
@@ -488,9 +494,7 @@
     window.addEventListener('mousedown', onDoc)
     fetch('/v1/workspace')
       .then((r) => r.json())
-      .then((j) => {
-        if (j.name) wsName = j.name
-      })
+      .then((j) => applyWorkspace(j, false))
       .catch(() => {})
     fetch('/v1/agents')
       .then((r) => r.json())
@@ -618,11 +622,68 @@
     }
   }
 
+  function applyWorkspace(j: Record<string, unknown>, reset = true) {
+    if (typeof j.name === 'string' && j.name) wsName = j.name
+    wsKind = j.kind === 'external' ? 'external' : 'kalived'
+    recents = Array.isArray(j.recents)
+      ? (j.recents as { path: string; name: string }[]).filter((r) => r && r.path)
+      : recents
+    if (reset) {
+      dirty = {}
+      diskPath = typeof j.hint === 'string' ? j.hint : ''
+      previewPath = isHtml(diskPath) ? diskPath : ''
+      previewUrl = ''
+      previewDraft = ''
+      sessionId = ''
+      project = typeof j.project === 'string' ? j.project : projectOf(diskPath, wsName, wsKind)
+      hist = []
+      stream = ''
+      treeTick += 1
+      fileRev += 1
+      void refreshGroups()
+    }
+    wsDlg = null
+    menu = null
+  }
+
+  async function openRecent(path: string) {
+    menu = null
+    const r = await fetch('/v1/workspace/open', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path }),
+    })
+    const j = await r.json().catch(() => ({}))
+    if (!r.ok) {
+      saveNote = String((j as { detail?: string }).detail || 'kunne ikke åpne workspace')
+      return
+    }
+    applyWorkspace(j as Record<string, unknown>)
+  }
+
   function startNewFile() {
     const dir = diskPath.includes('/') ? diskPath.slice(0, diskPath.lastIndexOf('/') + 1) : ''
     newFilePath = dir
     newFile = true
     menu = null
+  }
+
+  async function createDir() {
+    const dest = mkdirName.trim()
+    if (!dest) return
+    const r = await fetch('/v1/workspace/mkdir', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: dest }),
+    })
+    const j = await r.json().catch(() => ({}))
+    if (!r.ok) {
+      saveNote = String((j as { detail?: string }).detail || 'kunne ikke lage mappe')
+      return
+    }
+    mkdirOpen = false
+    mkdirName = ''
+    treeTick += 1
   }
 
   async function createFile() {
@@ -676,7 +737,7 @@
     hist = [...hist, { role: 'you', text: t }]
     draft = ''
     let sid = sessionId
-    const proj = project || projectOf(diskPath)
+    const proj = project || projectOf(diskPath, wsName, wsKind)
     if (proj && !sid) {
       const row = await createSession(proj, hist, t, agentId)
       if (row) {
@@ -712,8 +773,45 @@
           onclick={() => toggleMenu('fil')}
         >Fil</button>
         {#if menu === 'fil'}
-          <div class="absolute left-0 z-30 mt-1 min-w-[12rem] rounded-md border border-white/15 bg-ink py-1 text-xs shadow-lg">
+          <div class="absolute left-0 z-30 mt-1 min-w-[14rem] rounded-md border border-white/15 bg-ink py-1 text-xs shadow-lg">
             <button type="button" class="block w-full px-3 py-1.5 text-left hover:bg-white/10" onclick={startNewFile}>ny fil…</button>
+            <button
+              type="button"
+              class="block w-full px-3 py-1.5 text-left hover:bg-white/10"
+              onclick={() => {
+                menu = null
+                mkdirName = ''
+                mkdirOpen = true
+              }}
+            >ny mappe…</button>
+            <button
+              type="button"
+              class="block w-full px-3 py-1.5 text-left hover:bg-white/10"
+              onclick={() => {
+                menu = null
+                wsDlg = 'new'
+              }}
+            >ny workspace…</button>
+            <button
+              type="button"
+              class="block w-full px-3 py-1.5 text-left hover:bg-white/10"
+              onclick={() => {
+                menu = null
+                wsDlg = 'open'
+              }}
+            >åpne mappe…</button>
+            {#if recents.length}
+              <div class="my-1 border-t border-white/10"></div>
+              {#each recents.slice(0, 6) as r}
+                <button
+                  type="button"
+                  class="block w-full truncate px-3 py-1.5 text-left hover:bg-white/10 {r.name === wsName ? 'text-clean' : ''}"
+                  title={r.path}
+                  onclick={() => openRecent(r.path)}
+                >{r.name}</button>
+              {/each}
+            {/if}
+            <div class="my-1 border-t border-white/10"></div>
             <button
               type="button"
               class="block w-full px-3 py-1.5 text-left hover:bg-white/10"
@@ -758,6 +856,23 @@
                 }}
               >vis tre</button>
             {/if}
+            <div class="my-1 border-t border-white/10"></div>
+            <button
+              type="button"
+              class="block w-full px-3 py-1.5 text-left hover:bg-white/10"
+              onclick={() => {
+                menu = null
+                tab = 'settings'
+              }}
+            >innstillinger</button>
+            <button
+              type="button"
+              class="block w-full px-3 py-1.5 text-left hover:bg-white/10"
+              onclick={() => {
+                menu = null
+                window.close()
+              }}
+            >avslutt</button>
           </div>
         {/if}
       </div>
@@ -895,7 +1010,7 @@
     </div>
   </header>
 
-  {#if saveAs || newFile || saveNote}
+  {#if saveAs || newFile || mkdirOpen || saveNote}
     <div class="flex flex-wrap items-center gap-2 border-b border-white/10 px-3 py-1 text-xs">
       {#if saveAs}
         <form
@@ -927,6 +1042,20 @@
           />
           <button type="submit" class="text-clean">ok</button>
           <button type="button" class="text-paper/50" onclick={() => (newFile = false)}>avbryt</button>
+        </form>
+      {/if}
+      {#if mkdirOpen}
+        <form
+          class="flex items-center gap-1"
+          onsubmit={(e) => {
+            e.preventDefault()
+            createDir()
+          }}
+        >
+          <span class="text-paper/50">ny mappe</span>
+          <input class="w-40 rounded border border-white/15 bg-ink px-2 py-0.5" bind:value={mkdirName} placeholder="navn" />
+          <button type="submit" class="text-clean">ok</button>
+          <button type="button" class="text-paper/50" onclick={() => (mkdirOpen = false)}>avbryt</button>
         </form>
       {/if}
       {#if saveNote}
@@ -1286,7 +1415,7 @@
             {#if sideTab === 'filer'}
               <Tree bind:current={diskPath} reveal={diskPath} {dirty} tick={treeTick} onopen={openDisk} />
             {:else if sideTab === 'git'}
-              <GitPane onopen={openDisk} ondone={() => (treeTick += 1)} />
+              <GitPane onopen={openDisk} ondone={() => (treeTick += 1)} tick={treeTick} />
             {:else}
               <ExtensionsPane />
             {/if}
@@ -1325,6 +1454,14 @@
     </div>
   {/if}
 </div>
+
+{#if wsDlg}
+  <WorkspacePicker
+    mode={wsDlg}
+    oncancel={() => (wsDlg = null)}
+    ondone={(j) => applyWorkspace(j as Record<string, unknown>)}
+  />
+{/if}
 
 {#if hiroshima}
   {#if hiroshimaW < 100}

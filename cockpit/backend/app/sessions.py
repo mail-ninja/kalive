@@ -11,6 +11,7 @@ from pathlib import Path
 from .secrets_store import env_path
 
 _PROJ = re.compile(r"^(docs|apps)/([^/]+)")
+_WS = re.compile(r"^ws/([A-Za-z0-9._-]{1,64})$")
 _SAFE = re.compile(r"[^a-zA-Z0-9._-]+")
 
 
@@ -26,15 +27,22 @@ def root() -> Path:
 
 
 def project_of(path: str) -> str:
-    """docs/mario/index.html → docs/mario. Bare mapper, ikke docs/NOW.md."""
+    """docs/mario/index.html → docs/mario. Eksternt workspace → ws/<mappenavn>."""
     s = (path or "").replace("\\", "/").lstrip("./")
     m = _PROJ.match(s)
-    if not m:
-        return ""
-    name = m.group(2)
-    if "." in name:
-        return ""
-    return f"{m.group(1)}/{name}"
+    if m:
+        name = m.group(2)
+        if "." not in name:
+            return f"{m.group(1)}/{name}"
+    if _WS.match(s):
+        return s
+    from . import workspace as w
+
+    if not w.is_kalived_repo():
+        name = w.root().name
+        if re.match(r"^[A-Za-z0-9._-]{1,64}$", name) and not name.startswith("."):
+            return "ws/" + name
+    return ""
 
 
 def canonical(project: str) -> str:
@@ -42,11 +50,13 @@ def canonical(project: str) -> str:
     if p:
         return p
     s = (project or "").replace("\\", "/").strip("/")
+    if _WS.match(s):
+        return s
     return project_of(s + "/index.html")
 
 
 def _key(project: str) -> str:
-    p = project_of(project) or (project if _PROJ.match(project or "") else "")
+    p = project_of(project) or (project if _PROJ.match(project or "") or _WS.match(project or "") else "")
     if not p:
         raise ValueError("ugyldig prosjekt")
     return _SAFE.sub("-", p.replace("/", "--"))[:80]
