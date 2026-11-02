@@ -428,6 +428,130 @@ def term_send(args: dict) -> dict:
     return out
 
 
+def _browser():
+    from . import browser_cdp as b
+
+    return b.instance()
+
+
+@register(
+    ToolSpec(
+        name="browser_status",
+        description="Status for kalived CDP-browser (loopback Chromium). Ikke Playwright.",
+        mutating=False,
+        parameters={"type": "object", "properties": {}},
+    )
+)
+def browser_status(_args: dict) -> dict:
+    return _browser().status()
+
+
+@register(
+    ToolSpec(
+        name="browser_open",
+        description="Start Chromium med CDP på 127.0.0.1 (port 9222–9299). Krever hake.",
+        mutating=True,
+        parameters={"type": "object", "properties": {}},
+    )
+)
+def browser_open(_args: dict) -> dict:
+    return _browser().start()
+
+
+@register(
+    ToolSpec(
+        name="browser_navigate",
+        description="Åpne URL i CDP-browser. Loopback alltid. Ekstern http(s) krever hake. Aldri 0.0.0.0.",
+        mutating=True,
+        parameters={
+            "type": "object",
+            "properties": {"url": {"type": "string"}},
+            "required": ["url"],
+        },
+    )
+)
+def browser_navigate(args: dict) -> dict:
+    url = str(args.get("url") or "")
+    allow_ext = bool(args.get("_allow_mutate"))
+    return _browser().navigate(url, allow_external=allow_ext)
+
+
+@register(
+    ToolSpec(
+        name="browser_snapshot",
+        description="AX-tre med [ref=eN] for klikk/tast. Les cockpit-UI og sider Signal åpnet.",
+        mutating=False,
+        parameters={"type": "object", "properties": {}},
+    )
+)
+def browser_snapshot(_args: dict) -> dict:
+    return _browser().snapshot()
+
+
+@register(
+    ToolSpec(
+        name="browser_click",
+        description="Klikk [ref=eN] fra siste snapshot. Krever hake.",
+        mutating=True,
+        parameters={
+            "type": "object",
+            "properties": {"ref": {"type": "string"}},
+            "required": ["ref"],
+        },
+    )
+)
+def browser_click(args: dict) -> dict:
+    return _browser().click(str(args.get("ref") or ""))
+
+
+@register(
+    ToolSpec(
+        name="browser_type",
+        description="Skriv i [ref=eN]. submit=true sender Enter. Krever hake.",
+        mutating=True,
+        parameters={
+            "type": "object",
+            "properties": {
+                "ref": {"type": "string"},
+                "text": {"type": "string"},
+                "submit": {"type": "boolean"},
+            },
+            "required": ["ref", "text"],
+        },
+    )
+)
+def browser_type(args: dict) -> dict:
+    return _browser().type_text(
+        str(args.get("ref") or ""),
+        str(args.get("text") or ""),
+        bool(args.get("submit")),
+    )
+
+
+@register(
+    ToolSpec(
+        name="browser_screenshot",
+        description="PNG under /tmp/kalived-ui/browser/shot.png. Returnerer path, ikke base64.",
+        mutating=False,
+        parameters={"type": "object", "properties": {}},
+    )
+)
+def browser_screenshot(_args: dict) -> dict:
+    return _browser().screenshot()
+
+
+@register(
+    ToolSpec(
+        name="browser_close",
+        description="Stopp CDP-Chromium. Krever hake.",
+        mutating=True,
+        parameters={"type": "object", "properties": {}},
+    )
+)
+def browser_close(_args: dict) -> dict:
+    return _browser().close()
+
+
 @register(
     ToolSpec(
         name="repo_glob",

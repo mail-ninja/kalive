@@ -9,6 +9,7 @@ Hiroshima er host-SOC på én laptop. Ikke SIEM, Huntress, LAN-scanner eller sky
 1. **Miljøklasse auto-merkes.** Ny SSID / ny default-rute / ny DNS blir `env_shift` i skuffen. ALERT krever dual-source eller hard artefakt oppå det.
 2. **Falco etter watch.** Auditd + huntere først. Én eBPF-sensor (Falco, container-regler av), burst ~8 s, ingen always-on unit.
 3. **Baseline er merkelapp.** `outbound_proc.allow` er forventet comm-navn, ikke bevis for rent host. Alt mistenkelig skal synes og kunne fjernes.
+4. **CDP-browser, ikke Playwright.** Signal (og build) styrer én Chromium på `127.0.0.1` via DevTools: AX-snapshot med ref, klikk, tast, screenshot. Samme tools over MCP `POST /v1/mcp` og `python -m app.mcp_stdio`. Ekstern URL krever hake. Aldri 0.0.0.0.
 
 ## Protokoll
 
@@ -143,6 +144,8 @@ Overlay + retag. Confirm: `aide-init` (scoped), `rkhunter-setup`, `isolate-dst`,
 NOPASSWD: `install-kalived-helper.sh` + `install-nopasswd-ctl.sh`.
 
 Signal eier SOC-chatten og Hiroshima-xterm: `hiroshima_run` (allowlist uten `kill-pid`) prøver `sudo -n`; ved passord males `sudo kalived-ctl <id>` i xterm. `term_send where=hiroshima`. LLM eier ikke sudo. Isolate dest fra snapshot.
+
+Signal har CDP-browser (`browser_open`/`navigate`/`snapshot`/`click`/`type`). Bruk den til å lese cockpit-UI (Hiroshima-skuff, dest-IP, knapper) og til agent-browsing. MCP: `GET/POST /v1/mcp` på :8788. Playwright/Puppeteer ligger ikke i treet.
 
 ### H4 — Egress-watch
 

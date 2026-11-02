@@ -32,6 +32,11 @@ _MUTATE_TOOLS = frozenset(
         "hiroshima_run",
         "hiroshima_scan",
         "term_send",
+        "browser_open",
+        "browser_navigate",
+        "browser_click",
+        "browser_type",
+        "browser_close",
     }
 )
 

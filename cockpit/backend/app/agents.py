@@ -28,6 +28,14 @@ SOC_TOOLS = [
     "hiroshima_run",
     "hiroshima_job",
     "term_send",
+    "browser_status",
+    "browser_open",
+    "browser_navigate",
+    "browser_snapshot",
+    "browser_click",
+    "browser_type",
+    "browser_screenshot",
+    "browser_close",
 ]
 CODE_TOOLS = ["iframe_write", "preview_set", "canvas_open", "canvas_edit", "canvas_read", "ping", "term_send"]
 BUILD_TOOLS = [
@@ -41,6 +49,14 @@ BUILD_TOOLS = [
     "preview_set",
     "preview_serve",
     "ping",
+    "browser_status",
+    "browser_open",
+    "browser_navigate",
+    "browser_snapshot",
+    "browser_click",
+    "browser_type",
+    "browser_screenshot",
+    "browser_close",
 ]
 CREW_TOOLS = ["ping", "ask_agent", "repo_read"]
 TERM_TOOLS = ["ping", "term_send"]

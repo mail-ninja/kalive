@@ -208,6 +208,14 @@ hva er ukjent dest, og kjør watch
 ```
 Forvent: `hiroshima_verdict` (unknown_dsts synlig) deretter `hiroshima_run` watch (eller pty `sudo kalived-ctl watch` i Hiroshima-skuffen). Kort neste handling, ikke rapport. Fail: default «undo isolate». Fail: `kill-pid` som tool. Fail: sudo -S. Passord bare i xterm.
 
+**H8 — CDP-browser / MCP**
+
+Hake **på**, agent `signal`:
+```
+åpne cockpit i browser og vis Hiroshima-knappen
+```
+Forvent: `browser_open` + `browser_navigate http://127.0.0.1:5173/` + `browser_snapshot` med «Hiroshima» og `[ref=`. Fail: Playwright/puppeteer-import. Fail: lytter på 0.0.0.0. MCP: `POST /v1/mcp` `tools/list` inneholder `browser_snapshot` og `hiroshima_verdict`.
+
 **H4 — payload-vegg**
 
 ```

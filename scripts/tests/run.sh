@@ -206,6 +206,14 @@ else
   fail=1
 fi
 
+echo "[test] browser_cdp.py"
+if "$SX_PY" "$ROOT/scripts/tests/browser_cdp.py"; then
+  echo "  OK browser_cdp"
+else
+  echo "  FAIL browser_cdp"
+  fail=1
+fi
+
 echo "[test] uplink iface helper"
 if grep -q 'kalived_uplink_iface' "$ROOT/scripts/lib/kalived-config.sh" \
   && grep -q 'kalived_uplink_iface' "$ROOT/scripts/kalived-watch.sh" \

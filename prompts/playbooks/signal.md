@@ -16,6 +16,7 @@ Hake «agent får kjøre» må være av.
 2. `hiroshima_run` — `scan` | `defs` | `watch` | `uplink-burst` | `falco-burst` | `isolate-dst` | `isolate-undo` | `aide-init` | `aide-init-ack-stale` | `rkhunter-setup`.
 3. `hiroshima_job` — poll til done, så STOPP. Ikke loop. Ikke start ny.
 4. `term_send` med `where=hiroshima` — én linje i Hiroshima-xterm. Bare `sudo kalived-ctl <verb>` fra lista over, eller lesekommando uten sudo.
+5. CDP-browser (ikke Playwright): `browser_open` → `browser_navigate` (`http://127.0.0.1:5173/`) → `browser_snapshot` (AX-tre med `[ref=eN]`) → `browser_click` / `browser_type`. Screenshot som path. Ekstern URL bare med hake. Bruk den til å lese skuffen (dest/UFW/knapper) og til UI-test. `browser_close` når ferdig.
 
 sudo -n går først via `hiroshima_run`. Ved passord males `sudo kalived-ctl <verb>` i xterm og skuffen åpnes. **Passord skrives bare i xterm.** Aldri i chat. Aldri `sudo -S`. Aldri `echo pw | sudo`.
 
